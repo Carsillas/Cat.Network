@@ -1,0 +1,94 @@
+﻿<#@ template debug="false" hostspecific="false" language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ output extension=".cs" #>
+
+using System;
+using System.IO;
+using System.Text;
+
+namespace Cat.Network {
+
+<#= GetRACClass(0)#>
+<#= GetRACClass(1)#>
+<#= GetRACClass(2)#>
+<#= GetRACClass(3)#>
+<#= GetRACClass(4)#>
+<#= GetRACClass(5)#>
+<#= GetRACClass(6)#>
+<#= GetRACClass(7)#>
+<#= GetRACClass(8)#>
+
+}
+
+
+<#
+	string GetRACClass(int paramCount) {
+		StringBuilder builder = new();
+
+		string genericArguments = paramCount > 0 ? $"<{GetGenericParameters(paramCount)}>" : "";
+
+			builder.AppendLine(@$"
+	public class RAC{genericArguments} : RPC {string.Join(" ", Enumerable.Range(1, paramCount).Select(value => $"where T{value} : IEquatable<T{value}>"))} {{
+		
+		public event Action{genericArguments} OnInvoke;
+
+		public RAC(RPCInvokeSite invokeSite) : base(invokeSite) {{
+		
+		}}
+		public void Invoke({string.Join(", ", Enumerable.Range(1, paramCount).Select(value => $"T{value} _{value}"))})
+        {{
+		
+            using (MemoryStream stream = new MemoryStream(256))
+            {{
+                using (BinaryWriter writer = new BinaryWriter(stream))
+                {{
+					writer.Write((byte)RequestType.RPC);
+					writer.Write(Entity.NetworkID.ToByteArray());
+					writer.Write(ID);
+					{GetSerializeCalls(paramCount)}
+
+					Entity.Serializer.WriteOutgoingRPCInvocation(stream.ToArray());
+				}}
+			}}
+
+        }}
+        internal override void HandleIncomingInvocation(BinaryReader reader)
+        {{
+			{GetDeserializeCalls(paramCount)}
+			
+			OnInvoke?.Invoke({string.Join(", ", Enumerable.Range(1, paramCount).Select(value => $"_{value}"))});
+        }}
+	}}
+
+");
+		return builder.ToString();
+	}
+
+	string GetGenericParameters(int count) {
+		return string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value}"));
+	}
+	
+	string GetSerializeCalls(int count) {
+		StringBuilder builder = new();
+
+		for(int i = 1; i <= count; i++) {
+			builder.Append($@"
+					Entity.Serializer.SerializationContext.GetSerializationFunction<T{i}>()(writer, _{i});");
+		}
+		return builder.ToString();
+	}
+	
+	string GetDeserializeCalls(int count) {
+		StringBuilder builder = new();
+
+		for(int i = 1; i <= count; i++) {
+			builder.Append($@"
+			T{i} _{i} = Entity.Serializer.SerializationContext.GetDeserializationFunction<T{i}>()(reader, null);");
+		}
+		return builder.ToString();
+	}
+
+#>
