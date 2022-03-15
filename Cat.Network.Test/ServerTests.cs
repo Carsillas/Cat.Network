@@ -143,6 +143,7 @@ namespace Cat.Network.Test
             Assert.AreEqual(123, testEntityServer.TestInt.Value);
 
             testEntityB.Increment();
+            testEntityB.Add(5);
 
             Assert.AreEqual(123, testEntityB.TestInt.Value);
             Assert.AreEqual(123, testEntityServer.TestInt.Value);
@@ -153,8 +154,8 @@ namespace Cat.Network.Test
             Server.Tick();
             ClientB.Tick();
 
-            Assert.AreEqual(124, testEntityB.TestInt.Value);
-            Assert.AreEqual(124, testEntityServer.TestInt.Value);
+            Assert.AreEqual(129, testEntityB.TestInt.Value);
+            Assert.AreEqual(129, testEntityServer.TestInt.Value);
         }
 
 

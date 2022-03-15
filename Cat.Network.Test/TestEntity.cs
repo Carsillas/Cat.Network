@@ -16,9 +16,19 @@ namespace Cat.Network.Test
             TestInt.Value++;
         }
 
+        [RPC(RPCInvokeSite.Owner)]
+        private void TestRPC(int a)
+        {
+            TestInt.Value += a;
+        }
+
         public void Increment()
         {
             InvokeRPC(TestRPC);
+        }
+        public void Add(int a)
+        {
+            InvokeRPC(TestRPC, a);
         }
 
     }

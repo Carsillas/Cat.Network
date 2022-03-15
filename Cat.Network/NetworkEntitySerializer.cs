@@ -159,12 +159,6 @@ namespace Cat.Network
             if (RPCs.TryGetValue(rpcID, out MethodInfo rpc))
             {
                 ParameterInfo[] Parameters = rpc.GetParameters();
-
-                Type[] OpenActionGenericParameters = new[] { typeof(object) /* implicit this */ }
-                    .Concat(Parameters.Select(Parameter => Parameter.ParameterType))
-                    // only necessary for Func<> in the future     .Concat(rpc.ReturnType == typeof(void) ? new Type[] { } : new[] { rpc.ReturnType })
-                    .ToArray();
-
                 
                 MethodInfo method = typeof(NetworkEntity).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
                     .First(m => m.Name == $"DeserializeInvokeAction{Parameters.Length}");
@@ -175,7 +169,7 @@ namespace Cat.Network
                 } else
                 {
                     method.GetGenericMethodDefinition()
-                        .MakeGenericMethod(OpenActionGenericParameters)
+                        .MakeGenericMethod(Parameters.Select(Parameter => Parameter.ParameterType).ToArray())
                         .Invoke(Entity, new object[] { reader, rpc });
                 }
 
@@ -311,7 +305,7 @@ namespace Cat.Network
                 }
 
                 return methods.ToDictionary(
-                methodInfo => GetStringHash($"{methodInfo.DeclaringType.Name}.{methodInfo.Name}"),
+                methodInfo => GetStringHash(methodInfo.ToString()),
                 methodInfo => methodInfo);
 
                 Guid GetStringHash(string value)

@@ -122,14 +122,7 @@ namespace Cat.Network
                     client.RelevantEntities.Add(entity);
                 }
 
-             
-
-
             }
-
-
-
-
 
         }
 
