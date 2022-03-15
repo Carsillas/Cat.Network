@@ -10,10 +10,10 @@ namespace Cat.Network {
 	public partial class NetworkEntity {
 
 
-		public void InvokeRPC(Action RPC ) 
+		protected void InvokeRPC(Action RPC ) 
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -33,10 +33,10 @@ namespace Cat.Network {
         }
 
 
-		public void InvokeRPC<T1>(Action<T1> RPC, T1 _1) where T1 : IEquatable<T1>
+		protected void InvokeRPC<T1>(Action<T1> RPC, T1 _1) where T1 : IEquatable<T1>
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -57,10 +57,10 @@ namespace Cat.Network {
         }
 
 
-		public void InvokeRPC<T1, T2>(Action<T1, T2> RPC, T1 _1, T2 _2) where T1 : IEquatable<T1> where T2 : IEquatable<T2>
+		protected void InvokeRPC<T1, T2>(Action<T1, T2> RPC, T1 _1, T2 _2) where T1 : IEquatable<T1> where T2 : IEquatable<T2>
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -82,10 +82,10 @@ namespace Cat.Network {
         }
 
 
-		public void InvokeRPC<T1, T2, T3>(Action<T1, T2, T3> RPC, T1 _1, T2 _2, T3 _3) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3>
+		protected void InvokeRPC<T1, T2, T3>(Action<T1, T2, T3> RPC, T1 _1, T2 _2, T3 _3) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3>
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -108,10 +108,10 @@ namespace Cat.Network {
         }
 
 
-		public void InvokeRPC<T1, T2, T3, T4>(Action<T1, T2, T3, T4> RPC, T1 _1, T2 _2, T3 _3, T4 _4) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4>
+		protected void InvokeRPC<T1, T2, T3, T4>(Action<T1, T2, T3, T4> RPC, T1 _1, T2 _2, T3 _3, T4 _4) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4>
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -135,10 +135,10 @@ namespace Cat.Network {
         }
 
 
-		public void InvokeRPC<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> RPC, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5>
+		protected void InvokeRPC<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> RPC, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5>
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -163,10 +163,10 @@ namespace Cat.Network {
         }
 
 
-		public void InvokeRPC<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> RPC, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6>
+		protected void InvokeRPC<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> RPC, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6>
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -192,10 +192,10 @@ namespace Cat.Network {
         }
 
 
-		public void InvokeRPC<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> RPC, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6, T7 _7) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> where T7 : IEquatable<T7>
+		protected void InvokeRPC<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> RPC, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6, T7 _7) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> where T7 : IEquatable<T7>
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -222,10 +222,10 @@ namespace Cat.Network {
         }
 
 
-		public void InvokeRPC<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> RPC, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6, T7 _7, T8 _8) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> where T7 : IEquatable<T7> where T8 : IEquatable<T8>
+		protected void InvokeRPC<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> RPC, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6, T7 _7, T8 _8) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> where T7 : IEquatable<T7> where T8 : IEquatable<T8>
         {
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {
                 throw new Exception("RPC Invoked on incorrect object!");
             }
@@ -257,7 +257,7 @@ namespace Cat.Network {
 		internal void DeserializeInvokeAction0(BinaryReader reader, MethodInfo methodInfo)  { 
 			
 			
-			methodInfo.Invoke(RPCTarget, new object[] {  });
+			methodInfo.Invoke(this, new object[] {  });
 		}
 
 
@@ -266,7 +266,7 @@ namespace Cat.Network {
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			
-			methodInfo.Invoke(RPCTarget, new object[] { _1 });
+			methodInfo.Invoke(this, new object[] { _1 });
 		}
 
 
@@ -276,7 +276,7 @@ namespace Cat.Network {
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);
 			
-			methodInfo.Invoke(RPCTarget, new object[] { _1, _2 });
+			methodInfo.Invoke(this, new object[] { _1, _2 });
 		}
 
 
@@ -287,7 +287,7 @@ namespace Cat.Network {
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);
 			T3 _3 = Serializer.SerializationContext.GetDeserializationFunction<T3>()(reader, null);
 			
-			methodInfo.Invoke(RPCTarget, new object[] { _1, _2, _3 });
+			methodInfo.Invoke(this, new object[] { _1, _2, _3 });
 		}
 
 
@@ -299,7 +299,7 @@ namespace Cat.Network {
 			T3 _3 = Serializer.SerializationContext.GetDeserializationFunction<T3>()(reader, null);
 			T4 _4 = Serializer.SerializationContext.GetDeserializationFunction<T4>()(reader, null);
 			
-			methodInfo.Invoke(RPCTarget, new object[] { _1, _2, _3, _4 });
+			methodInfo.Invoke(this, new object[] { _1, _2, _3, _4 });
 		}
 
 
@@ -312,7 +312,7 @@ namespace Cat.Network {
 			T4 _4 = Serializer.SerializationContext.GetDeserializationFunction<T4>()(reader, null);
 			T5 _5 = Serializer.SerializationContext.GetDeserializationFunction<T5>()(reader, null);
 			
-			methodInfo.Invoke(RPCTarget, new object[] { _1, _2, _3, _4, _5 });
+			methodInfo.Invoke(this, new object[] { _1, _2, _3, _4, _5 });
 		}
 
 
@@ -326,7 +326,7 @@ namespace Cat.Network {
 			T5 _5 = Serializer.SerializationContext.GetDeserializationFunction<T5>()(reader, null);
 			T6 _6 = Serializer.SerializationContext.GetDeserializationFunction<T6>()(reader, null);
 			
-			methodInfo.Invoke(RPCTarget, new object[] { _1, _2, _3, _4, _5, _6 });
+			methodInfo.Invoke(this, new object[] { _1, _2, _3, _4, _5, _6 });
 		}
 
 
@@ -341,7 +341,7 @@ namespace Cat.Network {
 			T6 _6 = Serializer.SerializationContext.GetDeserializationFunction<T6>()(reader, null);
 			T7 _7 = Serializer.SerializationContext.GetDeserializationFunction<T7>()(reader, null);
 			
-			methodInfo.Invoke(RPCTarget, new object[] { _1, _2, _3, _4, _5, _6, _7 });
+			methodInfo.Invoke(this, new object[] { _1, _2, _3, _4, _5, _6, _7 });
 		}
 
 
@@ -357,7 +357,7 @@ namespace Cat.Network {
 			T7 _7 = Serializer.SerializationContext.GetDeserializationFunction<T7>()(reader, null);
 			T8 _8 = Serializer.SerializationContext.GetDeserializationFunction<T8>()(reader, null);
 			
-			methodInfo.Invoke(RPCTarget, new object[] { _1, _2, _3, _4, _5, _6, _7, _8 });
+			methodInfo.Invoke(this, new object[] { _1, _2, _3, _4, _5, _6, _7, _8 });
 		}
 
 

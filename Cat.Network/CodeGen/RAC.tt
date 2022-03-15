@@ -47,10 +47,10 @@ namespace Cat.Network {
 		string conditionalComma = count > 0 ? "," : "";
 
 		builder.AppendLine(@$"
-		public void InvokeRPC{genericArguments}(Action{genericArguments} RPC{conditionalComma} {string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value} _{value}"))}) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))}
+		protected void InvokeRPC{genericArguments}(Action{genericArguments} RPC{conditionalComma} {string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value} _{value}"))}) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))}
         {{
 
-		    if(RPC.Target != RPCTarget)
+		    if(RPC.Target != this)
             {{
                 throw new Exception(""RPC Invoked on incorrect object!"");
             }}
@@ -94,7 +94,7 @@ namespace Cat.Network {
 			
 	string GetInvokeCall(int count) {
 		return $@"
-			methodInfo.Invoke(RPCTarget, new object[] {{ {string.Join(", ", Enumerable.Range(1, count).Select(Value => $"_{Value}"))} }});";
+			methodInfo.Invoke(this, new object[] {{ {string.Join(", ", Enumerable.Range(1, count).Select(Value => $"_{Value}"))} }});";
 	}
 	
 	string GetSerializeCalls(int count) {

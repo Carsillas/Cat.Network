@@ -10,11 +10,8 @@ namespace Cat.Network
 
         internal NetworkEntitySerializer Serializer { get; }
 
-        public object RPCTarget { get; set; }
-
         public NetworkEntity()
         {
-            RPCTarget = this;
             Serializer = new NetworkEntitySerializer(this);
         }
 

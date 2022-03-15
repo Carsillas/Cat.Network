@@ -55,7 +55,7 @@ namespace Cat.Network
                 property => $"{property.DeclaringType.Name}.{property.Name}",
                 property => (NetworkProperty)property.GetValue(Entity));
 
-            RPCs = GetRPCs(Entity.RPCTarget.GetType());
+            RPCs = GetRPCs(Entity.GetType());
 
             foreach (NetworkProperty property in Properties.Values)
             {
