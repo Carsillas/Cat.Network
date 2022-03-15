@@ -7,68 +7,94 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace Cat.Network {
+	public partial class NetworkEntity {
 
-<#= GetRACClass(0)#>
-<#= GetRACClass(1)#>
-<#= GetRACClass(2)#>
-<#= GetRACClass(3)#>
-<#= GetRACClass(4)#>
-<#= GetRACClass(5)#>
-<#= GetRACClass(6)#>
-<#= GetRACClass(7)#>
-<#= GetRACClass(8)#>
+<#= GetRACInvoke(0)#>
+<#= GetRACInvoke(1)#>
+<#= GetRACInvoke(2)#>
+<#= GetRACInvoke(3)#>
+<#= GetRACInvoke(4)#>
+<#= GetRACInvoke(5)#>
+<#= GetRACInvoke(6)#>
+<#= GetRACInvoke(7)#>
+<#= GetRACInvoke(8)#>
 
+<#= GetDeserializeInvokeAction(0)#>
+<#= GetDeserializeInvokeAction(1)#>
+<#= GetDeserializeInvokeAction(2)#>
+<#= GetDeserializeInvokeAction(3)#>
+<#= GetDeserializeInvokeAction(4)#>
+<#= GetDeserializeInvokeAction(5)#>
+<#= GetDeserializeInvokeAction(6)#>
+<#= GetDeserializeInvokeAction(7)#>
+<#= GetDeserializeInvokeAction(8)#>
+
+	}
 }
 
 
 <#
-	string GetRACClass(int paramCount) {
+	string GetRACInvoke(int count) {
 		StringBuilder builder = new();
 
-		string genericArguments = paramCount > 0 ? $"<{GetGenericParameters(paramCount)}>" : "";
+		string genericArguments = count > 0 ? $"<{GetGenericParameters(count)}>" : "";
+		string conditionalComma = count > 0 ? "," : "";
 
-			builder.AppendLine(@$"
-	public class RAC{genericArguments} : RPC {string.Join(" ", Enumerable.Range(1, paramCount).Select(value => $"where T{value} : IEquatable<T{value}>"))} {{
-		
-		public event Action{genericArguments} OnInvoke;
-
-		public RAC(RPCInvokeSite invokeSite) : base(invokeSite) {{
-		
-		}}
-		public void Invoke({string.Join(", ", Enumerable.Range(1, paramCount).Select(value => $"T{value} _{value}"))})
+		builder.AppendLine(@$"
+		public void InvokeRPC{genericArguments}(Action{genericArguments} RPC{conditionalComma} {string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value} _{value}"))}) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))}
         {{
-		
+
+		    if(RPC.Target != RPCTarget)
+            {{
+                throw new Exception(""RPC Invoked on incorrect object!"");
+            }}
+
             using (MemoryStream stream = new MemoryStream(256))
             {{
                 using (BinaryWriter writer = new BinaryWriter(stream))
                 {{
 					writer.Write((byte)RequestType.RPC);
-					writer.Write(Entity.NetworkID.ToByteArray());
-					writer.Write(ID);
-					{GetSerializeCalls(paramCount)}
+					writer.Write(NetworkID.ToByteArray());
+					Serializer.WriteRPCID(writer, RPC.Method);
+					{GetSerializeCalls(count)}
 
-					Entity.Serializer.WriteOutgoingRPCInvocation(stream.ToArray());
+					Serializer.WriteOutgoingRPCInvocation(stream.ToArray());
 				}}
 			}}
+        }}");
 
-        }}
-        internal override void HandleIncomingInvocation(BinaryReader reader)
-        {{
-			{GetDeserializeCalls(paramCount)}
-			
-			OnInvoke?.Invoke({string.Join(", ", Enumerable.Range(1, paramCount).Select(value => $"_{value}"))});
-        }}
-	}}
-
-");
 		return builder.ToString();
 	}
 
+	string GetDeserializeInvokeAction(int count) {
+
+		StringBuilder Builder = new();
+		string genericArguments = count > 0 ? $"<{GetGenericParameters(count)}>" : "";
+
+				Builder.AppendLine(@$"
+		internal void DeserializeInvokeAction{count}{genericArguments}(BinaryReader reader, MethodInfo methodInfo) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))} {{ 
+			{GetDeserializeCalls(count)}
+			{GetInvokeCall(count)}
+		}}
+");
+			
+			return Builder.ToString();
+		}
+
+
 	string GetGenericParameters(int count) {
 		return string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value}"));
+	}
+			
+	string GetInvokeCall(int count) {
+		return $@"
+			methodInfo.Invoke(RPCTarget, new object[] {{ {string.Join(", ", Enumerable.Range(1, count).Select(Value => $"_{Value}"))} }});";
 	}
 	
 	string GetSerializeCalls(int count) {
@@ -76,7 +102,7 @@ namespace Cat.Network {
 
 		for(int i = 1; i <= count; i++) {
 			builder.Append($@"
-					Entity.Serializer.SerializationContext.GetSerializationFunction<T{i}>()(writer, _{i});");
+					Serializer.SerializationContext.GetSerializationFunction<T{i}>()(writer, _{i});");
 		}
 		return builder.ToString();
 	}
@@ -86,7 +112,7 @@ namespace Cat.Network {
 
 		for(int i = 1; i <= count; i++) {
 			builder.Append($@"
-			T{i} _{i} = Entity.Serializer.SerializationContext.GetDeserializationFunction<T{i}>()(reader, null);");
+			T{i} _{i} = Serializer.SerializationContext.GetDeserializationFunction<T{i}>()(reader, null);");
 		}
 		return builder.ToString();
 	}

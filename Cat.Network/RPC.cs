@@ -7,23 +7,19 @@ namespace Cat.Network
 {
     public enum RPCInvokeSite
     {
-        Owner,
-        Server,
-        All
+        Owner
     }
 
-    public abstract class RPC
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class RPC : Attribute
     {
         internal RPCInvokeSite InvokeSite { get; }
-        internal NetworkEntity Entity { get; set; }
-        internal string ID { get; set; }
 
         public RPC(RPCInvokeSite invokeSite)
         {
             InvokeSite = invokeSite;
         }
-
-        internal abstract void HandleIncomingInvocation(BinaryReader reader);
 
     }
 

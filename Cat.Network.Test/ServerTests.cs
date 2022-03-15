@@ -35,6 +35,7 @@ namespace Cat.Network.Test
             ClientB.Connect(serverBTransport);
         }
 
+
         [Test]
         public void Test_EntitySpawning()
         {
@@ -68,7 +69,7 @@ namespace Cat.Network.Test
         }
 
         [Test]
-        public void Test_EntityModification()
+        public void Test_OwnerEntityModification()
         {
             TestEntity testEntityA = new TestEntity();
 
@@ -91,18 +92,13 @@ namespace Cat.Network.Test
 
             Assert.AreEqual(123, testEntityServer.TestInt.Value);
             Assert.AreEqual(123, testEntityB.TestInt.Value);
+
         }
 
-
         [Test]
-        public void Test_EntityRPC()
+        public void Test_NonOwnerEntityModification()
         {
-            int count = 1;
             TestEntity testEntityA = new TestEntity();
-            testEntityA.PrintSum.OnInvoke += (int a, int b) =>
-            {
-                count++;
-            };
 
             ClientA.Spawn(testEntityA);
             ClientA.Tick();
@@ -115,18 +111,50 @@ namespace Cat.Network.Test
             TestEntity testEntityServer = (TestEntity)entityServer;
             TestEntity testEntityB = (TestEntity)entityB;
 
-            testEntityServer.PrintSum.OnInvoke += (int a, int b) =>
-            {
-                count+=2;
-            };
-
-            testEntityB.PrintSum.Invoke(23, 46);
+            testEntityB.TestInt.Value = 123;
 
             ClientB.Tick();
             Server.Tick();
             ClientA.Tick();
 
-            Assert.AreEqual(2, count);
+            Assert.AreEqual(0, testEntityA.TestInt.Value);
+            Assert.AreEqual(0, testEntityServer.TestInt.Value);
+            Assert.AreEqual(123, testEntityB.TestInt.Value);
+
+        }
+
+        [Test]
+        public void Test_EntityRPC()
+        {
+            TestEntity testEntityA = new TestEntity();
+            testEntityA.TestInt.Value = 123;
+
+            ClientA.Spawn(testEntityA);
+            ClientA.Tick();
+            Server.Tick();
+            ClientB.Tick();
+
+            ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+            TestEntity testEntityB = (TestEntity)entityB;
+            ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
+            TestEntity testEntityServer = (TestEntity)entityServer;
+
+            Assert.AreEqual(123, testEntityB.TestInt.Value);
+            Assert.AreEqual(123, testEntityServer.TestInt.Value);
+
+            testEntityB.Increment();
+
+            Assert.AreEqual(123, testEntityB.TestInt.Value);
+            Assert.AreEqual(123, testEntityServer.TestInt.Value);
+
+            ClientB.Tick();
+            Server.Tick();
+            ClientA.Tick();
+            Server.Tick();
+            ClientB.Tick();
+
+            Assert.AreEqual(124, testEntityB.TestInt.Value);
+            Assert.AreEqual(124, testEntityServer.TestInt.Value);
         }
 
 

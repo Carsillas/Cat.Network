@@ -8,8 +8,18 @@ namespace Cat.Network.Test
     {
         public NetworkProperty<int> TestInt { get; } = new NetworkProperty<int>();
 
-        public RAC<int, int> PrintSum { get; } = new RAC<int, int>(RPCInvokeSite.Owner);
 
+
+        [RPC(RPCInvokeSite.Owner)]
+        private void TestRPC()
+        {
+            TestInt.Value++;
+        }
+
+        public void Increment()
+        {
+            InvokeRPC(TestRPC);
+        }
 
     }
 }

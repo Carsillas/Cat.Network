@@ -4,12 +4,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace Cat.Network
 {
     internal sealed class NetworkEntitySerializer
     {
+
+        private static HashAlgorithm HashAlgorithm { get; } = MD5.Create();
+
         internal enum SerializationOptions
         {
             All,
@@ -19,7 +23,8 @@ namespace Cat.Network
         internal SerializationContext SerializationContext { get; private set; }
 
         private Dictionary<string, NetworkProperty> Properties { get; set; }
-        private Dictionary<string, RPC> RPCs { get; set; }
+        private IReadOnlyDictionary<Guid, MethodInfo> RPCs { get; set; }
+
         private NetworkEntity Entity { get; }
 
         private bool _Dirty;
@@ -50,19 +55,11 @@ namespace Cat.Network
                 property => $"{property.DeclaringType.Name}.{property.Name}",
                 property => (NetworkProperty)property.GetValue(Entity));
 
-            RPCs = GetRPCs(Entity.GetType()).ToDictionary(
-                property => $"{property.DeclaringType.Name}.{property.Name}",
-                property => (RPC)property.GetValue(Entity));
+            RPCs = GetRPCs(Entity.RPCTarget.GetType());
 
             foreach (NetworkProperty property in Properties.Values)
             {
                 property.Entity = Entity;
-            }
-
-            foreach (KeyValuePair<string, RPC> rpc in RPCs)
-            {
-                rpc.Value.Entity = Entity;
-                rpc.Value.ID = rpc.Key;
             }
         }
 
@@ -150,12 +147,39 @@ namespace Cat.Network
             return null;
         }
 
+        internal void WriteRPCID(BinaryWriter writer, MethodInfo methodInfo)
+        {
+            writer.Write(RPCs.Where(kvp => kvp.Value == methodInfo).First().Key.ToByteArray());
+        }
+
         internal void HandleIncomingRPCInvocation(BinaryReader reader)
         {
-            string rpcName = reader.ReadString();
-            if (RPCs.TryGetValue(rpcName, out RPC rpc))
+
+            Guid rpcID = new Guid(reader.ReadBytes(16));
+            if (RPCs.TryGetValue(rpcID, out MethodInfo rpc))
             {
-                rpc.HandleIncomingInvocation(reader);
+                ParameterInfo[] Parameters = rpc.GetParameters();
+
+                Type[] OpenActionGenericParameters = new[] { typeof(object) /* implicit this */ }
+                    .Concat(Parameters.Select(Parameter => Parameter.ParameterType))
+                    // only necessary for Func<> in the future     .Concat(rpc.ReturnType == typeof(void) ? new Type[] { } : new[] { rpc.ReturnType })
+                    .ToArray();
+
+                
+                MethodInfo method = typeof(NetworkEntity).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+                    .First(m => m.Name == $"DeserializeInvokeAction{Parameters.Length}");
+
+                if(Parameters.Length == 0)
+                {
+                    method.Invoke(Entity, new object[] { reader, rpc });
+                } else
+                {
+                    method.GetGenericMethodDefinition()
+                        .MakeGenericMethod(OpenActionGenericParameters)
+                        .Invoke(Entity, new object[] { reader, rpc });
+                }
+
+
             }
 
         }
@@ -258,39 +282,46 @@ namespace Cat.Network
             }
         }
 
-        private static ConcurrentDictionary<Type, IReadOnlyList<PropertyInfo>> RPCsCache { get; } = new ConcurrentDictionary<Type, IReadOnlyList<PropertyInfo>>();
-        private static IReadOnlyList<PropertyInfo> GetRPCs(Type type)
+        private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>> RPCsCache { get; } = 
+            new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>>();
+        private static IReadOnlyDictionary<Guid, MethodInfo> GetRPCs(Type type)
         {
             return RPCsCache.GetOrAdd(type, ValueFactory);
 
-            IReadOnlyList<PropertyInfo> ValueFactory(Type key)
+            IReadOnlyDictionary<Guid, MethodInfo> ValueFactory(Type key)
             {
 
                 Type currentType = key;
-                IEnumerable<PropertyInfo> currentList = Enumerable.Empty<PropertyInfo>();
+                IEnumerable<MethodInfo> currentList = Enumerable.Empty<MethodInfo>();
                 while (currentType != null)
                 {
-                    currentList = currentList.Concat(currentType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+                    currentList = currentList.Concat(currentType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
                     currentType = currentType.BaseType;
                 }
 
-                List<PropertyInfo> properties =
-                    currentList.Where(X => typeof(RPC).IsAssignableFrom(X.PropertyType))
-                    .OrderBy(X => X.Name)
+                List<MethodInfo> methods =
+                    currentList.Where(X => X.IsDefined(typeof(RPC)))
                     .ToList();
 
-                if (properties.Any(Property => Property.SetMethod != null || Property.CanWrite))
+                if (false /* || methods.Any(method isnt supported) */)
                 {
-                    string message = $"RPCs must be get-only!\n" +
-                        string.Join("\n", properties.Where(property => property.SetMethod != null || property.CanWrite).Select(property => $"{key.FullName} -> {property.DeclaringType.FullName}.{property.Name}"));
-                    throw new AccessViolationException(message);
+                    //string message = $"RPCs must be get-only!\n" +
+                    //    string.Join("\n", properties.Where(property => property.SetMethod != null || property.CanWrite).Select(property => $"{key.FullName} -> {property.DeclaringType.FullName}.{property.Name}"));
+                    //throw new AccessViolationException(message);
                 }
 
-                return properties;
+                return methods.ToDictionary(
+                methodInfo => GetStringHash($"{methodInfo.DeclaringType.Name}.{methodInfo.Name}"),
+                methodInfo => methodInfo);
+
+                Guid GetStringHash(string value)
+                {
+                    byte[] stringBytes = Encoding.UTF8.GetBytes(value);
+                    byte[] hash = HashAlgorithm.ComputeHash(stringBytes);
+                    return new Guid(hash);
+                }
             }
         }
-
-
 
     }
 }
