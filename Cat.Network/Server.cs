@@ -41,6 +41,7 @@ namespace Cat.Network
         public void Tick()
         {
             Time++;
+
             foreach (ClientDetails client in Clients)
             {
                 while (client.Transport.TryReadPacket(out byte[] request))
@@ -63,7 +64,6 @@ namespace Cat.Network
 
                 }
             }
-
 
             HashSet<NetworkEntity> EntitiesToDelete = new HashSet<NetworkEntity>();
             HashSet<NetworkEntity> EntitiesToCreate = new HashSet<NetworkEntity>();

@@ -9,7 +9,11 @@ namespace Cat.Network
     public class Client
     {
 
+        private int Time { get; set; }
         private ITransport Transport { get; set; }
+        private IProxyManager _ProxyManager { get; set; }
+        public IProxyManager ProxyManager { get => _ProxyManager; set => UpdateProxyManager(value); }
+
         private Dictionary<RequestType, Action<BinaryReader>> RequestParsers { get; } = new Dictionary<RequestType, Action<BinaryReader>>();
 
         private SerializationContext SerializationContext { get; } = new SerializationContext
@@ -23,7 +27,7 @@ namespace Cat.Network
         private HashSet<NetworkEntity> EntitiesToSpawn { get; } = new HashSet<NetworkEntity>();
         private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new HashSet<NetworkEntity>();
         
-        private int Time { get; set; }
+
         public Client()
         {
             InitializeNetworkRequestParsers();
@@ -38,6 +42,8 @@ namespace Cat.Network
         {
             entity.NetworkID = Guid.NewGuid();
             entity.Serializer.InitializeSerializationContext(SerializationContext);
+
+            ProxyManager?.OnEntityCreated(entity);
             Entities.Add(entity.NetworkID, entity);
             EntitiesToSpawn.Add(entity);
             OwnedEntities.Add(entity.NetworkID, entity);
@@ -45,6 +51,7 @@ namespace Cat.Network
 
         public void Despawn(NetworkEntity entity)
         {
+            ProxyManager?.OnEntityDeleted(entity);
             Entities.Remove(entity.NetworkID);
             OwnedEntities.Remove(entity.NetworkID);
 
@@ -158,7 +165,9 @@ namespace Cat.Network
                 instance.Serializer.InitializeSerializationContext(SerializationContext);
                 instance.Serializer.ReadNetworkProperties(reader);
 
+
                 Entities.Add(networkID, instance);
+                ProxyManager?.OnEntityCreated(instance);
             }
         }
 
@@ -182,8 +191,27 @@ namespace Cat.Network
         {
             Guid networkID = new Guid(Reader.ReadBytes(16));
 
+            if(Entities.TryGetValue(networkID, out NetworkEntity entity))
+            {
+                ProxyManager?.OnEntityDeleted(entity);
+            }
+
             Entities.Remove(networkID);
             OwnedEntities.Remove(networkID);
         }
+
+        private void UpdateProxyManager(IProxyManager newProxyManager)
+        {
+            foreach (NetworkEntity Entity in Entities.Values)
+            {
+                ProxyManager?.OnEntityDeleted(Entity);
+            }
+            _ProxyManager = newProxyManager;
+            foreach (NetworkEntity Entity in Entities.Values)
+            {
+                ProxyManager?.OnEntityCreated(Entity);
+            }
+        }
+
     }
 }

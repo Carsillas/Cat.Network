@@ -8,4 +8,9 @@ namespace Cat.Async
         IAwaiter GetAwaiter();
 
     }
+    public interface IAwaitable<T>
+    {
+        IAwaiter<T> GetAwaiter();
+    }
+
 }

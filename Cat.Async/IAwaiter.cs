@@ -7,4 +7,10 @@ namespace Cat.Async
 		bool IsCompleted { get; }
 		void GetResult();
 	}
+	public interface IAwaiter<T> : INotifyCompletion
+	{
+		bool IsCompleted { get; }
+		T GetResult();
+	}
+
 }
