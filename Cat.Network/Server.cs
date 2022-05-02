@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Cat.Network
 {
     public class Server
     {
 
-        private Dictionary<RequestType, Action<BinaryReader>> RequestParsers { get; } = new Dictionary<RequestType, Action<BinaryReader>>();
+        private Dictionary<RequestType, Action<ClientDetails, BinaryReader>> RequestParsers { get; } = new Dictionary<RequestType, Action<ClientDetails, BinaryReader>>();
         private SerializationContext SerializationContext { get; } = new SerializationContext
         {
             DeserializeDirtiesProperty = true
@@ -15,20 +16,39 @@ namespace Cat.Network
         private List<ClientDetails> Clients { get; } = new List<ClientDetails>();
         public IEntityStorage EntityStorage { get; }
 
+        private Dictionary<NetworkEntity, ClientDetails> Owners { get; } = new Dictionary<NetworkEntity, ClientDetails>();
+
+        private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCs { get; } = new Dictionary<NetworkEntity, List<byte[]>>();
+
         private int Time { get; set; }
 
-        public Server(IEntityStorage entityStorage)
+        private Type ClientEntityType { get; }
+
+        public Server(IEntityStorage entityStorage, Type clientEntityType)
         {
+			if (!typeof(NetworkEntity).IsAssignableFrom(clientEntityType)) {
+                throw new Exception($"{nameof(clientEntityType)} must be a subclass of {nameof(NetworkEntity)}");
+			}
+
             InitializeNetworkRequestParsers();
             EntityStorage = entityStorage;
+            ClientEntityType = clientEntityType;
         }
 
         public void AddTransport(ITransport transport)
         {
-            Clients.Add(new ClientDetails
-            {
-                Transport = transport
-            });
+            NetworkEntity clientEntity = (NetworkEntity)Activator.CreateInstance(ClientEntityType);
+            clientEntity.NetworkID = Guid.NewGuid();
+            clientEntity.Serializer.InitializeSerializationContext(SerializationContext);
+
+            ClientDetails clientDetails = new ClientDetails {
+                Transport = transport,
+                NetworkEntity = clientEntity
+            };
+
+            Owners.Add(clientEntity, clientDetails);
+
+            Clients.Add(clientDetails);
         }
         private void InitializeNetworkRequestParsers()
         {
@@ -42,6 +62,8 @@ namespace Cat.Network
         {
             Time++;
 
+            OutgoingRPCs.Clear();
+
             foreach (ClientDetails client in Clients)
             {
                 while (client.Transport.TryReadPacket(out byte[] request))
@@ -51,9 +73,9 @@ namespace Cat.Network
                         using (BinaryReader reader = new BinaryReader(stream))
                         {
                             RequestType requestType = (RequestType)reader.ReadByte();
-                            if (RequestParsers.TryGetValue(requestType, out Action<BinaryReader> handler))
+                            if (RequestParsers.TryGetValue(requestType, out Action<ClientDetails, BinaryReader> handler))
                             {
-                                handler.Invoke(reader);
+                                handler.Invoke(client, reader);
                             }
                             else
                             {
@@ -65,33 +87,46 @@ namespace Cat.Network
                 }
             }
 
-            HashSet<NetworkEntity> EntitiesToDelete = new HashSet<NetworkEntity>();
-            HashSet<NetworkEntity> EntitiesToCreate = new HashSet<NetworkEntity>();
 
-            foreach(ClientDetails client in Clients)
-            {
-                EntitiesToDelete.Clear();
-                EntitiesToCreate.Clear();
+            foreach (ClientDetails client in Clients) {
+                client.EntitiesToDelete.Clear();
+                client.EntitiesToCreate.Clear();
 
-                HashSet<NetworkEntity> RelevantEntities = EntityStorage.GetRelevantEntities(client.NetworkEntity);
+                HashSet<NetworkEntity> relevantEntities = EntityStorage.GetRelevantEntities(client.NetworkEntity);
 
-                foreach(NetworkEntity entity in client.RelevantEntities)
-                {
-                    if (!RelevantEntities.Contains(entity))
-                    {
-                        EntitiesToDelete.Add(entity);
+                foreach (NetworkEntity entity in Clients.Select(c => c.NetworkEntity)) {
+                    relevantEntities.Add(entity);
+				}
+
+                foreach (NetworkEntity entity in client.RelevantEntities) {
+                    if (!relevantEntities.Contains(entity)) {
+                        client.EntitiesToDelete.Add(entity);
+
+                        if(Owners.TryGetValue(entity, out ClientDetails owner) && owner == client) {
+                            Owners.Remove(entity);
+						}
                     }
                 }
 
-                foreach(NetworkEntity entity in RelevantEntities)
-                {
-                    if (!client.RelevantEntities.Contains(entity))
-                    {
-                        EntitiesToCreate.Add(entity);
+                foreach(NetworkEntity entity in client.EntitiesToDelete) {
+                    client.RelevantEntities.Remove(entity);
+				}
+
+                foreach (NetworkEntity entity in relevantEntities) {
+                    if (!client.RelevantEntities.Contains(entity)) {
+                        client.EntitiesToCreate.Add(entity);
                     }
                 }
-                
-                foreach(NetworkEntity entity in EntitiesToDelete)
+
+                foreach (NetworkEntity entity in client.EntitiesToCreate) {
+                    client.RelevantEntities.Add(entity);
+                }
+
+            }
+
+            foreach (ClientDetails client in Clients) {
+
+                foreach (NetworkEntity entity in client.EntitiesToDelete)
                 {
                     using (MemoryStream stream = new MemoryStream(256))
                     {
@@ -103,23 +138,41 @@ namespace Cat.Network
                             client.Transport.SendPacket(stream.ToArray());
                         }
                     }
-                    
-                    client.RelevantEntities.Remove(entity);
+
                 }
 
-                foreach(NetworkEntity entity in client.RelevantEntities)
-                {
-                    byte[] bytes = entity.Serializer.GetUpdateRequest(Time);
-                    if(bytes != null)
-                    {
-                        client.Transport.SendPacket(bytes);
-                    }
-                }
-
-                foreach(NetworkEntity entity in EntitiesToCreate)
-                {
+                foreach (NetworkEntity entity in client.EntitiesToCreate) {
                     client.Transport.SendPacket(entity.Serializer.GetCreateRequest());
-                    client.RelevantEntities.Add(entity);
+                }
+
+                foreach (NetworkEntity entity in client.RelevantEntities) {
+                    
+                    if (!Owners.ContainsKey(entity)) {
+                        Owners.Add(entity, client);
+                        using(MemoryStream stream = new MemoryStream(20)) {
+                            using (BinaryWriter writer = new BinaryWriter(stream)) {
+
+                                writer.Write((byte)RequestType.AssignOwner);
+                                writer.Write(entity.NetworkID.ToByteArray());
+
+                                client.Transport.SendPacket(stream.ToArray());
+                            }
+						}
+                    }
+
+					if (!client.EntitiesToCreate.Contains(entity)) {
+                        byte[] bytes = entity.Serializer.GetUpdateRequest(Time);
+                        if (bytes != null) {
+                            client.Transport.SendPacket(bytes);
+                        }
+                    }
+
+                    if(Owners.TryGetValue(entity, out ClientDetails owner) && owner == client && OutgoingRPCs.TryGetValue(entity, out List<byte[]> outgoingRpcs)) {
+                        foreach(byte[] rpc in outgoingRpcs) {
+                            client.Transport.SendPacket(rpc);
+						}
+					}
+
                 }
 
             }
@@ -127,7 +180,7 @@ namespace Cat.Network
         }
 
 
-        private void HandleCreateEntityRequest(BinaryReader reader)
+        private void HandleCreateEntityRequest(ClientDetails clientDetails, BinaryReader reader)
         {
             Guid networkID = new Guid(reader.ReadBytes(16));
             string entityTypeName = reader.ReadString();
@@ -145,12 +198,14 @@ namespace Cat.Network
                 instance.NetworkID = networkID;
                 instance.Serializer.InitializeSerializationContext(SerializationContext);
                 instance.Serializer.ReadNetworkProperties(reader);
+                clientDetails.RelevantEntities.Add(instance);
+                Owners.Add(instance, clientDetails);
                 EntityStorage.RegisterEntity(instance);
             }
         }
 
 
-        private void HandleUpdateEntityRequest(BinaryReader reader)
+        private void HandleUpdateEntityRequest(ClientDetails clientDetails, BinaryReader reader)
         {
             Guid networkID = new Guid(reader.ReadBytes(16));
 
@@ -160,22 +215,40 @@ namespace Cat.Network
             }
         }
 
-        private void HandleDeleteEntityRequest(BinaryReader Reader)
+        private void HandleDeleteEntityRequest(ClientDetails clientDetails, BinaryReader Reader)
         {
             Guid networkID = new Guid(Reader.ReadBytes(16));
 
+			if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity)) {
+                Owners.Remove(entity);
+			}
             EntityStorage.UnregisterEntity(networkID);
-
         }
 
 
-        private void HandleRPCRequest(BinaryReader reader)
+        private void HandleRPCRequest(ClientDetails clientDetails, BinaryReader reader)
         {
             Guid networkID = new Guid(reader.ReadBytes(16));
             
             if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity))
             {
-                entity.Serializer.HandleIncomingRPCInvocation(reader);
+               
+                if(!OutgoingRPCs.TryGetValue(entity, out List<byte[]> rpcs)) {
+                    rpcs = new List<byte[]>();
+                    OutgoingRPCs.Add(entity, rpcs);
+				}
+
+                using (MemoryStream stream = new MemoryStream((int)reader.BaseStream.Length + 16)) {
+                    using (BinaryWriter writer = new BinaryWriter(stream)) {
+                        writer.Write((byte)RequestType.RPC);
+                        writer.Write(networkID.ToByteArray());
+                        writer.Write(clientDetails.NetworkEntity.NetworkID.ToByteArray());
+                        writer.Write(reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position)));
+
+                        rpcs.Add(stream.ToArray());
+                    }
+				}
+
             }
         }
 
@@ -183,8 +256,11 @@ namespace Cat.Network
         private class ClientDetails
         {
             public ITransport Transport { get; set; }
+
             public NetworkEntity NetworkEntity { get; set; }
             public HashSet<NetworkEntity> RelevantEntities { get; } = new HashSet<NetworkEntity>();
+            public HashSet<NetworkEntity> EntitiesToDelete { get; } = new HashSet<NetworkEntity>();
+            public HashSet<NetworkEntity> EntitiesToCreate { get; } = new HashSet<NetworkEntity>();
 
         }
 

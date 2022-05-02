@@ -15,7 +15,7 @@ namespace Cat.Network.Test
         public void Setup()
         {
             ServerEntityStorage = new TestEntityStorage();
-            Server = new Server(ServerEntityStorage);
+            Server = new Server(ServerEntityStorage, typeof(TestEntity));
             ClientA = new Client();
             ClientB = new Client();
 
@@ -154,6 +154,7 @@ namespace Cat.Network.Test
             Server.Tick();
             ClientB.Tick();
 
+            Assert.AreEqual(129, testEntityA.TestInt.Value);
             Assert.AreEqual(129, testEntityB.TestInt.Value);
             Assert.AreEqual(129, testEntityServer.TestInt.Value);
         }

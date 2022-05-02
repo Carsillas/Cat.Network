@@ -10,6 +10,6 @@ namespace Cat.Network
         UpdateEntity = 2,
         DeleteEntity = 3,
         RPC = 4,
-        RPCResponse = 5
+        AssignOwner = 5
     }
 }

@@ -73,7 +73,7 @@ namespace Cat.Network
             _Value = value;
 
             if (!EqualityComparer<T>.Default.Equals(previous, value))
-            {
+            { 
                 OnValueChanged?.Invoke(previous);
                 if(markDirty)
                 {

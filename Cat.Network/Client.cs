@@ -135,6 +135,8 @@ namespace Cat.Network
             RequestParsers.Add(RequestType.CreateEntity, HandleCreateEntityRequest);
             RequestParsers.Add(RequestType.UpdateEntity, HandleUpdateEntityRequest);
             RequestParsers.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
+            RequestParsers.Add(RequestType.RPC, HandleRPCRequest);
+            RequestParsers.Add(RequestType.AssignOwner, HandleAssignOwnerRequest);
         }
 
         private void HandleCreateEntityRequest(BinaryReader reader)
@@ -187,9 +189,9 @@ namespace Cat.Network
             }
         }
 
-        private void HandleDeleteEntityRequest(BinaryReader Reader)
+        private void HandleDeleteEntityRequest(BinaryReader reader)
         {
-            Guid networkID = new Guid(Reader.ReadBytes(16));
+            Guid networkID = new Guid(reader.ReadBytes(16));
 
             if(Entities.TryGetValue(networkID, out NetworkEntity entity))
             {
@@ -198,6 +200,34 @@ namespace Cat.Network
 
             Entities.Remove(networkID);
             OwnedEntities.Remove(networkID);
+        }
+
+        private void HandleRPCRequest(BinaryReader reader) {
+
+            Guid entityNetworkID = new Guid(reader.ReadBytes(16));
+            Guid invokerNetworkID = new Guid(reader.ReadBytes(16));
+
+            if (Entities.TryGetValue(entityNetworkID, out NetworkEntity entity)) {
+                
+                if(Entities.TryGetValue(invokerNetworkID, out NetworkEntity invoker)) {
+                    RPCContext.Invoker = invoker;
+				}
+
+				try {
+                    entity.Serializer.HandleIncomingRPCInvocation(reader);
+                } finally {
+                    RPCContext.Invoker = null;
+				}
+            }
+        }
+
+        private void HandleAssignOwnerRequest(BinaryReader reader) {
+
+            Guid entityNetworkID = new Guid(reader.ReadBytes(16));
+
+            if (Entities.TryGetValue(entityNetworkID, out NetworkEntity entity)) {
+                OwnedEntities.Add(entityNetworkID, entity);
+            }
         }
 
         private void UpdateProxyManager(IProxyManager newProxyManager)
