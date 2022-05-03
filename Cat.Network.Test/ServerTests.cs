@@ -90,6 +90,8 @@ namespace Cat.Network.Test
             Server.Tick();
             ClientB.Tick();
 
+            // Value was replicated to B and Server
+            Assert.AreEqual(123, testEntityA.TestInt.Value);
             Assert.AreEqual(123, testEntityServer.TestInt.Value);
             Assert.AreEqual(123, testEntityB.TestInt.Value);
 
@@ -117,8 +119,11 @@ namespace Cat.Network.Test
             Server.Tick();
             ClientA.Tick();
 
+            // Values are not replicated to A or Server
             Assert.AreEqual(0, testEntityA.TestInt.Value);
             Assert.AreEqual(0, testEntityServer.TestInt.Value);
+
+            // Value remains on non-owner side.
             Assert.AreEqual(123, testEntityB.TestInt.Value);
 
         }
@@ -150,11 +155,26 @@ namespace Cat.Network.Test
 
             ClientB.Tick();
             Server.Tick();
+            ClientB.Tick();
+
+            // RPC was not executed on either B or Server
+            Assert.AreEqual(123, testEntityA.TestInt.Value);
+            Assert.AreEqual(123, testEntityB.TestInt.Value);
+            Assert.AreEqual(123, testEntityServer.TestInt.Value);
+
             ClientA.Tick();
+
+            // RPC executed on A
+            Assert.AreEqual(129, testEntityA.TestInt.Value);
+
+            // Values not yet replicated to B or Server
+            Assert.AreEqual(123, testEntityB.TestInt.Value);
+            Assert.AreEqual(123, testEntityServer.TestInt.Value);
+
             Server.Tick();
             ClientB.Tick();
 
-            Assert.AreEqual(129, testEntityA.TestInt.Value);
+            // Values replicated to B and Server
             Assert.AreEqual(129, testEntityB.TestInt.Value);
             Assert.AreEqual(129, testEntityServer.TestInt.Value);
         }

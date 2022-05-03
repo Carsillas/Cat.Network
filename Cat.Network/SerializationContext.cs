@@ -70,11 +70,15 @@ namespace Cat.Network
 		}
 		private static void SerializeString(BinaryWriter Writer, string Value)
 		{
-			Writer.Write(Value);
+			bool hasValue = Value != null;
+			Writer.Write(hasValue);
+			if (hasValue) {
+				Writer.Write(Value);
+			}
 		}
 		private static string DeserializeString(BinaryReader Reader, NetworkProperty<string> NetworkProperty)
 		{
-			return Reader.ReadString();
+			return Reader.ReadBoolean() ? Reader.ReadString() : null;
 		}
 
 	}
