@@ -89,7 +89,7 @@ namespace Cat.Network.Test
             ClientA.Tick();
             Server.Tick();
             ClientB.Tick();
-
+           
             // Value was replicated to B and Server
             Assert.AreEqual(123, testEntityA.TestInt.Value);
             Assert.AreEqual(123, testEntityServer.TestInt.Value);

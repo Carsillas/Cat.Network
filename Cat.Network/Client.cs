@@ -11,7 +11,10 @@ namespace Cat.Network
 
         private int Time { get; set; }
         private ITransport Transport { get; set; }
+
+#pragma warning disable IDE1006 // Naming Styles
         private IProxyManager _ProxyManager { get; set; }
+#pragma warning restore IDE1006 // Naming Styles
         public IProxyManager ProxyManager { get => _ProxyManager; set => UpdateProxyManager(value); }
 
         private Dictionary<RequestType, Action<BinaryReader>> RequestParsers { get; } = new Dictionary<RequestType, Action<BinaryReader>>();
