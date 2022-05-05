@@ -16,7 +16,11 @@ namespace Cat.Network.Steam {
 			Init();
 
 			SteamMatchmaking.OnLobbyEntered += SteamMatchmaking_OnLobbyEntered;
+			SteamMatchmaking.OnLobbyDataChanged += SteamMatchmaking_OnLobbyDataChanged;
+		}
 
+		private void SteamMatchmaking_OnLobbyDataChanged(Lobby lobby) {
+			Console.WriteLine("Lobby data changed");
 		}
 
 		private void Init() {

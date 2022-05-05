@@ -15,7 +15,7 @@ namespace Cat.Network.Test
         public void Setup()
         {
             ServerEntityStorage = new TestEntityStorage();
-            Server = new Server(ServerEntityStorage, typeof(TestEntity));
+            Server = new Server(ServerEntityStorage);
             ClientA = new Client();
             ClientB = new Client();
 
@@ -29,8 +29,8 @@ namespace Cat.Network.Test
             clientBTransport.Remote = serverBTransport;
             serverBTransport.Remote = clientBTransport;
 
-            Server.AddTransport(clientATransport);
-            Server.AddTransport(clientBTransport);
+            Server.AddTransport(clientATransport, new TestEntity());
+            Server.AddTransport(clientBTransport, new TestEntity());
             ClientA.Connect(serverATransport);
             ClientB.Connect(serverBTransport);
         }

@@ -2,18 +2,15 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Cat.Network
-{
-    public partial class NetworkEntity
-    {
-        public Guid NetworkID { get; internal set; }
+namespace Cat.Network {
+	public partial class NetworkEntity {
+		public Guid NetworkID { get; internal set; }
 
-        internal NetworkEntitySerializer Serializer { get; }
+		internal NetworkEntitySerializer Serializer { get; }
 
-        public NetworkEntity()
-        {
-            Serializer = new NetworkEntitySerializer(this);
-        }
+		public NetworkEntity() {
+			Serializer = new NetworkEntitySerializer(this);
+		}
 
-    }
+	}
 }
