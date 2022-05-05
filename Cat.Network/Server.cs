@@ -47,6 +47,8 @@ namespace Cat.Network {
 		}
 
 		public void Tick() {
+			PreTick();
+
 			Time++;
 
 			OutgoingRPCs.Clear();
@@ -153,6 +155,10 @@ namespace Cat.Network {
 				}
 
 			}
+
+		}
+
+		protected virtual void PreTick() {
 
 		}
 

@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Cat.Async\Cat.Async.csproj" />
+    <ProjectReference Include="..\Cat.Network\Cat.Network.csproj" />
   </ItemGroup>
 
 </Project>

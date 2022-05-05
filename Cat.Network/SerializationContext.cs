@@ -11,6 +11,7 @@ namespace Cat.Network {
 
 		public SerializationContext() {
 			AddType<int>(SerializeInt, DeserializeInt);
+			AddType<ulong>(SerializeULong, DeserializeULong);
 			AddType<float>(SerializeFloat, DeserializeFloat);
 			AddType<string>(SerializeString, DeserializeString);
 			AddType<bool>(SerializeBool, DeserializeBool);
@@ -36,33 +37,39 @@ namespace Cat.Network {
 		}
 
 
-		private static void SerializeInt(BinaryWriter Writer, int Value) {
-			Writer.Write(Value);
+		private static void SerializeInt(BinaryWriter writer, int Value) {
+			writer.Write(Value);
 		}
-		private static int DeserializeInt(BinaryReader Reader, NetworkProperty<int> NetworkProperty) {
-			return Reader.ReadInt32();
+		private static int DeserializeInt(BinaryReader reader, NetworkProperty<int> NetworkProperty) {
+			return reader.ReadInt32();
 		}
-		private static void SerializeFloat(BinaryWriter Writer, float Value) {
-			Writer.Write(Value);
+		private static void SerializeULong(BinaryWriter writer, ulong Value) {
+			writer.Write(Value);
 		}
-		private static float DeserializeFloat(BinaryReader Reader, NetworkProperty<float> NetworkProperty) {
-			return Reader.ReadSingle();
+		private static ulong DeserializeULong(BinaryReader reader, NetworkProperty<ulong> NetworkProperty) {
+			return reader.ReadUInt64();
 		}
-		private static void SerializeBool(BinaryWriter Writer, bool Value) {
-			Writer.Write(Value);
+		private static void SerializeFloat(BinaryWriter writer, float Value) {
+			writer.Write(Value);
 		}
-		private static bool DeserializeBool(BinaryReader Reader, NetworkProperty<bool> NetworkProperty) {
-			return Reader.ReadBoolean();
+		private static float DeserializeFloat(BinaryReader reader, NetworkProperty<float> NetworkProperty) {
+			return reader.ReadSingle();
 		}
-		private static void SerializeString(BinaryWriter Writer, string Value) {
+		private static void SerializeBool(BinaryWriter writer, bool Value) {
+			writer.Write(Value);
+		}
+		private static bool DeserializeBool(BinaryReader reader, NetworkProperty<bool> NetworkProperty) {
+			return reader.ReadBoolean();
+		}
+		private static void SerializeString(BinaryWriter writer, string Value) {
 			bool hasValue = Value != null;
-			Writer.Write(hasValue);
+			writer.Write(hasValue);
 			if (hasValue) {
-				Writer.Write(Value);
+				writer.Write(Value);
 			}
 		}
-		private static string DeserializeString(BinaryReader Reader, NetworkProperty<string> NetworkProperty) {
-			return Reader.ReadBoolean() ? Reader.ReadString() : null;
+		private static string DeserializeString(BinaryReader reader, NetworkProperty<string> NetworkProperty) {
+			return reader.ReadBoolean() ? reader.ReadString() : null;
 		}
 
 	}

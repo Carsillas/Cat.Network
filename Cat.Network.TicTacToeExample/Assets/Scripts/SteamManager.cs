@@ -9,16 +9,16 @@ using UnityEngine;
 
 public class SteamManager : MonoBehaviour {
 
-	private SteamClient Client { get; set; }
+	private Steam Steam { get; set; }
 
 	private void Start() {
 		Redirect();
 
-		Client = new SteamClient();
+		Steam = new Steam();
 
 		Task.Run(async () => {
-			await Client.Initialized;
-			await Client.CreateLobby(2);
+			await Steam.Initialized;
+			await Steam.CreateLobby(2);
 
 		});
 
@@ -26,15 +26,8 @@ public class SteamManager : MonoBehaviour {
 
 	// Update is called once per frame
 	private void Update() {
-		Client.Tick();
+		Steam.Tick();
 	}
-
-
-
-
-
-
-
 
 	private class UnityTextWriter : TextWriter {
 		private StringBuilder buffer = new StringBuilder();
