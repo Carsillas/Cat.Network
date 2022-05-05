@@ -11,23 +11,52 @@ public class SteamManager : MonoBehaviour {
 
 	private Steam Steam { get; set; }
 
-	private void Start() {
+	private SteamGameServer SteamGameServer { get; set; }
+	private LocalSteamGameClient SteamGameClient { get; set; }
+
+
+	private IEnumerator Start() {
 		Redirect();
 
 		Steam = new Steam();
 
-		Task.Run(async () => {
-			await Steam.Initialized;
-			await Steam.CreateLobby(2);
+		Steam.OnLobbyChanged += Steam_OnLobbyChanged;
+		Steam.OnLobbyCreated += Steam_OnLobbyCreated;
+		Steam.OnLobbyGameServerSet += Steam_OnLobbyGameServerSet;
 
-		});
+		yield return new WaitForSeconds(1.0f);
+		Steam.CreateLobby(2);
+
+	}
+
+	private void Steam_OnLobbyCreated() {
+		SteamGameServer = new SteamGameServer(new EntityStorage());
+	}
+
+	private void Steam_OnLobbyGameServerSet() {
+		SteamGameClient = new LocalSteamGameClient(SteamGameServer);
+		SteamGameClient.ProxyManager = new ProxyManager();
+	}
+
+	private void Steam_OnLobbyChanged() {
 
 	}
 
 	// Update is called once per frame
 	private void Update() {
 		Steam.Tick();
+		SteamGameServer?.Tick();
+		SteamGameClient?.Tick();
 	}
+
+	private void OnApplicationQuit() {
+		Steam.Dispose();
+	}
+
+
+
+
+
 
 	private class UnityTextWriter : TextWriter {
 		private StringBuilder buffer = new StringBuilder();

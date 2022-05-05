@@ -11,7 +11,7 @@ namespace Cat.Network.Steam {
 		private ConnectionManager ConnectionManager { get; set; }
 		private SteamTransport Transport { get; set; }
 
-		private RemoteSteamGameClient(ulong targetSteamId) {
+		public RemoteSteamGameClient(ulong targetSteamId) {
 			if (FacepunchClient.SteamId != targetSteamId) {
 				ConnectionManager = SteamNetworkingSockets.ConnectRelay<ConnectionManager>(targetSteamId);
 				ConnectionManager.Interface = this;

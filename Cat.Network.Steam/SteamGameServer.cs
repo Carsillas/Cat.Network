@@ -11,7 +11,7 @@ namespace Cat.Network.Steam {
 		private SocketManager SocketManager { get; set; }
 		private Dictionary<uint, Client> ConnectedClients { get; set; }
 
-		private SteamGameServer(IEntityStorage entityStorage) : base(entityStorage) {
+		public SteamGameServer(IEntityStorage entityStorage) : base(entityStorage) {
 			SocketManager = SteamNetworkingSockets.CreateRelaySocket<SocketManager>();
 			SocketManager.Interface = this;
 		}

@@ -18,6 +18,7 @@ namespace Cat.Network.Steam {
 			profileEntity.Id.Value = FacepunchClient.SteamId.Value;
 
 			server.AddTransport(clientTransport, profileEntity);
+			Connect(serverTransport);
 		}
 
 		void IDisposable.Dispose() {

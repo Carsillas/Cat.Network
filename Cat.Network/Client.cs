@@ -63,6 +63,10 @@ namespace Cat.Network {
 		public void Tick() {
 			Time++;
 
+			if(Transport == null) {
+				return;
+			}
+
 			while (Transport.TryReadPacket(out byte[] bytes)) {
 				using (MemoryStream stream = new MemoryStream(bytes)) {
 					using (BinaryReader reader = new BinaryReader(stream)) {
