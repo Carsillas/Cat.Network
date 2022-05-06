@@ -10,7 +10,7 @@ public class TicTacToeOwnerBehavior : EntityBehavior<TicTacToeGame>, IOwnerEntit
 
 	private void Start() {
 		Instance = this;
-		PlayerBehavior.OnPlayersReady += SetPlayers;
+		ProfileBehavior.OnPlayersReady += SetPlayers;
 	}
 
 	private void OnDestroy() {

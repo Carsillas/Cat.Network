@@ -20,6 +20,19 @@ public class SteamManager : MonoBehaviour {
 	private void Start() {
 
 		Steam = new Steam();
+		
+		Steamworks.Dispatch.OnDebugCallback = (type, str, server) =>
+		{
+			Debug.Log($"[Callback {type} {(server ? "server" : "client")}]");
+			Debug.Log(str);
+			Debug.Log($"");
+		};
+
+		Steamworks.Dispatch.OnException = (e) =>
+		{
+			Debug.Log(e.Message);
+			Debug.Log(e.StackTrace);
+		};
 
 		Steam.OnLobbyChanged += Steam_OnLobbyChanged;
 		Steam.OnLobbyCreated += Steam_OnLobbyCreated;
@@ -44,7 +57,7 @@ public class SteamManager : MonoBehaviour {
 		} else {
 			SteamGameClient = new RemoteSteamGameClient(targetSteamId, new ProxyManager());
 		}
-	}
+	}	
 
 	private void Steam_OnLobbyChanged(Lobby? lobby) {
 		uint a = 0;

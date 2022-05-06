@@ -84,6 +84,7 @@ public class TicTacToeGame : NetworkEntity {
 	public void Click(int index) {
 		InvokeRPC(Move, index);
 	}
+
 	public void SetPlayers(ulong xPlayer, ulong oPlayer) {
 		XPlayer.Value = xPlayer;
 		OPlayer.Value = oPlayer;

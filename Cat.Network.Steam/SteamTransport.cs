@@ -5,13 +5,9 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace Cat.Network.Steam {
-	public class SteamTransport : ITransport {
+	internal class SteamTransport : ITransport {
 		private ConcurrentQueue<byte[]> Packets { get; } = new ConcurrentQueue<byte[]>();
-		public Connection Connection { get; }
-
-		public SteamTransport(Connection connection) {
-			Connection = connection;
-		}
+		public Connection Connection { get; set; }
 
 		public void DeliverPacket(byte[] bytes) {
 			Packets.Enqueue(bytes);

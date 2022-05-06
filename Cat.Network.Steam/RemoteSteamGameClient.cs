@@ -9,11 +9,11 @@ namespace Cat.Network.Steam {
 	public class RemoteSteamGameClient : SteamGameClient, IConnectionManager {
 
 		private ConnectionManager ConnectionManager { get; set; }
-		private SteamTransport Transport { get; set; }
+		private SteamTransport Transport { get; } = new SteamTransport();
 
 		public RemoteSteamGameClient(ulong targetSteamId, IProxyManager proxyManager) : base(proxyManager) {
 			if (FacepunchClient.SteamId != targetSteamId) {
-				ConnectionManager = SteamNetworkingSockets .ConnectRelay<ConnectionManager>(targetSteamId);
+				ConnectionManager = SteamNetworkingSockets.ConnectRelay<ConnectionManager>(targetSteamId);
 				ConnectionManager.Interface = this;
 			} else {
 				// ???
@@ -36,7 +36,7 @@ namespace Cat.Network.Steam {
 		}
 
 		void IConnectionManager.OnConnected(ConnectionInfo info) {
-			Transport = new SteamTransport(ConnectionManager.Connection);
+			Transport.Connection = ConnectionManager.Connection;
 			Connect(Transport);
 		}
 

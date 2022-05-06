@@ -29,7 +29,7 @@ namespace Cat.Network.Steam {
 		private void SteamMatchmaking_OnLobbyCreated(Result result, Lobby lobby) {
 			if (result == Result.OK) {
 				OnLobbyCreated?.Invoke(lobby);
-				lobby.SetGameServer(lobby.Owner.Id);
+				lobby.SetGameServer(FacepunchClient.SteamId);
 				lobby.SetPublic();
 				lobby.SetJoinable(true);
 			}

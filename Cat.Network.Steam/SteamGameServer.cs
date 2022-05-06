@@ -9,7 +9,7 @@ namespace Cat.Network.Steam {
 	public class SteamGameServer : Server, ISocketManager, IDisposable {
 
 		private SocketManager SocketManager { get; set; }
-		private Dictionary<uint, Client> ConnectedClients { get; set; }
+		private Dictionary<uint, Client> ConnectedClients { get; } = new Dictionary<uint, Client>();
 
 		public SteamGameServer(IEntityStorage entityStorage) : base(entityStorage) {
 			SocketManager = SteamNetworkingSockets.CreateRelaySocket<SocketManager>();
@@ -35,7 +35,9 @@ namespace Cat.Network.Steam {
 
 		void ISocketManager.OnConnected(Connection connection, ConnectionInfo info) {
 			if (!ConnectedClients.ContainsKey(connection.Id)) {
-				SteamTransport transport = new SteamTransport(connection);
+				SteamTransport transport = new SteamTransport {
+					Connection = connection
+				};
 
 				ConnectedClients.Add(connection.Id, new Client {
 					Connection = connection,
