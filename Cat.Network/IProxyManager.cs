@@ -7,5 +7,6 @@ namespace Cat.Network {
 		void OnEntityCreated(NetworkEntity entity);
 		void OnEntityDeleted(NetworkEntity entity);
 
+		void OnGainedOwnership(NetworkEntity entity);
 	}
 }

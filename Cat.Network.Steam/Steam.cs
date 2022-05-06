@@ -11,11 +11,11 @@ using FacepunchClient = Steamworks.SteamClient;
 namespace Cat.Network.Steam {
 	public class Steam : IDisposable {
 
-		public event Action OnLobbyChanged;
-		public event Action OnLobbyCreated;
-		public event Action OnLobbyGameServerSet;
+		public event Action<Lobby?> OnLobbyChanged;
+		public event Action<Lobby> OnLobbyCreated;
+		public event Action<ulong> OnLobbyGameServerSet;
 
-		private Lobby? Lobby { get; set; }
+
 		private ConcurrentQueue<Action> SteamResultContinuations { get; } = new ConcurrentQueue<Action>();
 
 		public Steam() {
@@ -28,13 +28,15 @@ namespace Cat.Network.Steam {
 
 		private void SteamMatchmaking_OnLobbyCreated(Result result, Lobby lobby) {
 			if (result == Result.OK) {
-				OnLobbyCreated?.Invoke();
+				OnLobbyCreated?.Invoke(lobby);
 				lobby.SetGameServer(lobby.Owner.Id);
+				lobby.SetPublic();
+				lobby.SetJoinable(true);
 			}
 		}
 
 		private void SteamMatchmaking_OnLobbyGameCreated(Lobby lobby, uint ip, ushort port, SteamId targetSteamId) {
-			OnLobbyGameServerSet?.Invoke();
+			OnLobbyGameServerSet?.Invoke(targetSteamId.Value);
 		}
 
 		public void Tick() {
@@ -58,13 +60,20 @@ namespace Cat.Network.Steam {
 		}
 
 		private void Init() {
+			
 			FacepunchClient.Init(480, false);
+			Task.Run(async () => {
+				while (!FacepunchClient.IsValid) {
+					await Task.Delay(10);
+				}
+				SteamNetworkingUtils.InitRelayNetworkAccess();
+			});
+
+		
 		}
 
 		private void SteamMatchmaking_OnLobbyEntered(Lobby lobby) {
-			Lobby = lobby;
-
-			OnLobbyChanged?.Invoke();
+			OnLobbyChanged?.Invoke(lobby);
 		}
 
 		public void Dispose() {

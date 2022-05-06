@@ -34,8 +34,6 @@ namespace Cat.Network {
 				ProfileEntity = profileEntity
 			};
 
-			Owners.Add(profileEntity, clientDetails);
-
 			Clients.Add(clientDetails);
 		}
 
@@ -46,6 +44,9 @@ namespace Cat.Network {
 			RequestParsers.Add(RequestType.RPC, HandleRPCRequest);
 		}
 
+		protected virtual void PreTick() {
+
+		}
 		public void Tick() {
 			PreTick();
 
@@ -158,9 +159,6 @@ namespace Cat.Network {
 
 		}
 
-		protected virtual void PreTick() {
-
-		}
 
 
 		private void HandleCreateEntityRequest(ClientDetails clientDetails, BinaryReader reader) {

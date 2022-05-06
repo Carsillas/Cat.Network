@@ -1,4 +1,6 @@
 using Cat.Network.Steam;
+using Steamworks;
+using Steamworks.Data;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,37 +11,50 @@ using UnityEngine;
 
 public class SteamManager : MonoBehaviour {
 
-	private Steam Steam { get; set; }
+	public Steam Steam { get; private set; }
 
 	private SteamGameServer SteamGameServer { get; set; }
-	private LocalSteamGameClient SteamGameClient { get; set; }
+	private SteamGameClient SteamGameClient { get; set; }
 
 
-	private IEnumerator Start() {
-		Redirect();
+	private void Start() {
 
 		Steam = new Steam();
 
 		Steam.OnLobbyChanged += Steam_OnLobbyChanged;
 		Steam.OnLobbyCreated += Steam_OnLobbyCreated;
 		Steam.OnLobbyGameServerSet += Steam_OnLobbyGameServerSet;
-
-		yield return new WaitForSeconds(1.0f);
-		Steam.CreateLobby(2);
-
 	}
 
-	private void Steam_OnLobbyCreated() {
+	private void Steam_OnLobbyCreated(Lobby lobby) {
+
+		TextEditor textEditor = new TextEditor();
+		textEditor.text = lobby.Id.ToString();
+		textEditor.SelectAll();
+		textEditor.Copy();
+
 		SteamGameServer = new SteamGameServer(new EntityStorage());
 	}
 
-	private void Steam_OnLobbyGameServerSet() {
-		SteamGameClient = new LocalSteamGameClient(SteamGameServer);
-		SteamGameClient.ProxyManager = new ProxyManager();
+	private void Steam_OnLobbyGameServerSet(ulong targetSteamId) {
+
+		if (targetSteamId == SteamClient.SteamId) {
+			SteamGameClient = new LocalSteamGameClient(SteamGameServer, new ProxyManager());
+			SteamGameClient.Spawn(new TicTacToeGame());
+		} else {
+			SteamGameClient = new RemoteSteamGameClient(targetSteamId, new ProxyManager());
+		}
 	}
 
-	private void Steam_OnLobbyChanged() {
-
+	private void Steam_OnLobbyChanged(Lobby? lobby) {
+		uint a = 0;
+		ushort b = 0;
+		SteamId targetSteamId = default;
+		if (lobby.HasValue && lobby.Value.GetGameServer(ref a, ref b, ref targetSteamId)) {
+			if (targetSteamId != SteamClient.SteamId) {
+				SteamGameClient = new RemoteSteamGameClient(targetSteamId, new ProxyManager());
+			}
+		}
 	}
 
 	// Update is called once per frame
@@ -51,52 +66,6 @@ public class SteamManager : MonoBehaviour {
 
 	private void OnApplicationQuit() {
 		Steam.Dispose();
-	}
-
-
-
-
-
-
-	private class UnityTextWriter : TextWriter {
-		private StringBuilder buffer = new StringBuilder();
-
-		public override void Flush() {
-			Debug.Log(buffer.ToString());
-			buffer.Length = 0;
-		}
-
-		public override void Write(string value) {
-			buffer.Append(value);
-			if (value != null) {
-				var len = value.Length;
-				if (len > 0) {
-					var lastChar = value[len - 1];
-					if (lastChar == '\n') {
-						Flush();
-					}
-				}
-			}
-		}
-
-		public override void Write(char value) {
-			buffer.Append(value);
-			if (value == '\n') {
-				Flush();
-			}
-		}
-
-		public override void Write(char[] value, int index, int count) {
-			Write(new string(value, index, count));
-		}
-
-		public override Encoding Encoding {
-			get { return Encoding.Default; }
-		}
-	}
-
-	public static void Redirect() {
-		Console.SetOut(new UnityTextWriter());
 	}
 
 }

@@ -6,21 +6,27 @@ using System.Threading;
 using FacepunchClient = Steamworks.SteamClient;
 
 namespace Cat.Network.Steam {
-	public class RemoteSteamGameClient : Client, IConnectionManager, IDisposable {
+	public class RemoteSteamGameClient : SteamGameClient, IConnectionManager {
 
 		private ConnectionManager ConnectionManager { get; set; }
 		private SteamTransport Transport { get; set; }
 
-		public RemoteSteamGameClient(ulong targetSteamId) {
+		public RemoteSteamGameClient(ulong targetSteamId, IProxyManager proxyManager) : base(proxyManager) {
 			if (FacepunchClient.SteamId != targetSteamId) {
-				ConnectionManager = SteamNetworkingSockets.ConnectRelay<ConnectionManager>(targetSteamId);
+				ConnectionManager = SteamNetworkingSockets .ConnectRelay<ConnectionManager>(targetSteamId);
 				ConnectionManager.Interface = this;
 			} else {
 				// ???
 			}
 		}
 
-		void IDisposable.Dispose() {
+		protected override void PreTick() {
+			base.PreTick();
+
+			ConnectionManager?.Receive();
+		}
+
+		public override void Dispose() {
 			ConnectionManager?.Close();
 			ConnectionManager = null;
 		}
@@ -41,6 +47,7 @@ namespace Cat.Network.Steam {
 		void IConnectionManager.OnMessage(IntPtr data, int size, long messageNum, long recvTime, int channel) {
 			byte[] packet = new byte[size];
 			Marshal.Copy(data, packet, 0, size);
+			Transport.DeliverPacket(packet);
 		}
 
 	}

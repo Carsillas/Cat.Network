@@ -4,9 +4,9 @@ using System.Text;
 using FacepunchClient = Steamworks.SteamClient;
 
 namespace Cat.Network.Steam {
-	public class LocalSteamGameClient : Client, IDisposable {
+	public class LocalSteamGameClient : SteamGameClient {
 
-		public LocalSteamGameClient(SteamGameServer server) {
+		public LocalSteamGameClient(SteamGameServer server, IProxyManager proxyManager) : base(proxyManager) {
 			HostTransport clientTransport = new HostTransport();
 			HostTransport serverTransport = new HostTransport();
 
@@ -21,8 +21,9 @@ namespace Cat.Network.Steam {
 			Connect(serverTransport);
 		}
 
-		void IDisposable.Dispose() {
+		public override void Dispose() {
 
 		}
+
 	}
 }

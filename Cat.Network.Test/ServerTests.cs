@@ -16,8 +16,8 @@ namespace Cat.Network.Test
         {
             ServerEntityStorage = new TestEntityStorage();
             Server = new Server(ServerEntityStorage);
-            ClientA = new Client();
-            ClientB = new Client();
+            ClientA = new Client(new TestProxyManager());
+            ClientB = new Client(new TestProxyManager());
 
             TestTransport clientATransport = new TestTransport();
             TestTransport clientBTransport = new TestTransport();

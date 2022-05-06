@@ -20,6 +20,10 @@ namespace Cat.Network.Steam {
 			SocketManager?.Receive();
 		}
 
+		protected virtual SteamProfileEntity CreateProfileEntity(Friend friend) {
+			return new SteamProfileEntity();
+		}
+
 		void IDisposable.Dispose() {
 			SocketManager?.Close();
 			SocketManager = null;
@@ -39,8 +43,9 @@ namespace Cat.Network.Steam {
 					Transport = transport
 				});
 
-				SteamProfileEntity profileEntity = new SteamProfileEntity();
-				profileEntity.Name.Value = new Friend(info.Identity.SteamId).Name;
+				Friend friend = new Friend(info.Identity.SteamId);
+				SteamProfileEntity profileEntity = CreateProfileEntity(friend);
+				profileEntity.Name.Value = friend.Name;
 				profileEntity.Id.Value = info.Identity.SteamId.Value;
 
 				AddTransport(transport, profileEntity);
