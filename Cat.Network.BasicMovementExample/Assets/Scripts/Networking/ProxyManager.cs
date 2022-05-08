@@ -10,6 +10,10 @@ public class ProxyManager : IProxyManager {
 
 	private Dictionary<Guid, GameObject> Proxies = new Dictionary<Guid, GameObject>();
 
+	public ProxyManager() {
+		Debug.Log("???");
+	}
+
 	public void OnEntityCreated(NetworkEntity entity) {
 		Debug.Log("Created " + entity.NetworkID);
 		Proxies.Add(entity.NetworkID, Create(entity));

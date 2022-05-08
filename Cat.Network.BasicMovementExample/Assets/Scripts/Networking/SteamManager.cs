@@ -53,7 +53,7 @@ public class SteamManager : MonoBehaviour {
 		if (lobby.HasValue && lobby.Value.GetGameServer(ref a, ref b, ref targetSteamId)) {
 			if (targetSteamId != SteamClient.SteamId) {
 				ProxyManager proxyManager = new ProxyManager();
-				SteamGameClient = new RemoteGameClient(targetSteamId, new ProxyManager());
+				SteamGameClient = new RemoteGameClient(targetSteamId, proxyManager);
 				proxyManager.Client = SteamGameClient;
 			}
 		}

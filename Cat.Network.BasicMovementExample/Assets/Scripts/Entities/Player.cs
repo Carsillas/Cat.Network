@@ -13,4 +13,8 @@ public class Player : NetworkEntity {
 	public NetworkProperty<Vector3> Position { get; } = new NetworkProperty<Vector3>();
 	public NetworkProperty<Vector2> MovementInput { get; } = new NetworkProperty<Vector2>();
 
+	public Player() {
+		DestroyWithOwner.Value = true;
+	}
+
 }
