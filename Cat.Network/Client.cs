@@ -13,9 +13,10 @@ namespace Cat.Network {
 
 		private Dictionary<RequestType, Action<BinaryReader>> RequestParsers { get; } = new Dictionary<RequestType, Action<BinaryReader>>();
 
-		private SerializationContext SerializationContext { get; } = new SerializationContext {
+		private SerializationContext InternalSerializationContext { get; } = new SerializationContext {
 			DeserializeDirtiesProperty = false
 		};
+		protected ISerializationContext SerializationContext => InternalSerializationContext;
 
 		private Dictionary<Guid, NetworkEntity> Entities { get; } = new Dictionary<Guid, NetworkEntity>();
 		private Dictionary<Guid, NetworkEntity> OwnedEntities { get; } = new Dictionary<Guid, NetworkEntity>();
@@ -35,7 +36,7 @@ namespace Cat.Network {
 
 		public void Spawn(NetworkEntity entity) {
 			entity.NetworkID = Guid.NewGuid();
-			entity.Serializer.InitializeSerializationContext(SerializationContext);
+			entity.Serializer.InitializeSerializationContext(InternalSerializationContext);
 
 			Entities.Add(entity.NetworkID, entity);
 			EntitiesToSpawn.Add(entity);
@@ -59,7 +60,6 @@ namespace Cat.Network {
 		public bool TryGetEntityByNetworkID(Guid NetworkID, out NetworkEntity entity) {
 			return Entities.TryGetValue(NetworkID, out entity);
 		}
-
 
 		protected virtual void PreTick() {
 
@@ -148,7 +148,7 @@ namespace Cat.Network {
 			if (entityType != null && typeof(NetworkEntity).IsAssignableFrom(entityType)) {
 				NetworkEntity instance = (NetworkEntity)Activator.CreateInstance(entityType);
 				instance.NetworkID = networkID;
-				instance.Serializer.InitializeSerializationContext(SerializationContext);
+				instance.Serializer.InitializeSerializationContext(InternalSerializationContext);
 				instance.Serializer.ReadNetworkProperties(reader);
 
 

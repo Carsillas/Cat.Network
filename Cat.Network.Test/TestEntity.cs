@@ -8,12 +8,12 @@ namespace Cat.Network.Test {
 
 
 
-		[RPC(RPCInvokeSite.Owner)]
+		[RPC]
 		private void TestRPC() {
 			TestInt.Value++;
 		}
 
-		[RPC(RPCInvokeSite.Owner)]
+		[RPC]
 		private void TestRPC(int a) {
 			TestInt.Value += a;
 		}

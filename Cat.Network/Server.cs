@@ -7,13 +7,17 @@ namespace Cat.Network {
 	public class Server {
 
 		private Dictionary<RequestType, Action<ClientDetails, BinaryReader>> RequestParsers { get; } = new Dictionary<RequestType, Action<ClientDetails, BinaryReader>>();
-		private SerializationContext SerializationContext { get; } = new SerializationContext {
+		private SerializationContext InternalSerializationContext { get; } = new SerializationContext {
 			DeserializeDirtiesProperty = true
 		};
+
+		protected ISerializationContext SerializationContext => InternalSerializationContext;
+
 		private List<ClientDetails> Clients { get; } = new List<ClientDetails>();
 		public IEntityStorage EntityStorage { get; }
 
 		private Dictionary<NetworkEntity, ClientDetails> Owners { get; } = new Dictionary<NetworkEntity, ClientDetails>();
+		private Dictionary<ClientDetails, HashSet<NetworkEntity>> OwnedEntities { get; } = new Dictionary<ClientDetails, HashSet<NetworkEntity>>();
 
 		private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCs { get; } = new Dictionary<NetworkEntity, List<byte[]>>();
 
@@ -27,15 +31,37 @@ namespace Cat.Network {
 		public void AddTransport(ITransport transport, NetworkEntity profileEntity) {
 
 			profileEntity.NetworkID = Guid.NewGuid();
-			profileEntity.Serializer.InitializeSerializationContext(SerializationContext);
+			profileEntity.DestroyWithOwner.Value = true;
+			profileEntity.Serializer.InitializeSerializationContext(InternalSerializationContext);
 
 			ClientDetails clientDetails = new ClientDetails {
 				Transport = transport,
 				ProfileEntity = profileEntity
 			};
 
+			SetOwner(profileEntity, clientDetails);
 			Clients.Add(clientDetails);
 		}
+
+		protected void RemoveTransport(ITransport transport) {
+
+			ClientDetails client = Clients.FirstOrDefault(c => c.Transport == transport);
+			if(client == null) {
+				return;
+			}
+
+			Clients.Remove(client);
+			if(TryGetOwnedEntities(client, out HashSet<NetworkEntity> owned)) {
+				OwnedEntities.Remove(client);
+				foreach(NetworkEntity entity in owned) {
+					if (entity.DestroyWithOwner.Value) {
+						Despawn(entity);
+					}
+				}
+			}
+
+		}
+
 
 		private void InitializeNetworkRequestParsers() {
 			RequestParsers.Add(RequestType.CreateEntity, HandleCreateEntityRequest);
@@ -47,6 +73,20 @@ namespace Cat.Network {
 		protected virtual void PreTick() {
 
 		}
+
+		protected void Spawn(NetworkEntity entity) {
+
+			entity.NetworkID = Guid.NewGuid();
+			entity.Serializer.InitializeSerializationContext(InternalSerializationContext);
+
+			EntityStorage.RegisterEntity(entity);
+		}
+
+		protected void Despawn(NetworkEntity entity) {
+			EntityStorage.UnregisterEntity(entity.NetworkID);
+			SetOwner(entity, null);
+		}
+
 		public void Tick() {
 			PreTick();
 
@@ -85,8 +125,8 @@ namespace Cat.Network {
 					if (!relevantEntities.Contains(entity)) {
 						client.EntitiesToDelete.Add(entity);
 
-						if (Owners.TryGetValue(entity, out ClientDetails owner) && owner == client) {
-							Owners.Remove(entity);
+						if (TryGetOwner(entity, out ClientDetails owner) && owner == client) {
+							SetOwner(entity, null);
 						}
 					}
 				}
@@ -127,8 +167,8 @@ namespace Cat.Network {
 
 				foreach (NetworkEntity entity in client.RelevantEntities) {
 
-					if (!Owners.ContainsKey(entity)) {
-						Owners.Add(entity, client);
+					if (!TryGetOwner(entity, out ClientDetails owner)) {
+						SetOwner(entity, client);
 						using (MemoryStream stream = new MemoryStream(20)) {
 							using (BinaryWriter writer = new BinaryWriter(stream)) {
 
@@ -147,7 +187,7 @@ namespace Cat.Network {
 						}
 					}
 
-					if (Owners.TryGetValue(entity, out ClientDetails owner) && owner == client && OutgoingRPCs.TryGetValue(entity, out List<byte[]> outgoingRpcs)) {
+					if (TryGetOwner(entity, out owner) && owner == client && OutgoingRPCs.TryGetValue(entity, out List<byte[]> outgoingRpcs)) {
 						foreach (byte[] rpc in outgoingRpcs) {
 							client.Transport.SendPacket(rpc);
 						}
@@ -159,6 +199,37 @@ namespace Cat.Network {
 
 		}
 
+
+		private bool TryGetOwner(NetworkEntity entity, out ClientDetails owner) {
+			return Owners.TryGetValue(entity, out owner);
+		}
+
+		private bool TryGetOwnedEntities(ClientDetails owner, out HashSet<NetworkEntity> entities) {
+			return OwnedEntities.TryGetValue(owner, out entities);
+		}
+
+		private void SetOwner(NetworkEntity entity, ClientDetails owner) {
+
+			if(owner == null) {
+				if(TryGetOwner(entity, out ClientDetails previousOwner) && TryGetOwnedEntities(previousOwner, out HashSet<NetworkEntity> owned)) {
+					owned.Remove(entity);
+				}
+				Owners.Remove(entity);
+			} else {
+				if(TryGetOwner(entity, out ClientDetails previousOwner) &&
+					TryGetOwnedEntities(previousOwner, out HashSet<NetworkEntity> previousOwnerEntities)) {
+					previousOwnerEntities.Remove(entity);
+				}
+
+				if(!TryGetOwnedEntities(owner, out HashSet<NetworkEntity> owned)) {
+					owned = new HashSet<NetworkEntity>();
+					OwnedEntities[owner] = owned;
+				}
+
+				owned.Add(entity);
+				Owners[entity] = owner;
+			}
+		}
 
 
 		private void HandleCreateEntityRequest(ClientDetails clientDetails, BinaryReader reader) {
@@ -172,12 +243,16 @@ namespace Cat.Network {
 
 			if (entityType != null && typeof(NetworkEntity).IsAssignableFrom(entityType)) {
 				NetworkEntity instance = (NetworkEntity)Activator.CreateInstance(entityType);
+
 				instance.NetworkID = networkID;
-				instance.Serializer.InitializeSerializationContext(SerializationContext);
+				instance.Serializer.InitializeSerializationContext(InternalSerializationContext);
+
 				instance.Serializer.ReadNetworkProperties(reader);
-				clientDetails.RelevantEntities.Add(instance);
-				Owners.Add(instance, clientDetails);
+
 				EntityStorage.RegisterEntity(instance);
+
+				clientDetails.RelevantEntities.Add(instance);
+				SetOwner(instance, clientDetails);
 			}
 		}
 
@@ -194,7 +269,7 @@ namespace Cat.Network {
 			Guid networkID = new Guid(Reader.ReadBytes(16));
 
 			if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity)) {
-				Owners.Remove(entity);
+				SetOwner(entity, null);
 			}
 			EntityStorage.UnregisterEntity(networkID);
 		}

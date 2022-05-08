@@ -55,6 +55,9 @@ namespace Cat.Network.Steam {
 		}
 
 		void ISocketManager.OnDisconnected(Connection connection, ConnectionInfo info) {
+			if(ConnectedClients.TryGetValue(connection.Id, out Client client)) {
+				RemoveTransport(client.Transport);
+			}
 			ConnectedClients.Remove(connection.Id);
 		}
 

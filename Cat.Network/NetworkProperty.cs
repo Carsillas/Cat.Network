@@ -20,7 +20,7 @@ namespace Cat.Network {
 		internal abstract void Initialize(SerializationContext context);
 	}
 
-	public sealed class NetworkProperty<T> : NetworkProperty where T : IEquatable<T> {
+	public sealed class NetworkProperty<T> : NetworkProperty {
 		public delegate void NetworkPropertyChangedDelegate(T Previous);
 
 		public event NetworkPropertyChangedDelegate OnValueChanged;
