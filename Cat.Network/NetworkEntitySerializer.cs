@@ -21,6 +21,7 @@ namespace Cat.Network {
 
 		private Dictionary<string, NetworkProperty> Properties { get; set; }
 		private IReadOnlyDictionary<Guid, MethodInfo> RPCs { get; set; }
+		private IReadOnlyDictionary<Guid, MethodInfo> Multicasts { get; set; }
 
 		private NetworkEntity Entity { get; }
 
@@ -50,6 +51,7 @@ namespace Cat.Network {
 				property => (NetworkProperty)property.GetValue(Entity));
 
 			RPCs = GetRPCs(Entity.GetType());
+			Multicasts = GetMulticasts(Entity.GetType());
 
 			foreach (NetworkProperty property in Properties.Values) {
 				property.Entity = Entity;
@@ -125,6 +127,10 @@ namespace Cat.Network {
 
 		internal void WriteRPCID(BinaryWriter writer, MethodInfo methodInfo) {
 			writer.Write(RPCs.Where(kvp => kvp.Value == methodInfo).First().Key.ToByteArray());
+		}
+
+		internal void WriteMulticastID(BinaryWriter writer, MethodInfo methodInfo) {
+			writer.Write(Multicasts.Where(kvp => kvp.Value == methodInfo).First().Key.ToByteArray());
 		}
 
 		internal void HandleIncomingRPCInvocation(BinaryReader reader) {
@@ -236,6 +242,8 @@ namespace Cat.Network {
 
 		private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>> RPCsCache { get; } =
 			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>>();
+		private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>> MulticastsCache { get; } =
+			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>>();
 		private static IReadOnlyDictionary<Guid, MethodInfo> GetRPCs(Type type) {
 			return RPCsCache.GetOrAdd(type, ValueFactory);
 
@@ -252,12 +260,6 @@ namespace Cat.Network {
 					currentList.Where(X => X.IsDefined(typeof(RPC)))
 					.ToList();
 
-				if (false /* || methods.Any(method isnt supported) */) {
-					//string message = $"RPCs must be get-only!\n" +
-					//    string.Join("\n", properties.Where(property => property.SetMethod != null || property.CanWrite).Select(property => $"{key.FullName} -> {property.DeclaringType.FullName}.{property.Name}"));
-					//throw new AccessViolationException(message);
-				}
-
 				return methods.ToDictionary(
 				methodInfo => GetStringHash(methodInfo.ToString()),
 				methodInfo => methodInfo);
@@ -270,5 +272,32 @@ namespace Cat.Network {
 			}
 		}
 
+		private static IReadOnlyDictionary<Guid, MethodInfo> GetMulticasts(Type type) {
+			return MulticastsCache.GetOrAdd(type, ValueFactory);
+
+			IReadOnlyDictionary<Guid, MethodInfo> ValueFactory(Type key) {
+
+				Type currentType = key;
+				IEnumerable<MethodInfo> currentList = Enumerable.Empty<MethodInfo>();
+				while (currentType != null) {
+					currentList = currentList.Concat(currentType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
+					currentType = currentType.BaseType;
+				}
+
+				List<MethodInfo> methods =
+					currentList.Where(X => X.IsDefined(typeof(Multicast)))
+					.ToList();
+
+				return methods.ToDictionary(
+				methodInfo => GetStringHash(methodInfo.ToString()),
+				methodInfo => methodInfo);
+
+				Guid GetStringHash(string value) {
+					byte[] stringBytes = Encoding.UTF8.GetBytes(value);
+					byte[] hash = HashAlgorithm.ComputeHash(stringBytes);
+					return new Guid(hash);
+				}
+			}
+		}
 	}
 }

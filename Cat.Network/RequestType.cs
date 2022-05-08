@@ -8,6 +8,7 @@ namespace Cat.Network {
 		UpdateEntity = 2,
 		DeleteEntity = 3,
 		RPC = 4,
-		AssignOwner = 5
+		AssignOwner = 5,
+		Multicast
 	}
 }

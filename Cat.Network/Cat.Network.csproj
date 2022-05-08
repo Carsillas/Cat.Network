@@ -5,17 +5,25 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="CodeGen\RAC.cs">
+    <None Include="CodeGen\Deserialize.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
-      <DependentUpon>RAC.tt</DependentUpon>
+      <DependentUpon>Deserialize.tt</DependentUpon>
     </None>
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="CodeGen\RAC.tt">
+    <None Update="CodeGen\Deserialize.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>RAC.cs</LastGenOutput>
+      <LastGenOutput>Deserialize.cs</LastGenOutput>
+    </None>
+    <None Update="CodeGen\Multicast.tt">
+      <LastGenOutput>Multicast.cs</LastGenOutput>
+      <Generator>TextTemplatingFileGenerator</Generator>
+    </None>
+    <None Update="CodeGen\RPC.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>RPC.cs</LastGenOutput>
     </None>
   </ItemGroup>
 
@@ -24,11 +32,21 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Update="CodeGen\RAC.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>RAC.tt</DependentUpon>
-    </Compile>
+		<Compile Update="CodeGen\Deserialize.cs">
+		  <DesignTime>True</DesignTime>
+		  <AutoGen>True</AutoGen>
+		  <DependentUpon>Deserialize.tt</DependentUpon>
+		</Compile>
+		<Compile Update="CodeGen\Multicast.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>Multicast.tt</DependentUpon>
+		</Compile>
+		<Compile Update="CodeGen\RPC.cs">
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+			<DependentUpon>RPC.tt</DependentUpon>
+		</Compile>
   </ItemGroup>
 
 </Project>

@@ -15,32 +15,22 @@ using System.Runtime.CompilerServices;
 namespace Cat.Network {
 	public partial class NetworkEntity {
 
-<#= GetRACInvoke(0)#>
-<#= GetRACInvoke(1)#>
-<#= GetRACInvoke(2)#>
-<#= GetRACInvoke(3)#>
-<#= GetRACInvoke(4)#>
-<#= GetRACInvoke(5)#>
-<#= GetRACInvoke(6)#>
-<#= GetRACInvoke(7)#>
-<#= GetRACInvoke(8)#>
-
-<#= GetDeserializeInvokeAction(0)#>
-<#= GetDeserializeInvokeAction(1)#>
-<#= GetDeserializeInvokeAction(2)#>
-<#= GetDeserializeInvokeAction(3)#>
-<#= GetDeserializeInvokeAction(4)#>
-<#= GetDeserializeInvokeAction(5)#>
-<#= GetDeserializeInvokeAction(6)#>
-<#= GetDeserializeInvokeAction(7)#>
-<#= GetDeserializeInvokeAction(8)#>
+<#= GetRPCInvoke(0)#>
+<#= GetRPCInvoke(1)#>
+<#= GetRPCInvoke(2)#>
+<#= GetRPCInvoke(3)#>
+<#= GetRPCInvoke(4)#>
+<#= GetRPCInvoke(5)#>
+<#= GetRPCInvoke(6)#>
+<#= GetRPCInvoke(7)#>
+<#= GetRPCInvoke(8)#>
 
 	}
 }
 
 
 <#
-	string GetRACInvoke(int count) {
+	string GetRPCInvoke(int count) {
 		StringBuilder builder = new();
 
 		string genericArguments = count > 0 ? $"<{GetGenericParameters(count)}>" : "";
@@ -72,29 +62,8 @@ namespace Cat.Network {
 		return builder.ToString();
 	}
 
-	string GetDeserializeInvokeAction(int count) {
-
-		StringBuilder Builder = new();
-		string genericArguments = count > 0 ? $"<{GetGenericParameters(count)}>" : "";
-
-				Builder.AppendLine(@$"
-		internal void DeserializeInvokeAction{count}{genericArguments}(BinaryReader reader, MethodInfo methodInfo) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))} {{ 
-			{GetDeserializeCalls(count)}
-			{GetInvokeCall(count)}
-		}}
-");
-			
-			return Builder.ToString();
-		}
-
-
 	string GetGenericParameters(int count) {
 		return string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value}"));
-	}
-			
-	string GetInvokeCall(int count) {
-		return $@"
-			methodInfo.Invoke(this, new object[] {{ {string.Join(", ", Enumerable.Range(1, count).Select(Value => $"_{Value}"))} }});";
 	}
 	
 	string GetSerializeCalls(int count) {
@@ -107,14 +76,4 @@ namespace Cat.Network {
 		return builder.ToString();
 	}
 	
-	string GetDeserializeCalls(int count) {
-		StringBuilder builder = new();
-
-		for(int i = 1; i <= count; i++) {
-			builder.Append($@"
-			T{i} _{i} = Serializer.SerializationContext.GetDeserializationFunction<T{i}>()(reader, null);");
-		}
-		return builder.ToString();
-	}
-
 #>

@@ -22,7 +22,7 @@ namespace Cat.Network {
 		private HashSet<NetworkEntity> OwnerNeedsNotified { get; } = new HashSet<NetworkEntity>();
 
 
-		private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCs { get; } = new Dictionary<NetworkEntity, List<byte[]>>();
+		private Dictionary<NetworkEntity, List<OutgoingRPC>> OutgoingRPCs { get; } = new Dictionary<NetworkEntity, List<OutgoingRPC>>();
 
 		private int Time { get; set; }
 
@@ -73,6 +73,7 @@ namespace Cat.Network {
 			RequestParsers.Add(RequestType.UpdateEntity, HandleUpdateEntityRequest);
 			RequestParsers.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
 			RequestParsers.Add(RequestType.RPC, HandleRPCRequest);
+			RequestParsers.Add(RequestType.Multicast, HandleMulticastRequest);
 		}
 
 		protected virtual void PreTick() {
@@ -189,9 +190,16 @@ namespace Cat.Network {
 						}
 					}
 
-					if (TryGetOwner(entity, out owner) && owner == client && OutgoingRPCs.TryGetValue(entity, out List<byte[]> outgoingRpcs)) {
-						foreach (byte[] rpc in outgoingRpcs) {
-							client.Transport.SendPacket(rpc);
+					bool isOwner = TryGetOwner(entity, out owner) && owner == client;
+
+					if (OutgoingRPCs.TryGetValue(entity, out List<OutgoingRPC> outgoingRpcs)) {
+						foreach (OutgoingRPC rpc in outgoingRpcs) {
+							if(rpc.RequestType == RequestType.RPC && isOwner) {
+								client.Transport.SendPacket(rpc.Bytes);
+							}
+							if(rpc.RequestType == RequestType.Multicast && !isOwner) {
+								client.Transport.SendPacket(rpc.Bytes);
+							}
 						}
 					}
 
@@ -293,8 +301,8 @@ namespace Cat.Network {
 
 			if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity)) {
 
-				if (!OutgoingRPCs.TryGetValue(entity, out List<byte[]> rpcs)) {
-					rpcs = new List<byte[]>();
+				if (!OutgoingRPCs.TryGetValue(entity, out List<OutgoingRPC> rpcs)) {
+					rpcs = new List<OutgoingRPC>();
 					OutgoingRPCs.Add(entity, rpcs);
 				}
 
@@ -305,13 +313,41 @@ namespace Cat.Network {
 						writer.Write(clientDetails.ProfileEntity.NetworkID.ToByteArray());
 						writer.Write(reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position)));
 
-						rpcs.Add(stream.ToArray());
+						rpcs.Add(new OutgoingRPC {
+							Bytes = stream.ToArray(),
+							RequestType = RequestType.RPC
+						});
 					}
 				}
 
 			}
 		}
+		private void HandleMulticastRequest(ClientDetails clientDetails, BinaryReader reader) {
+			Guid networkID = new Guid(reader.ReadBytes(16));
 
+			if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity) && TryGetOwner(entity, out ClientDetails owner) && clientDetails == owner) {
+
+				if (!OutgoingRPCs.TryGetValue(entity, out List<OutgoingRPC> rpcs)) {
+					rpcs = new List<OutgoingRPC>();
+					OutgoingRPCs.Add(entity, rpcs);
+				}
+
+				using (MemoryStream stream = new MemoryStream((int)reader.BaseStream.Length + 16)) {
+					using (BinaryWriter writer = new BinaryWriter(stream)) {
+						writer.Write((byte)RequestType.RPC);
+						writer.Write(networkID.ToByteArray());
+						writer.Write(clientDetails.ProfileEntity.NetworkID.ToByteArray());
+						writer.Write(reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position)));
+						
+						rpcs.Add(new OutgoingRPC {
+							Bytes = stream.ToArray(),
+							RequestType = RequestType.Multicast
+						});
+					}
+				}
+
+			}
+		}
 
 		private class ClientDetails {
 			public ITransport Transport { get; set; }
@@ -321,6 +357,12 @@ namespace Cat.Network {
 			public HashSet<NetworkEntity> EntitiesToDelete { get; } = new HashSet<NetworkEntity>();
 			public HashSet<NetworkEntity> EntitiesToCreate { get; } = new HashSet<NetworkEntity>();
 
+		}
+
+		private struct OutgoingRPC {
+			public byte[] Bytes { get; set; }
+			public RequestType RequestType { get; set; }
+		
 		}
 
 	}

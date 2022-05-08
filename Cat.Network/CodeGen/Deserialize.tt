@@ -1,0 +1,78 @@
+﻿<#@ template debug="false" hostspecific="false" language="C#" #>
+<#@ assembly name="System.Core" #>
+<#@ import namespace="System.Linq" #>
+<#@ import namespace="System.Text" #>
+<#@ import namespace="System.Collections.Generic" #>
+<#@ output extension=".cs" #>
+
+using System;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+
+namespace Cat.Network {
+	public partial class NetworkEntity {
+
+<#= GetDeserializeInvokeAction(0)#>
+<#= GetDeserializeInvokeAction(1)#>
+<#= GetDeserializeInvokeAction(2)#>
+<#= GetDeserializeInvokeAction(3)#>
+<#= GetDeserializeInvokeAction(4)#>
+<#= GetDeserializeInvokeAction(5)#>
+<#= GetDeserializeInvokeAction(6)#>
+<#= GetDeserializeInvokeAction(7)#>
+<#= GetDeserializeInvokeAction(8)#>
+
+	}
+}
+
+<#
+
+	string GetDeserializeInvokeAction(int count) {
+
+		StringBuilder Builder = new();
+		string genericArguments = count > 0 ? $"<{GetGenericParameters(count)}>" : "";
+
+		Builder.AppendLine($@"
+		internal void DeserializeInvokeAction{count}{genericArguments}(BinaryReader reader, MethodInfo methodInfo) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))} {{ 
+			{GetDeserializeCalls(count)}
+			{GetInvokeCall(count)}
+		}}
+");
+			
+		return Builder.ToString();
+	}
+
+
+	string GetGenericParameters(int count) {
+		return string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value}"));
+	}
+			
+	string GetInvokeCall(int count) {
+		return $@"
+			methodInfo.Invoke(this, new object[] {{ {string.Join(", ", Enumerable.Range(1, count).Select(Value => $"_{Value}"))} }});";
+	}
+	
+	string GetSerializeCalls(int count) {
+		StringBuilder builder = new();
+
+		for(int i = 1; i <= count; i++) {
+			builder.Append($@"
+					Serializer.SerializationContext.GetSerializationFunction<T{i}>()(writer, _{i});");
+		}
+		return builder.ToString();
+	}
+	
+	string GetDeserializeCalls(int count) {
+		StringBuilder builder = new();
+
+		for(int i = 1; i <= count; i++) {
+			builder.Append($@"
+			T{i} _{i} = Serializer.SerializationContext.GetDeserializationFunction<T{i}>()(reader, null);");
+		}
+		return builder.ToString();
+	}
+
+#>
