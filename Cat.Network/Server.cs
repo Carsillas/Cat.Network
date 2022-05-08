@@ -19,6 +19,9 @@ namespace Cat.Network {
 		private Dictionary<NetworkEntity, ClientDetails> Owners { get; } = new Dictionary<NetworkEntity, ClientDetails>();
 		private Dictionary<ClientDetails, HashSet<NetworkEntity>> OwnedEntities { get; } = new Dictionary<ClientDetails, HashSet<NetworkEntity>>();
 
+		private HashSet<NetworkEntity> OwnerNeedsNotified { get; } = new HashSet<NetworkEntity>();
+
+
 		private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCs { get; } = new Dictionary<NetworkEntity, List<byte[]>>();
 
 		private int Time { get; set; }
@@ -40,6 +43,8 @@ namespace Cat.Network {
 			};
 
 			SetOwner(profileEntity, clientDetails);
+			OwnerNeedsNotified.Add(profileEntity);
+
 			Clients.Add(clientDetails);
 		}
 
@@ -169,15 +174,12 @@ namespace Cat.Network {
 
 					if (!TryGetOwner(entity, out ClientDetails owner)) {
 						SetOwner(entity, client);
-						using (MemoryStream stream = new MemoryStream(20)) {
-							using (BinaryWriter writer = new BinaryWriter(stream)) {
+						NotifyAssignedOwner(client, entity);
+					}
 
-								writer.Write((byte)RequestType.AssignOwner);
-								writer.Write(entity.NetworkID.ToByteArray());
-
-								client.Transport.SendPacket(stream.ToArray());
-							}
-						}
+					if (OwnerNeedsNotified.Contains(entity) && TryGetOwner(entity, out owner) && owner == client) {
+						NotifyAssignedOwner(client, entity);
+						OwnerNeedsNotified.Remove(entity);
 					}
 
 					if (!client.EntitiesToCreate.Contains(entity)) {
@@ -199,6 +201,17 @@ namespace Cat.Network {
 
 		}
 
+		private static void NotifyAssignedOwner(ClientDetails client, NetworkEntity entity) {
+			using (MemoryStream stream = new MemoryStream(20)) {
+				using (BinaryWriter writer = new BinaryWriter(stream)) {
+
+					writer.Write((byte)RequestType.AssignOwner);
+					writer.Write(entity.NetworkID.ToByteArray());
+
+					client.Transport.SendPacket(stream.ToArray());
+				}
+			}
+		}
 
 		private bool TryGetOwner(NetworkEntity entity, out ClientDetails owner) {
 			return Owners.TryGetValue(entity, out owner);

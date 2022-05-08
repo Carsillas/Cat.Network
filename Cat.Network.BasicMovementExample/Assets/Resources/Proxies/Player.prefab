@@ -132,7 +132,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bbe89a71fce3e1c419b4c8d3b520cbe7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  Camera: {fileID: 0}
+  Camera: {fileID: 2303742860005150209}
+  Pitch: 0
 --- !u!114 &8853420826306321321
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -145,6 +146,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 56c2f82e4108ce14180efa69bce27a5b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  Controller: {fileID: 2248292357275232153}
 --- !u!1 &5783300492725299434
 GameObject:
   m_ObjectHideFlags: 0

@@ -14,8 +14,9 @@ public class PlayerBehavior : EntityBehavior<Player> {
 	private void Update() {
 		transform.position = Entity.Position.Value;
 		transform.rotation = Quaternion.Euler(0, Entity.Yaw.Value, 0);
+		Vector3 movementInput = new Vector3(Entity.MovementInput.Value.x, 0, Entity.MovementInput.Value.y) * 3.0f;
 
-		Controller.SimpleMove(new Vector3(Entity.MovementInput.Value.x, 0, Entity.MovementInput.Value.y));
+		Controller.SimpleMove(transform.rotation * movementInput);
 	}
 
 }

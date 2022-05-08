@@ -15,17 +15,20 @@ public class PlayerOwnerBehavior : EntityBehavior<Player>, IOwnerEntityBehavior 
 
 	private void Start() {
 		Camera.gameObject.SetActive(true);
+
+		Cursor.lockState = CursorLockMode.Locked;
+		Cursor.visible = false;
 	}
 
 	private void Update() {
 
 		Entity.MovementInput.Value = new Vector2(Input.GetAxis("Horizontal"), Input.GetAxis("Vertical"));
 		Entity.Position.Value = gameObject.transform.position;
-		Entity.Yaw.Value = Input.GetAxis("Mouse X");
+		Entity.Yaw.Value += Input.GetAxis("Mouse X") * 5.0f;
 
-		Pitch += Input.GetAxis("Mouse Y");
+		Pitch -= Input.GetAxis("Mouse Y") * 5.0f;
 		Pitch = Mathf.Clamp(Pitch, -89.9f, 89.9f);
-		Camera.transform.rotation = Quaternion.Euler(Pitch, 0, 0);
+		Camera.transform.localRotation = Quaternion.Euler(Pitch, 0, 0);
 
 	}
 
