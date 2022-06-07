@@ -15,12 +15,12 @@ namespace Cat.Network.Steam {
 		public event Action<Lobby> OnLobbyCreated;
 		public event Action<ulong> OnLobbyGameServerSet;
 
+		private Lobby? CurrentLobby { get; set; }
 
 		private ConcurrentQueue<Action> SteamResultContinuations { get; } = new ConcurrentQueue<Action>();
 
 		public Steam() {
 			Init();
-
 			SteamMatchmaking.OnLobbyEntered += SteamMatchmaking_OnLobbyEntered;
 			SteamMatchmaking.OnLobbyGameCreated += SteamMatchmaking_OnLobbyGameCreated;
 			SteamMatchmaking.OnLobbyCreated += SteamMatchmaking_OnLobbyCreated;
@@ -34,6 +34,12 @@ namespace Cat.Network.Steam {
 				lobby.SetJoinable(true);
 			}
 		}
+
+		private void SteamMatchmaking_OnLobbyEntered(Lobby lobby) {
+			CurrentLobby = lobby;
+			OnLobbyChanged?.Invoke(lobby);
+		}
+
 
 		private void SteamMatchmaking_OnLobbyGameCreated(Lobby lobby, uint ip, ushort port, SteamId targetSteamId) {
 			OnLobbyGameServerSet?.Invoke(targetSteamId.Value);
@@ -55,6 +61,12 @@ namespace Cat.Network.Steam {
 
 		}
 
+		public void LeaveLobby() {
+			CurrentLobby?.Leave();
+			CurrentLobby = null;
+			OnLobbyChanged?.Invoke(null);
+		}
+
 		internal void QueueSteamTaskContinuation(Action continuation) {
 			SteamResultContinuations.Enqueue(continuation);
 		}
@@ -70,10 +82,6 @@ namespace Cat.Network.Steam {
 			});
 
 		
-		}
-
-		private void SteamMatchmaking_OnLobbyEntered(Lobby lobby) {
-			OnLobbyChanged?.Invoke(lobby);
 		}
 
 		public void Dispose() {
