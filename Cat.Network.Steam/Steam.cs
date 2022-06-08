@@ -21,7 +21,6 @@ namespace Cat.Network.Steam {
 
 		public Steam() {
 			Init();
-			SteamMatchmaking.OnLobbyEntered += SteamMatchmaking_OnLobbyEntered;
 			SteamMatchmaking.OnLobbyGameCreated += SteamMatchmaking_OnLobbyGameCreated;
 			SteamMatchmaking.OnLobbyCreated += SteamMatchmaking_OnLobbyCreated;
 		}
@@ -35,12 +34,6 @@ namespace Cat.Network.Steam {
 			}
 		}
 
-		private void SteamMatchmaking_OnLobbyEntered(Lobby lobby) {
-			CurrentLobby = lobby;
-			OnLobbyChanged?.Invoke(lobby);
-		}
-
-
 		private void SteamMatchmaking_OnLobbyGameCreated(Lobby lobby, uint ip, ushort port, SteamId targetSteamId) {
 			OnLobbyGameServerSet?.Invoke(targetSteamId.Value);
 		}
@@ -52,12 +45,26 @@ namespace Cat.Network.Steam {
 			}
 		}
 
-		public IAwaitable CreateLobby(int maxPlayers) {
-			return new SteamAwaitable(this, SteamMatchmaking.CreateLobbyAsync(maxPlayers));
+		public IAwaitable<Lobby?> CreateLobby(int maxPlayers) {
+			return new SteamAwaitable<Lobby?>(this, SteamMatchmaking.CreateLobbyAsync(maxPlayers));
 		}
 
-		public IAwaitable JoinLobby(ulong id) {
-			return new SteamAwaitable(this, SteamMatchmaking.JoinLobbyAsync(id));
+		public IAwaitable<Lobby?> JoinLobby(ulong id) {
+
+			Task<Lobby?> task = Task.Run(async () => {
+				Lobby lobby = new Lobby(id);
+				var result = await lobby.Join();
+
+				if(result == RoomEnter.Success) {
+					CurrentLobby = lobby;
+					OnLobbyChanged?.Invoke(lobby);
+					return (Lobby?) lobby;
+				} else {
+					return null;
+				}
+			});
+
+			return new SteamAwaitable<Lobby?>(this, task);
 
 		}
 

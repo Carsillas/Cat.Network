@@ -47,4 +47,22 @@ namespace Cat.Network.Steam {
 		}
 
 	}
+
+	internal class SteamAwaitable<T> : SteamAwaitable, IAwaitable<T>, IAwaiter<T> {
+
+		private Task<T> Task { get; }
+
+		public SteamAwaitable(Steam steam, Task<T> task) : base(steam, task) {
+			Task = task;
+		}
+
+		IAwaiter<T> IAwaitable<T>.GetAwaiter() {
+			return this;
+		}
+
+		T IAwaiter<T>.GetResult() {
+			return Task.Result;
+		}
+	}
+
 }
