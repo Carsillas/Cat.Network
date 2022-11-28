@@ -79,7 +79,6 @@ namespace Cat.Network.Steam {
 		}
 
 		private void Init() {
-			
 			FacepunchClient.Init(480, false);
 			Task.Run(async () => {
 				while (!FacepunchClient.IsValid) {
@@ -87,8 +86,6 @@ namespace Cat.Network.Steam {
 				}
 				SteamNetworkingUtils.InitRelayNetworkAccess();
 			});
-
-		
 		}
 
 		public void Dispose() {

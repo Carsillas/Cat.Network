@@ -7,22 +7,18 @@ using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 
-public class LocalGameClient : LocalSteamGameClient {
+public class GameClient : SteamGameClient {
 
-	public LocalGameClient(GameServer server, IProxyManager proxyManager) : base(server, proxyManager) {
+	public GameClient(GameServer server, IProxyManager proxyManager) : base(server, proxyManager) {
+		AddSerializers();
+	}
 
+	public GameClient(ulong targetSteamId, IProxyManager proxyManager) : base(targetSteamId, proxyManager) {
+		AddSerializers();
+	}
+
+	private void AddSerializers() {
 		SerializationContext.RegisterSerializationFunction<Vector3>(Serializers.SerializeVector3, Serializers.DeserializeVector3);
 		SerializationContext.RegisterSerializationFunction<Vector2>(Serializers.SerializeVector2, Serializers.DeserializeVector2);
 	}
-
-}
-
-public class RemoteGameClient : RemoteSteamGameClient {
-
-	public RemoteGameClient(ulong targetSteamId, IProxyManager proxyManager) : base(targetSteamId, proxyManager) {
-
-		SerializationContext.RegisterSerializationFunction<Vector3>(Serializers.SerializeVector3, Serializers.DeserializeVector3);
-		SerializationContext.RegisterSerializationFunction<Vector2>(Serializers.SerializeVector2, Serializers.DeserializeVector2);
-	} 
-
 }

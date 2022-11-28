@@ -38,9 +38,9 @@ public class SteamManager : MonoBehaviour {
 		ProxyManager proxyManager = new ProxyManager();
 
 		if (targetSteamId == SteamClient.SteamId) {
-			SteamGameClient = new LocalGameClient(SteamGameServer, proxyManager);
+			SteamGameClient = new GameClient(SteamGameServer, proxyManager);
 		} else {
-			SteamGameClient = new RemoteGameClient(targetSteamId, proxyManager);
+			SteamGameClient = new GameClient(targetSteamId, proxyManager);
 		}
 
 		proxyManager.Client = SteamGameClient;
@@ -53,7 +53,7 @@ public class SteamManager : MonoBehaviour {
 		if (lobby.HasValue && lobby.Value.GetGameServer(ref a, ref b, ref targetSteamId)) {
 			if (targetSteamId != SteamClient.SteamId) {
 				ProxyManager proxyManager = new ProxyManager();
-				SteamGameClient = new RemoteGameClient(targetSteamId, proxyManager);
+				SteamGameClient = new GameClient(targetSteamId, proxyManager);
 				proxyManager.Client = SteamGameClient;
 			}
 		}
