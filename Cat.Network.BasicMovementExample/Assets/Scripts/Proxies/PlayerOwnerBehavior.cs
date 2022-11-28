@@ -36,6 +36,15 @@ public class PlayerOwnerBehavior : EntityBehavior<Player>, IOwnerEntityBehavior 
 		Controller.SimpleMove(transform.rotation * movementInput);
 
 		Entity.Position.Value = transform.position;
+
+		if (Input.GetMouseButtonDown(0)) {
+			Bullet bullet = new Bullet();
+			bullet.Velocity.Value = Camera.transform.forward * 5;
+			bullet.Position.Value = Camera.transform.position + Camera.transform.forward;
+
+			Client.Spawn(bullet);
+		}
+
 	}
 
 }
