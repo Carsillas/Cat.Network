@@ -4,6 +4,9 @@ using System.Text;
 
 namespace Cat.Network.Test {
 	public class TestProxyManager : IProxyManager {
+
+		public event Action<NetworkEntity> GainedOwnership;
+
 		public void OnEntityCreated(NetworkEntity entity) {
 
 		}
@@ -13,7 +16,7 @@ namespace Cat.Network.Test {
 		}
 
 		public void OnGainedOwnership(NetworkEntity entity) {
-
+			GainedOwnership?.Invoke(entity);
 		}
 	}
 }

@@ -4,33 +4,43 @@ namespace Cat.Network.Test
 {
     public class ServerTests
     {
-        private Server Server { get; set; }
+        private TestServer Server { get; set; }
         private TestEntityStorage ServerEntityStorage { get; set; }
         
         private Client ClientA { get; set; }
         private Client ClientB { get; set; }
 
+        private TestTransport ClientATransport { get; set; }
+		private TestTransport ClientBTransport { get; set; }
 
-        [SetUp]
+        private TestProxyManager ProxyManagerA { get; set; }
+        private TestProxyManager ProxyManagerB { get; set; }
+
+
+		[SetUp]
         public void Setup()
         {
             ServerEntityStorage = new TestEntityStorage();
-            Server = new Server(ServerEntityStorage);
-            ClientA = new Client(new TestProxyManager());
-            ClientB = new Client(new TestProxyManager());
+            Server = new TestServer(ServerEntityStorage);
 
-            TestTransport clientATransport = new TestTransport();
-            TestTransport clientBTransport = new TestTransport();
-            TestTransport serverATransport = new TestTransport();
-            TestTransport serverBTransport = new TestTransport();
+            ProxyManagerA = new TestProxyManager();
+            ProxyManagerB = new TestProxyManager();
 
-            clientATransport.Remote = serverATransport;
-            serverATransport.Remote = clientATransport;
-            clientBTransport.Remote = serverBTransport;
-            serverBTransport.Remote = clientBTransport;
+            ClientA = new Client(ProxyManagerA);
+            ClientB = new Client(ProxyManagerB);
 
-            Server.AddTransport(clientATransport, new TestEntity());
-            Server.AddTransport(clientBTransport, new TestEntity());
+			ClientATransport = new TestTransport();
+			ClientBTransport = new TestTransport();
+			TestTransport serverATransport = new TestTransport();
+			TestTransport serverBTransport = new TestTransport();
+
+			ClientATransport.Remote = serverATransport;
+            serverATransport.Remote = ClientATransport;
+			ClientBTransport.Remote = serverBTransport;
+            serverBTransport.Remote = ClientBTransport;
+
+            Server.AddTransport(ClientATransport, new TestEntity());
+            Server.AddTransport(ClientBTransport, new TestEntity());
             ClientA.Connect(serverATransport);
             ClientB.Connect(serverBTransport);
         }
@@ -128,7 +138,62 @@ namespace Cat.Network.Test
 
         }
 
-        [Test]
+		[Test]
+		public void Test_EntityOwnershipModification() {
+
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+
+			TestEntity testEntityA = new TestEntity();
+
+            bool ownerA = false;
+            bool ownerB = false;
+
+			ProxyManagerA.GainedOwnership += entity => {
+				ownerA = true;
+			};
+
+			ProxyManagerB.GainedOwnership += entity => {
+				ownerB = true;
+			};
+
+			Assert.IsFalse(ownerA);
+			Assert.IsFalse(ownerB);
+
+			ClientA.Spawn(testEntityA);
+
+			Assert.IsTrue(ownerA);
+			Assert.IsFalse(ownerB);
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+
+			Assert.IsTrue(ownerA);
+			Assert.IsFalse(ownerB);
+
+			ProxyManagerB.GainedOwnership += entity => {
+                Assert.AreSame(entity, entityB);
+			};
+
+			Server.RemoveTransport(ClientATransport);
+
+			Assert.IsFalse(ownerB);
+
+			Server.Tick();
+            ClientB.Tick();
+
+			Assert.IsTrue(ownerB);
+
+		}
+
+
+		[Test]
         public void Test_EntityRPC()
         {
             TestEntity testEntityA = new TestEntity();

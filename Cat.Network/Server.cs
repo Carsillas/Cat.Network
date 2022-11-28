@@ -57,10 +57,14 @@ namespace Cat.Network {
 
 			Clients.Remove(client);
 			if(TryGetOwnedEntities(client, out HashSet<NetworkEntity> owned)) {
+				// Must be removed before iteration, SetOwner modifies `owned`
+				// SetOwner checks for collection when setting to null.
 				OwnedEntities.Remove(client);
-				foreach(NetworkEntity entity in owned) {
+				foreach (NetworkEntity entity in owned) {
 					if (entity.DestroyWithOwner.Value) {
 						Despawn(entity);
+					} else {
+						SetOwner(entity, null);
 					}
 				}
 			}

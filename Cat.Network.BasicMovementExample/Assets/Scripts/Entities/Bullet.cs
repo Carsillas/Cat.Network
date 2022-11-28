@@ -8,7 +8,6 @@ using UnityEngine;
 
 public class Bullet : NetworkEntity {
 
-
 	public NetworkProperty<Vector3> Position { get; } = new NetworkProperty<Vector3>();
 	public NetworkProperty<Vector3> Velocity { get; } = new NetworkProperty<Vector3>();
 
