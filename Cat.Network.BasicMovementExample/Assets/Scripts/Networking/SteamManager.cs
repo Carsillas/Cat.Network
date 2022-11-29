@@ -10,8 +10,8 @@ public class SteamManager : MonoBehaviour {
 
 	public Steam Steam { get; private set; }
 
-	private GameServer SteamGameServer { get; set; }
-	private SteamGameClient SteamGameClient { get; set; }
+	private GameServer GameServer { get; set; }
+	private GameClient GameClient { get; set; }
 
 
 	private void Start() {
@@ -30,7 +30,7 @@ public class SteamManager : MonoBehaviour {
 		textEditor.SelectAll();
 		textEditor.Copy();
 
-		SteamGameServer = new GameServer(new EntityStorage());
+		GameServer = new GameServer(new EntityStorage());
 	}
 
 	private void Steam_OnLobbyGameServerSet(ulong targetSteamId) {
@@ -38,12 +38,12 @@ public class SteamManager : MonoBehaviour {
 		ProxyManager proxyManager = new ProxyManager();
 
 		if (targetSteamId == SteamClient.SteamId) {
-			SteamGameClient = new GameClient(SteamGameServer, proxyManager);
+			GameClient = new GameClient(GameServer, proxyManager);
 		} else {
-			SteamGameClient = new GameClient(targetSteamId, proxyManager);
+			GameClient = new GameClient(targetSteamId, proxyManager);
 		}
 
-		proxyManager.Client = SteamGameClient;
+		proxyManager.Client = GameClient;
 	}
 
 	private void Steam_OnLobbyChanged(Lobby? lobby) {
@@ -53,16 +53,16 @@ public class SteamManager : MonoBehaviour {
 		if (lobby.HasValue && lobby.Value.GetGameServer(ref a, ref b, ref targetSteamId)) {
 			if (targetSteamId != SteamClient.SteamId) {
 				ProxyManager proxyManager = new ProxyManager();
-				SteamGameClient = new GameClient(targetSteamId, proxyManager);
-				proxyManager.Client = SteamGameClient;
+				GameClient = new GameClient(targetSteamId, proxyManager);
+				proxyManager.Client = GameClient;
 			}
 		}
 	}
 
 	private void Update() {
 		Steam.Tick();
-		SteamGameServer?.Tick();
-		SteamGameClient?.Tick();
+		GameServer?.Tick();
+		GameClient?.Tick();
 	}
 
 	private void OnApplicationQuit() {
