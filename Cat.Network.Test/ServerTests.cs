@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System;
 
 namespace Cat.Network.Test
 {
@@ -141,32 +142,32 @@ namespace Cat.Network.Test
 		[Test]
 		public void Test_EntityOwnershipModification() {
 
-
 			ClientA.Tick();
 			Server.Tick();
 			ClientB.Tick();
 
-
 			TestEntity testEntityA = new TestEntity();
 
-            bool ownerA = false;
-            bool ownerB = false;
+            bool AGainedOwnership = false;
+            bool BGainedOwnership = false;
 
 			ProxyManagerA.GainedOwnership += entity => {
-				ownerA = true;
+				AGainedOwnership = true;
 			};
 
 			ProxyManagerB.GainedOwnership += entity => {
-				ownerB = true;
+				BGainedOwnership = true;
 			};
 
-			Assert.IsFalse(ownerA);
-			Assert.IsFalse(ownerB);
+			Assert.IsFalse(testEntityA.IsOwner);
+			Assert.IsFalse(AGainedOwnership);
+			Assert.IsFalse(BGainedOwnership);
 
 			ClientA.Spawn(testEntityA);
+			Assert.IsTrue(testEntityA.IsOwner);
 
-			Assert.IsTrue(ownerA);
-			Assert.IsFalse(ownerB);
+			Assert.IsTrue(AGainedOwnership);
+			Assert.IsFalse(BGainedOwnership);
 
 			ClientA.Tick();
 			Server.Tick();
@@ -174,8 +175,9 @@ namespace Cat.Network.Test
 
 			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
 
-			Assert.IsTrue(ownerA);
-			Assert.IsFalse(ownerB);
+			Assert.IsTrue(AGainedOwnership);
+			Assert.IsFalse(BGainedOwnership);
+			Assert.IsFalse(entityB.IsOwner);
 
 			ProxyManagerB.GainedOwnership += entity => {
                 Assert.AreSame(entity, entityB);
@@ -183,13 +185,38 @@ namespace Cat.Network.Test
 
 			Server.RemoveTransport(ClientATransport);
 
-			Assert.IsFalse(ownerB);
+			Assert.IsFalse(BGainedOwnership);
+			Assert.IsFalse(entityB.IsOwner);
 
 			Server.Tick();
             ClientB.Tick();
 
-			Assert.IsTrue(ownerB);
+			Assert.IsTrue(BGainedOwnership);
+			Assert.IsTrue(entityB.IsOwner);
 
+		}
+
+
+		[Test]
+		public void Test_DestroyWithOwner() {
+
+			TestEntity testEntityA = new TestEntity();
+			ClientA.Spawn(testEntityA);
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+            testEntityA.DestroyWithOwner.Value = true;
+
+			ClientA.Tick();
+			Server.Tick(); // Server will not read packets from A if it's transport was removed first.
+
+			Server.RemoveTransport(ClientATransport);
+			Server.Tick();
+			ClientB.Tick();
+
+			Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
 		}
 
 
@@ -242,8 +269,59 @@ namespace Cat.Network.Test
             // Values replicated to B and Server
             Assert.AreEqual(129, testEntityB.TestInt.Value);
             Assert.AreEqual(129, testEntityServer.TestInt.Value);
-        }
+
+            // Ensure RPCs are executed locally for owning clients
+            testEntityA.Add(5);
+			Assert.AreEqual(134, testEntityA.TestInt.Value);
+			Assert.AreEqual(129, testEntityB.TestInt.Value);
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientA.Tick(); // To be sure we don't double execute
+			ClientB.Tick();
+
+			Assert.AreEqual(134, testEntityA.TestInt.Value);
+			Assert.AreEqual(134, testEntityB.TestInt.Value);
+
+		}
 
 
-    }
+
+		[Test]
+		public void Test_EntityMulticast() {
+
+			TestEntity testEntityA = new TestEntity();
+
+			ClientA.Spawn(testEntityA);
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+			TestEntity testEntityB = (TestEntity)entityB;
+			ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
+			TestEntity testEntityServer = (TestEntity)entityServer;
+
+            Assert.IsFalse(testEntityA.MulticastExecuted);
+			Assert.IsFalse(testEntityServer.MulticastExecuted);
+			Assert.IsFalse(testEntityB.MulticastExecuted);
+
+            testEntityA.InvokeTestMulticast();
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			Assert.IsFalse(testEntityA.MulticastExecuted);
+			Assert.IsFalse(testEntityServer.MulticastExecuted);
+			Assert.IsTrue(testEntityB.MulticastExecuted);
+
+            // Ensure non-owners cannot invoke multicasts
+            Assert.Throws<InvalidOperationException>(() => {
+				testEntityB.InvokeTestMulticast();
+			});
+		}
+
+
+	}
 }

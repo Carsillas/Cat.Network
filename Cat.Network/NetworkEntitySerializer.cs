@@ -154,6 +154,27 @@ namespace Cat.Network {
 			}
 
 		}
+		internal void HandleIncomingMulticastInvocation(BinaryReader reader) {
+
+			Guid multicastID = new Guid(reader.ReadBytes(16));
+			if (Multicasts.TryGetValue(multicastID, out MethodInfo multicast)) {
+				ParameterInfo[] Parameters = multicast.GetParameters();
+
+				MethodInfo method = typeof(NetworkEntity).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+					.First(m => m.Name == $"DeserializeInvokeAction{Parameters.Length}");
+
+				if (Parameters.Length == 0) {
+					method.Invoke(Entity, new object[] { reader, multicast });
+				} else {
+					method.GetGenericMethodDefinition()
+						.MakeGenericMethod(Parameters.Select(Parameter => Parameter.ParameterType).ToArray())
+						.Invoke(Entity, new object[] { reader, multicast });
+				}
+
+
+			}
+
+		}
 
 		internal void WriteOutgoingRPCInvocation(byte[] bytes) {
 			OutgoingRPCs.Add(bytes);

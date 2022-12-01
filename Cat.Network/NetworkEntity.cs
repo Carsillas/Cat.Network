@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Cat.Network {
 	public partial class NetworkEntity {
@@ -8,6 +6,8 @@ namespace Cat.Network {
 		internal NetworkEntitySerializer Serializer { get; }
 
 		public NetworkProperty<bool> DestroyWithOwner { get; } = new NetworkProperty<bool>();
+
+		public bool IsOwner { get; internal set; }
 
 		public NetworkEntity() {
 			Serializer = new NetworkEntitySerializer(this);

@@ -43,6 +43,7 @@ namespace Cat.Network {
 			OwnedEntities.Add(entity.NetworkID, entity);
 
 			ProxyManager.OnEntityCreated(entity);
+			entity.IsOwner = true;
 			ProxyManager.OnGainedOwnership(entity);
 
 		}
@@ -127,6 +128,7 @@ namespace Cat.Network {
 			RequestParsers.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
 			RequestParsers.Add(RequestType.RPC, HandleRPCRequest);
 			RequestParsers.Add(RequestType.AssignOwner, HandleAssignOwnerRequest);
+			RequestParsers.Add(RequestType.Multicast, HandleMulticastRequest);
 		}
 
 		private void HandleCreateEntityRequest(BinaryReader reader) {
@@ -200,12 +202,33 @@ namespace Cat.Network {
 			}
 		}
 
+		private void HandleMulticastRequest(BinaryReader reader) {
+
+			Guid entityNetworkID = new Guid(reader.ReadBytes(16));
+			Guid invokerNetworkID = new Guid(reader.ReadBytes(16));
+
+			if (Entities.TryGetValue(entityNetworkID, out NetworkEntity entity)) {
+
+				if (Entities.TryGetValue(invokerNetworkID, out NetworkEntity invoker)) {
+					RPCContext.Invoker = invoker;
+				}
+
+				try {
+					entity.Serializer.HandleIncomingMulticastInvocation(reader);
+				} finally {
+					RPCContext.Invoker = null;
+				}
+			}
+		}
+
+
 		private void HandleAssignOwnerRequest(BinaryReader reader) {
 
 			Guid entityNetworkID = new Guid(reader.ReadBytes(16));
 
 			if (Entities.TryGetValue(entityNetworkID, out NetworkEntity entity)) {
 				OwnedEntities.Add(entityNetworkID, entity);
+				entity.IsOwner = true;
 				ProxyManager.OnGainedOwnership(entity);
 			}
 		}

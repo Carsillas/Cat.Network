@@ -6,6 +6,7 @@ namespace Cat.Network.Test {
 	public class TestEntity : NetworkEntity {
 		public NetworkProperty<int> TestInt { get; } = new NetworkProperty<int>();
 
+		public bool MulticastExecuted { get; set; }
 
 
 		[RPC]
@@ -18,11 +19,21 @@ namespace Cat.Network.Test {
 			TestInt.Value += a;
 		}
 
+
+		[Multicast]
+		private void TestMulticast() {
+			MulticastExecuted = true;
+		}
+
 		public void Increment() {
 			InvokeRPC(TestRPC);
 		}
 		public void Add(int a) {
 			InvokeRPC(TestRPC, a);
+		}
+
+		public void InvokeTestMulticast() {
+			Multicast(TestMulticast);
 		}
 
 	}

@@ -338,7 +338,7 @@ namespace Cat.Network {
 
 				using (MemoryStream stream = new MemoryStream((int)reader.BaseStream.Length + 16)) {
 					using (BinaryWriter writer = new BinaryWriter(stream)) {
-						writer.Write((byte)RequestType.RPC);
+						writer.Write((byte)RequestType.Multicast);
 						writer.Write(networkID.ToByteArray());
 						writer.Write(clientDetails.ProfileEntity.NetworkID.ToByteArray());
 						writer.Write(reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position)));

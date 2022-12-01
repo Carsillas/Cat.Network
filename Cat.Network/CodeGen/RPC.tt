@@ -39,8 +39,13 @@ namespace Cat.Network {
 		builder.AppendLine(@$"
 		protected void InvokeRPC{genericArguments}(Action{genericArguments} RPC{conditionalComma} {string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value} _{value}"))}) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))}
         {{
-
-		    if(RPC.Target != this)
+			
+			if (IsOwner) {{
+				RPC?.Invoke({string.Join(", ", Enumerable.Range(1, count).Select(value => $"_{value}"))});
+				return;
+			}}
+			
+		    if (RPC.Target != this)
             {{
                 throw new Exception(""RPC Invoked on incorrect object!"");
             }}
