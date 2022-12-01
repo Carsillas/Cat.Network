@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.cat.network": {
+      "version": "https://github.com/Carsillas/UnityUtilities.git?path=/Cat.Network.UnityPackage",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "9fb2779a045f84c8301e06030b09ce3e0ba88839"
+    },
     "com.unity.collab-proxy": {
       "version": "1.13.5",
       "depth": 0,

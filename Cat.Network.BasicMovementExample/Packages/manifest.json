@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.cat.network": "https://github.com/Carsillas/UnityUtilities.git?path=/Cat.Network.UnityPackage",
     "com.unity.collab-proxy": "1.13.5",
     "com.unity.ide.rider": "3.0.7",
     "com.unity.ide.visualstudio": "2.0.11",

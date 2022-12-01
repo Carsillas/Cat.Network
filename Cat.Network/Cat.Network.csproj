@@ -49,4 +49,8 @@
 		</Compile>
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)Cat.Network.UnityPackage\Plugins\$(ProjectName).dll&quot;" />
+  </Target>
+
 </Project>

@@ -14,7 +14,6 @@ public class Player : NetworkEntity {
 
 	public Player() {
 		DestroyWithOwner.Value = true;
-
 	}
 
 }
