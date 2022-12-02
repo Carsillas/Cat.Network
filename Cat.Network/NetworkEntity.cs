@@ -1,7 +1,8 @@
 ﻿using System;
 
 namespace Cat.Network {
-	public partial class NetworkEntity {
+	public partial class NetworkEntity : INetworkEntity
+	{
 		public Guid NetworkID { get; internal set; }
 		internal NetworkEntitySerializer Serializer { get; }
 
