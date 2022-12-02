@@ -17,6 +17,8 @@ namespace Cat.Network {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
 
+			Multicast();
+
 		    if (Multicast.Target != this)
             {
                 throw new Exception("Multicast Invoked on incorrect object!");
@@ -43,6 +45,8 @@ namespace Cat.Network {
 			if (!IsOwner) {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
+
+			Multicast(_1);
 
 		    if (Multicast.Target != this)
             {
@@ -71,6 +75,8 @@ namespace Cat.Network {
 			if (!IsOwner) {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
+
+			Multicast(_1, _2);
 
 		    if (Multicast.Target != this)
             {
@@ -101,6 +107,8 @@ namespace Cat.Network {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
 
+			Multicast(_1, _2, _3);
+
 		    if (Multicast.Target != this)
             {
                 throw new Exception("Multicast Invoked on incorrect object!");
@@ -130,6 +138,8 @@ namespace Cat.Network {
 			if (!IsOwner) {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
+
+			Multicast(_1, _2, _3, _4);
 
 		    if (Multicast.Target != this)
             {
@@ -162,6 +172,8 @@ namespace Cat.Network {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
 
+			Multicast(_1, _2, _3, _4, _5);
+
 		    if (Multicast.Target != this)
             {
                 throw new Exception("Multicast Invoked on incorrect object!");
@@ -193,6 +205,8 @@ namespace Cat.Network {
 			if (!IsOwner) {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
+
+			Multicast(_1, _2, _3, _4, _5, _6);
 
 		    if (Multicast.Target != this)
             {
@@ -227,6 +241,8 @@ namespace Cat.Network {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
 
+			Multicast(_1, _2, _3, _4, _5, _6, _7);
+
 		    if (Multicast.Target != this)
             {
                 throw new Exception("Multicast Invoked on incorrect object!");
@@ -260,6 +276,8 @@ namespace Cat.Network {
 			if (!IsOwner) {
 				throw new InvalidOperationException("Cannot execute multicast RPC from non-owning client");
 			}
+
+			Multicast(_1, _2, _3, _4, _5, _6, _7, _8);
 
 		    if (Multicast.Target != this)
             {

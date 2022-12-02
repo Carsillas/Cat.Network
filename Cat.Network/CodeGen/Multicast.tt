@@ -44,6 +44,8 @@ namespace Cat.Network {
 				throw new InvalidOperationException(""Cannot execute multicast RPC from non-owning client"");
 			}}
 
+			Multicast({string.Join(", ", Enumerable.Range(1, count).Select(value => $"_{value}"))});
+
 		    if (Multicast.Target != this)
             {{
                 throw new Exception(""Multicast Invoked on incorrect object!"");

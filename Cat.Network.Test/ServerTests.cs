@@ -308,11 +308,16 @@ namespace Cat.Network.Test
 
             testEntityA.InvokeTestMulticast();
 
+			Assert.IsTrue(testEntityA.MulticastExecuted);
+
+            testEntityA.MulticastExecuted = false;
+
 			ClientA.Tick();
 			Server.Tick();
 			ClientB.Tick();
+			ClientA.Tick();
 
-			Assert.IsFalse(testEntityA.MulticastExecuted);
+			Assert.IsFalse(testEntityA.MulticastExecuted); // Multicast not doubly executed for owner
 			Assert.IsFalse(testEntityServer.MulticastExecuted);
 			Assert.IsTrue(testEntityB.MulticastExecuted);
 
