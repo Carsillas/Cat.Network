@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace Cat.Network {
-	public interface IProxyManager {
+	public interface IProxyManager : IDisposable {
 		void OnEntityCreated(NetworkEntity entity);
 		void OnEntityDeleted(NetworkEntity entity);
 

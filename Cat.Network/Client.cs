@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Cat.Network {
 
-	public class Client {
+	public class Client : IDisposable {
 
 		private int Time { get; set; }
 		private ITransport Transport { get; set; }
@@ -233,5 +233,8 @@ namespace Cat.Network {
 			}
 		}
 
+		public virtual void Dispose() {
+			ProxyManager?.Dispose();
+		}
 	}
 }

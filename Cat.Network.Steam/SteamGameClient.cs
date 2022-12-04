@@ -7,7 +7,7 @@ using System.Text;
 using FacepunchClient = Steamworks.SteamClient;
 
 namespace Cat.Network.Steam {
-	public abstract class SteamGameClient : Client, IConnectionManager, IDisposable {
+	public abstract class SteamGameClient : Client, IConnectionManager {
 		private ConnectionManager ConnectionManager { get; set; }
 		private SteamTransport Transport { get; }
 
@@ -42,7 +42,8 @@ namespace Cat.Network.Steam {
 			ConnectionManager?.Receive();
 		}
 
-		public void Dispose() {
+		public override void Dispose() {
+			base.Dispose();
 			ConnectionManager?.Close();
 			ConnectionManager = null;
 		}
