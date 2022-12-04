@@ -24,7 +24,7 @@ namespace Cat.Network.Steam {
 			return new SteamProfileEntity();
 		}
 
-		void IDisposable.Dispose() {
+		public void Dispose() {
 			SocketManager?.Close();
 			SocketManager = null;
 		}
