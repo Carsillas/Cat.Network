@@ -28,20 +28,27 @@ namespace Cat.Network {
 		private Func<BinaryReader, NetworkProperty<T>, T> DeserializeFunction { get; set; } = null;
 
 		public NetworkProperty() {
-			ResolutionFunction = DefaultResolutionFunction;
+			_ResolutionFunction = DefaultResolutionFunction;
 		}
 
 		private T _Value;
 		public T Value {
 			get {
-				return ResolutionFunction.Invoke();
+				return _ResolutionFunction.Invoke();
 			}
 			set {
 				UpdateValue(value, true);
 			}
 		}
 
-		private Func<T> ResolutionFunction { get; set; }
+
+		private Func<T> _ResolutionFunction;
+		public Func<T> ResolutionFunction {
+			private get => _ResolutionFunction;
+			set {
+				_ResolutionFunction = value ?? DefaultResolutionFunction;
+			}
+		}
 
 		private T DefaultResolutionFunction() {
 			return _Value;
