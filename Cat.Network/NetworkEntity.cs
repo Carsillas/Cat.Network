@@ -1,7 +1,7 @@
 ﻿using System;
 
 namespace Cat.Network {
-	public partial class NetworkEntity : INetworkEntity
+	public partial class NetworkEntity : INetworkEntity, IEquatable<NetworkEntity>
 	{
 		public Guid NetworkID { get; internal set; }
 		internal NetworkEntitySerializer Serializer { get; }
@@ -14,5 +14,8 @@ namespace Cat.Network {
 			Serializer = new NetworkEntitySerializer(this);
 		}
 
+		public bool Equals(NetworkEntity other) {
+			return NetworkID == other.NetworkID;
+		}
 	}
 }
