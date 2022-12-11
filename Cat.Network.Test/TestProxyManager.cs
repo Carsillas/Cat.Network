@@ -7,6 +7,10 @@ namespace Cat.Network.Test {
 
 		public event Action<NetworkEntity> GainedOwnership;
 
+		public void Dispose() {
+
+		}
+
 		public void OnEntityCreated(NetworkEntity entity) {
 
 		}

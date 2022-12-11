@@ -1,7 +1,7 @@
 ﻿using System;
 
 namespace Cat.Network {
-	public partial class NetworkEntity : INetworkEntity, IEquatable<NetworkEntity>
+	public partial class NetworkEntity : IEquatable<NetworkEntity>
 	{
 		public Guid NetworkID { get; internal set; }
 		internal NetworkEntitySerializer Serializer { get; }

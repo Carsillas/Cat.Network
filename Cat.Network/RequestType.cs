@@ -9,6 +9,7 @@ namespace Cat.Network {
 		DeleteEntity = 3,
 		RPC = 4,
 		AssignOwner = 5,
-		Multicast
+		Multicast = 6
 	}
+
 }
