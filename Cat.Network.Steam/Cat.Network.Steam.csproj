@@ -1,16 +1,18 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Facepunch.Steamworks" Version="2.3.3" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Cat.Async\Cat.Async.csproj" />
     <ProjectReference Include="..\Cat.Network\Cat.Network.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Facepunch.Steamworks.Win64">
+      <HintPath>lib\Facepunch.Steamworks.Win64.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
