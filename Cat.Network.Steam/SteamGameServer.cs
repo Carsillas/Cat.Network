@@ -11,6 +11,8 @@ namespace Cat.Network.Steam {
 		private SocketManager SocketManager { get; set; }
 		private Dictionary<uint, Client> ConnectedClients { get; } = new Dictionary<uint, Client>();
 
+		public int BytesReceived { get; private set; }
+
 		public SteamGameServer(IEntityStorage entityStorage) : base(entityStorage) {
 			SocketManager = SteamNetworkingSockets.CreateRelaySocket<SocketManager>();
 			SocketManager.Interface = this;
@@ -63,6 +65,7 @@ namespace Cat.Network.Steam {
 
 		void ISocketManager.OnMessage(Connection connection, NetIdentity identity, IntPtr data, int size, long messageNum, long recvTime, int channel) {
 			byte[] packet = new byte[size];
+			BytesReceived += size;
 			Marshal.Copy(data, packet, 0, size);
 
 			if (ConnectedClients.TryGetValue(connection.Id, out Client client)) {
