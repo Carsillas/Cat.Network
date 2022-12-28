@@ -36,7 +36,7 @@ namespace Cat.Network {
 		string genericArguments = count > 0 ? $"<{GetGenericParameters(count)}>" : "";
 
 		Builder.AppendLine($@"
-		internal void DeserializeInvokeAction{count}{genericArguments}(BinaryReader reader, MethodInfo methodInfo) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))} {{ 
+		internal void DeserializeInvokeAction{count}{genericArguments}(BinaryReader reader, MethodInfo methodInfo) {{ 
 			{GetDeserializeCalls(count)}
 			{GetInvokeCall(count)}
 		}}

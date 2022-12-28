@@ -37,7 +37,7 @@ namespace Cat.Network {
 		string conditionalComma = count > 0 ? "," : "";
 
 		builder.AppendLine(@$"
-		protected void Multicast{genericArguments}(Action{genericArguments} Multicast{conditionalComma} {string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value} _{value}"))}) {string.Join(" ", Enumerable.Range(1, count).Select(value => $"where T{value} : IEquatable<T{value}>"))}
+		protected void Multicast{genericArguments}(Action{genericArguments} Multicast{conditionalComma} {string.Join(", ", Enumerable.Range(1, count).Select(value => $"T{value} _{value}"))})
         {{
 
 			if (!IsOwner) {{

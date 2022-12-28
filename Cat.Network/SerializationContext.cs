@@ -7,7 +7,7 @@ namespace Cat.Network {
 
 	public interface ISerializationContext {
 
-		void RegisterSerializationFunction<T>(Action<BinaryWriter, T> serializeMethod, Func<BinaryReader, NetworkProperty<T>, T> deserializeMethod) where T : IEquatable<T>;
+		void RegisterSerializationFunction<T>(Action<BinaryWriter, T> serializeMethod, Func<BinaryReader, NetworkProperty<T>, T> deserializeMethod);
 
 	}
 
@@ -28,7 +28,7 @@ namespace Cat.Network {
 
 		}
 
-		public void RegisterSerializationFunction<T>(Action<BinaryWriter, T> serializeMethod, Func<BinaryReader, NetworkProperty<T>, T> deserializeMethod) where T : IEquatable<T> {
+		public void RegisterSerializationFunction<T>(Action<BinaryWriter, T> serializeMethod, Func<BinaryReader, NetworkProperty<T>, T> deserializeMethod) {
 			SerializationMethods.Add(typeof(T), (serializeMethod, deserializeMethod));
 		}
 

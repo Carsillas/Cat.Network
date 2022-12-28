@@ -10,7 +10,7 @@ namespace Cat.Network {
 	public partial class NetworkEntity {
 
 
-		internal void DeserializeInvokeAction0(BinaryReader reader, MethodInfo methodInfo)  { 
+		internal void DeserializeInvokeAction0(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			
 			methodInfo.Invoke(this, new object[] {  });
@@ -18,7 +18,7 @@ namespace Cat.Network {
 
 
 
-		internal void DeserializeInvokeAction1<T1>(BinaryReader reader, MethodInfo methodInfo) where T1 : IEquatable<T1> { 
+		internal void DeserializeInvokeAction1<T1>(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			
@@ -27,7 +27,7 @@ namespace Cat.Network {
 
 
 
-		internal void DeserializeInvokeAction2<T1, T2>(BinaryReader reader, MethodInfo methodInfo) where T1 : IEquatable<T1> where T2 : IEquatable<T2> { 
+		internal void DeserializeInvokeAction2<T1, T2>(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);
@@ -37,7 +37,7 @@ namespace Cat.Network {
 
 
 
-		internal void DeserializeInvokeAction3<T1, T2, T3>(BinaryReader reader, MethodInfo methodInfo) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> { 
+		internal void DeserializeInvokeAction3<T1, T2, T3>(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);
@@ -48,7 +48,7 @@ namespace Cat.Network {
 
 
 
-		internal void DeserializeInvokeAction4<T1, T2, T3, T4>(BinaryReader reader, MethodInfo methodInfo) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> { 
+		internal void DeserializeInvokeAction4<T1, T2, T3, T4>(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);
@@ -60,7 +60,7 @@ namespace Cat.Network {
 
 
 
-		internal void DeserializeInvokeAction5<T1, T2, T3, T4, T5>(BinaryReader reader, MethodInfo methodInfo) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> { 
+		internal void DeserializeInvokeAction5<T1, T2, T3, T4, T5>(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);
@@ -73,7 +73,7 @@ namespace Cat.Network {
 
 
 
-		internal void DeserializeInvokeAction6<T1, T2, T3, T4, T5, T6>(BinaryReader reader, MethodInfo methodInfo) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> { 
+		internal void DeserializeInvokeAction6<T1, T2, T3, T4, T5, T6>(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);
@@ -87,7 +87,7 @@ namespace Cat.Network {
 
 
 
-		internal void DeserializeInvokeAction7<T1, T2, T3, T4, T5, T6, T7>(BinaryReader reader, MethodInfo methodInfo) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> where T7 : IEquatable<T7> { 
+		internal void DeserializeInvokeAction7<T1, T2, T3, T4, T5, T6, T7>(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);
@@ -102,7 +102,7 @@ namespace Cat.Network {
 
 
 
-		internal void DeserializeInvokeAction8<T1, T2, T3, T4, T5, T6, T7, T8>(BinaryReader reader, MethodInfo methodInfo) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> where T7 : IEquatable<T7> where T8 : IEquatable<T8> { 
+		internal void DeserializeInvokeAction8<T1, T2, T3, T4, T5, T6, T7, T8>(BinaryReader reader, MethodInfo methodInfo) { 
 			
 			T1 _1 = Serializer.SerializationContext.GetDeserializationFunction<T1>()(reader, null);
 			T2 _2 = Serializer.SerializationContext.GetDeserializationFunction<T2>()(reader, null);

@@ -12,11 +12,6 @@ namespace Cat.Network {
 
 		private static HashAlgorithm HashAlgorithm { get; } = MD5.Create();
 
-		internal enum SerializationOptions {
-			All,
-			Dirty
-		}
-
 		internal SerializationContext SerializationContext { get; private set; }
 
 		private Dictionary<string, NetworkProperty> Properties { get; set; }
@@ -25,12 +20,19 @@ namespace Cat.Network {
 
 		private NetworkEntity Entity { get; }
 
-		private bool _Dirty;
-		internal bool Dirty {
-			get => _Dirty;
+		private bool _CreateDirty;
+		private bool _UpdateDirty;
+		internal bool CreateDirty {
+			get => _CreateDirty;
 			set {
-				_Dirty = value;
+				_CreateDirty = value;
 				CachedCreateRequest = null;
+			}
+		}
+		internal bool UpdateDirty {
+			get => _UpdateDirty;
+			set {
+				_UpdateDirty = value;
 				CachedUpdateRequest = null;
 			}
 		}
@@ -93,7 +95,7 @@ namespace Cat.Network {
 						writer.Write(Entity.NetworkID.ToByteArray());
 						writer.Write(Entity.GetType().AssemblyQualifiedName);
 
-						WriteNetworkProperties(writer, SerializationOptions.All);
+						WriteNetworkProperties(writer, NetworkPropertySerializeTrigger.Creation);
 
 						CachedCreateRequest = stream.ToArray();
 					}
@@ -111,7 +113,7 @@ namespace Cat.Network {
 						writer.Write((byte)RequestType.UpdateEntity);
 						writer.Write(Entity.NetworkID.ToByteArray());
 
-						WriteNetworkProperties(writer, SerializationOptions.Dirty);
+						WriteNetworkProperties(writer, NetworkPropertySerializeTrigger.Modification);
 
 						CachedUpdateRequest = stream.ToArray();
 					}
@@ -195,7 +197,7 @@ namespace Cat.Network {
 			}
 		}
 
-		private void WriteNetworkProperties(BinaryWriter writer, SerializationOptions serializationOptions) {
+		private void WriteNetworkProperties(BinaryWriter writer, NetworkPropertySerializeTrigger triggers) {
 
 			uint propertyCount = 0;
 
@@ -203,15 +205,14 @@ namespace Cat.Network {
 			writer.Seek(sizeof(uint), SeekOrigin.Current);
 
 			foreach (var propertyPair in Properties) {
-				switch (serializationOptions) {
-					case SerializationOptions.All:
-						Write();
-						break;
-					case SerializationOptions.Dirty:
-						if (propertyPair.Value.Dirty) {
-							Write();
-						}
-						break;
+
+				if (triggers.HasFlag(NetworkPropertySerializeTrigger.Creation) && propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Creation)) {
+					Write();
+				} else if(propertyPair.Value.Dirty &&
+					triggers.HasFlag(NetworkPropertySerializeTrigger.Modification) && 
+					propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Modification)) {
+					Write();
+					propertyPair.Value.Dirty = false;
 				}
 
 				void Write() {
@@ -220,10 +221,11 @@ namespace Cat.Network {
 					propertyCount++;
 				}
 
-				propertyPair.Value.Dirty = false;
 			}
 
-			Entity.Serializer.Dirty = false;
+			if (triggers.HasFlag(NetworkPropertySerializeTrigger.Modification)) {
+				Entity.Serializer.UpdateDirty = false;
+			}
 
 			int endPosition = (int)writer.BaseStream.Position;
 

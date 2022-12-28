@@ -4,6 +4,13 @@ using System.IO;
 using System.Text;
 
 namespace Cat.Network {
+
+	[Flags]
+	public enum NetworkPropertySerializeTrigger {
+		Creation = 1 << 0,
+		Modification = 1 << 1
+	}
+
 	public abstract class NetworkProperty {
 		private NetworkEntity _Entity;
 		internal NetworkEntity Entity {
@@ -12,7 +19,16 @@ namespace Cat.Network {
 				_Entity = value;
 			}
 		}
+
+		public NetworkPropertySerializeTrigger Triggers { get; }
+
+		internal bool CreateDirty { get; set; }
 		internal bool Dirty { get; set; }
+
+		protected NetworkProperty(NetworkPropertySerializeTrigger triggers) {
+			Triggers = triggers;
+		}
+
 
 		internal abstract void Serialize(BinaryWriter writer);
 		internal abstract void Deserialize(BinaryReader reader);
@@ -27,7 +43,8 @@ namespace Cat.Network {
 		private Action<BinaryWriter, T> SerializeFunction { get; set; } = null;
 		private Func<BinaryReader, NetworkProperty<T>, T> DeserializeFunction { get; set; } = null;
 
-		public NetworkProperty() {
+
+		public NetworkProperty(NetworkPropertySerializeTrigger triggers = NetworkPropertySerializeTrigger.Creation | NetworkPropertySerializeTrigger.Modification) : base(triggers) {
 			_ResolutionFunction = DefaultResolutionFunction;
 		}
 
@@ -70,7 +87,8 @@ namespace Cat.Network {
 				OnValueChanged?.Invoke(previous);
 				if (markDirty) {
 					Dirty = true;
-					Entity.Serializer.Dirty = true;
+					Entity.Serializer.UpdateDirty = true;
+					Entity.Serializer.CreateDirty = true;
 				}
 			}
 		}

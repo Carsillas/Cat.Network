@@ -10,7 +10,7 @@ namespace Cat.Network {
 	public partial class NetworkEntity {
 
 
-		protected void Multicast(Action Multicast ) 
+		protected void Multicast(Action Multicast )
         {
 
 			if (!IsOwner) {
@@ -39,7 +39,7 @@ namespace Cat.Network {
         }
 
 
-		protected void Multicast<T1>(Action<T1> Multicast, T1 _1) where T1 : IEquatable<T1>
+		protected void Multicast<T1>(Action<T1> Multicast, T1 _1)
         {
 
 			if (!IsOwner) {
@@ -69,7 +69,7 @@ namespace Cat.Network {
         }
 
 
-		protected void Multicast<T1, T2>(Action<T1, T2> Multicast, T1 _1, T2 _2) where T1 : IEquatable<T1> where T2 : IEquatable<T2>
+		protected void Multicast<T1, T2>(Action<T1, T2> Multicast, T1 _1, T2 _2)
         {
 
 			if (!IsOwner) {
@@ -100,7 +100,7 @@ namespace Cat.Network {
         }
 
 
-		protected void Multicast<T1, T2, T3>(Action<T1, T2, T3> Multicast, T1 _1, T2 _2, T3 _3) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3>
+		protected void Multicast<T1, T2, T3>(Action<T1, T2, T3> Multicast, T1 _1, T2 _2, T3 _3)
         {
 
 			if (!IsOwner) {
@@ -132,7 +132,7 @@ namespace Cat.Network {
         }
 
 
-		protected void Multicast<T1, T2, T3, T4>(Action<T1, T2, T3, T4> Multicast, T1 _1, T2 _2, T3 _3, T4 _4) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4>
+		protected void Multicast<T1, T2, T3, T4>(Action<T1, T2, T3, T4> Multicast, T1 _1, T2 _2, T3 _3, T4 _4)
         {
 
 			if (!IsOwner) {
@@ -165,7 +165,7 @@ namespace Cat.Network {
         }
 
 
-		protected void Multicast<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> Multicast, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5>
+		protected void Multicast<T1, T2, T3, T4, T5>(Action<T1, T2, T3, T4, T5> Multicast, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5)
         {
 
 			if (!IsOwner) {
@@ -199,7 +199,7 @@ namespace Cat.Network {
         }
 
 
-		protected void Multicast<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> Multicast, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6>
+		protected void Multicast<T1, T2, T3, T4, T5, T6>(Action<T1, T2, T3, T4, T5, T6> Multicast, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6)
         {
 
 			if (!IsOwner) {
@@ -234,7 +234,7 @@ namespace Cat.Network {
         }
 
 
-		protected void Multicast<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> Multicast, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6, T7 _7) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> where T7 : IEquatable<T7>
+		protected void Multicast<T1, T2, T3, T4, T5, T6, T7>(Action<T1, T2, T3, T4, T5, T6, T7> Multicast, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6, T7 _7)
         {
 
 			if (!IsOwner) {
@@ -270,7 +270,7 @@ namespace Cat.Network {
         }
 
 
-		protected void Multicast<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> Multicast, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6, T7 _7, T8 _8) where T1 : IEquatable<T1> where T2 : IEquatable<T2> where T3 : IEquatable<T3> where T4 : IEquatable<T4> where T5 : IEquatable<T5> where T6 : IEquatable<T6> where T7 : IEquatable<T7> where T8 : IEquatable<T8>
+		protected void Multicast<T1, T2, T3, T4, T5, T6, T7, T8>(Action<T1, T2, T3, T4, T5, T6, T7, T8> Multicast, T1 _1, T2 _2, T3 _3, T4 _4, T5 _5, T6 _6, T7 _7, T8 _8)
         {
 
 			if (!IsOwner) {

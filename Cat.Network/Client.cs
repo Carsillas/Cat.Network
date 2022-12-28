@@ -90,7 +90,7 @@ namespace Cat.Network {
 
 
 			foreach (NetworkEntity entity in OwnedEntities.Values) {
-				if (EntitiesToSpawn.Contains(entity) || EntitiesToDespawn.Contains(entity) || !entity.Serializer.Dirty) {
+				if (EntitiesToSpawn.Contains(entity) || EntitiesToDespawn.Contains(entity) || !entity.Serializer.UpdateDirty) {
 					continue;
 				}
 
@@ -134,7 +134,6 @@ namespace Cat.Network {
 		private void HandleCreateEntityRequest(BinaryReader reader) {
 			Guid networkID = new Guid(reader.ReadBytes(16));
 			string entityTypeName = reader.ReadString();
-			Type entityType = null;
 
 			if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {
 				if (!OwnedEntities.ContainsKey(existingEntity.NetworkID)) {
@@ -143,9 +142,7 @@ namespace Cat.Network {
 				return;
 			}
 
-			try {
-				entityType = Type.GetType(entityTypeName);
-			} catch (Exception) { }
+			Type entityType = Type.GetType(entityTypeName);
 
 			if (entityType != null && typeof(NetworkEntity).IsAssignableFrom(entityType)) {
 				NetworkEntity instance = (NetworkEntity)Activator.CreateInstance(entityType);
