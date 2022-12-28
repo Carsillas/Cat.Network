@@ -11,6 +11,9 @@ namespace Cat.Network.Steam {
 		private ConnectionManager ConnectionManager { get; set; }
 		private SteamTransport Transport { get; }
 
+		public ConnectionStatus? Status => Transport?.Connection.QuickStatus() ?? null;
+		public string DetailedStatus => Transport?.Connection.DetailedStatus() ?? null;
+
 		public SteamGameClient(SteamGameServer server, IProxyManager proxyManager) : base(proxyManager) {
 			HostTransport clientTransport = new HostTransport();
 			HostTransport serverTransport = new HostTransport();
