@@ -33,7 +33,7 @@ namespace Cat.Network.Test {
 
 			clientTransport.Remote = serverTransport;
 			serverTransport.Remote = clientTransport;
-			Server.AddTransport(clientTransport, new TestEntity());
+			Server.AddTransport(clientTransport, new TestProfileEntity());
 			client.Connect(serverTransport);
 
 			return new(client, clientTransport, proxyManager);
@@ -354,6 +354,44 @@ namespace Cat.Network.Test {
 
 		}
 
+
+		[Test]
+		public void Test_CreateSyncOnly() {
+
+			TestEntity testEntityA = new TestEntity();
+
+			testEntityA.TestIntCreateOnly.Value = 123;
+
+			ClientA.Spawn(testEntityA);
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+			TestEntity testEntityB = (TestEntity)entityB;
+
+			Assert.AreEqual(123, testEntityB.TestIntCreateOnly.Value);
+
+			testEntityA.TestIntCreateOnly.Value = 100;
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			Assert.AreEqual(123, testEntityB.TestIntCreateOnly.Value);
+
+			var (ClientC, ClientCTransport, ProxyManagerC) = AddClient();
+			Server.Tick();
+			ClientC.Tick();
+
+			ClientC.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityC);
+			TestEntity testEntityC = (TestEntity)entityC;
+
+			Assert.AreEqual(123, testEntityB.TestIntCreateOnly.Value);
+			Assert.AreEqual(100, testEntityC.TestIntCreateOnly.Value);
+
+		}
 
 	}
 }

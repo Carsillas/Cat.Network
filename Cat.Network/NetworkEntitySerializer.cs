@@ -206,11 +206,12 @@ namespace Cat.Network {
 
 			foreach (var propertyPair in Properties) {
 
-				if (triggers.HasFlag(NetworkPropertySerializeTrigger.Creation) && propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Creation)) {
+				bool creationFlag = triggers.HasFlag(NetworkPropertySerializeTrigger.Creation) && propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Creation);
+				bool modifyFlag = triggers.HasFlag(NetworkPropertySerializeTrigger.Modification) &&	propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Modification);
+
+				if (creationFlag) {
 					Write();
-				} else if(propertyPair.Value.Dirty &&
-					triggers.HasFlag(NetworkPropertySerializeTrigger.Modification) && 
-					propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Modification)) {
+				} else if (propertyPair.Value.Dirty && modifyFlag) {
 					Write();
 					propertyPair.Value.Dirty = false;
 				}

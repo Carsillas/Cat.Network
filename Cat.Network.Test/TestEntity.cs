@@ -3,8 +3,15 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace Cat.Network.Test {
+
+
+	public class TestProfileEntity : NetworkEntity {
+
+	}
+
 	public class TestEntity : NetworkEntity {
 		public NetworkProperty<int> TestInt { get; } = new NetworkProperty<int>();
+		public NetworkProperty<int> TestIntCreateOnly { get; } = new NetworkProperty<int>(NetworkPropertySerializeTrigger.Creation);
 
 		public bool MulticastExecuted { get; set; }
 
