@@ -13,6 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="7.0.0-preview.2.22152.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="CodeGen\Deserialize.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Deserialize.cs</LastGenOutput>

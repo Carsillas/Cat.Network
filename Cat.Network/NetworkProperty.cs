@@ -60,7 +60,7 @@ namespace Cat.Network {
 
 
 		private Func<T> _ResolutionFunction;
-		public Func<T> ResolutionFunction {
+		internal Func<T> ResolutionFunction {
 			private get => _ResolutionFunction;
 			set {
 				_ResolutionFunction = value ?? DefaultResolutionFunction;
@@ -72,7 +72,7 @@ namespace Cat.Network {
 		}
 
 		internal override void Serialize(BinaryWriter writer) {
-			SerializeFunction.Invoke(writer, _Value);
+			SerializeFunction.Invoke(writer, Value);
 		}
 		internal override void Deserialize(BinaryReader reader) {
 			T newValue = DeserializeFunction.Invoke(reader, this);

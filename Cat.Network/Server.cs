@@ -28,6 +28,8 @@ namespace Cat.Network {
 
 		public Server(IEntityStorage entityStorage) {
 			InitializeNetworkRequestParsers();
+			SerializationContext.RegisterSerializationFunction<NetworkEntity>(SerializeEntityReference, DeserializeEntityReference);
+
 			EntityStorage = entityStorage;
 		}
 
@@ -364,6 +366,44 @@ namespace Cat.Network {
 
 			}
 		}
+
+		private void SerializeEntityReference(BinaryWriter writer, NetworkEntity value) {
+			writer.Write(value != null);
+			if (value != null) {
+				writer.Write(value.NetworkID.ToByteArray());
+			}
+		}
+
+		private NetworkEntity DeserializeEntityReference(BinaryReader reader, NetworkProperty<NetworkEntity> networkProperty) {
+			bool hasValue = reader.ReadBoolean();
+			if (hasValue) {
+				Guid networkID = new Guid(reader.ReadBytes(16));
+
+				NetworkEntity result;
+
+				// Must null check because RPC Deserialize function has no property associated.
+				if (networkProperty != null) {
+					networkProperty.ResolutionFunction = ResolutionFunction;
+
+					NetworkEntity ResolutionFunction() {
+						if (EntityStorage.TryGetEntityByNetworkID(networkID, out result)) {
+							return result;
+						}
+						return null;
+					}
+				}
+
+				if (EntityStorage.TryGetEntityByNetworkID(networkID, out result)) {
+					return result;
+				}
+
+			} else if (networkProperty != null) {
+				networkProperty.ResolutionFunction = null;
+			}
+			return null;
+
+		}
+
 
 		private class ClientDetails {
 			public ITransport Transport { get; set; }

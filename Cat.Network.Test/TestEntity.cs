@@ -9,9 +9,18 @@ namespace Cat.Network.Test {
 
 	}
 
+	public enum Test : byte {
+		Meow,
+		Woof,
+		Purple
+	}
+
 	public class TestEntity : NetworkEntity {
 		public NetworkProperty<int> TestInt { get; } = new NetworkProperty<int>();
+		public NetworkProperty<Test> TestEnum { get; } = new NetworkProperty<Test>();
 		public NetworkProperty<int> TestIntCreateOnly { get; } = new NetworkProperty<int>(NetworkPropertySerializeTrigger.Creation);
+		public NetworkProperty<TestEntity> TestEntityReference { get; } = new NetworkProperty<TestEntity>();
+
 
 		public bool MulticastExecuted { get; set; }
 

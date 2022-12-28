@@ -406,5 +406,62 @@ namespace Cat.Network.Test {
 
 		}
 
+
+		[Test]
+		public void Test_EnumSync() {
+
+			TestEntity testEntityA = new TestEntity();
+
+			testEntityA.TestEnum.Value = Test.Meow;
+
+			ClientA.Spawn(testEntityA);
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+			ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
+
+			TestEntity testEntityServer = (TestEntity)entityServer;
+			TestEntity testEntityB = (TestEntity)entityB;
+
+			Assert.AreEqual(Test.Meow, testEntityServer.TestEnum.Value);
+			Assert.AreEqual(Test.Meow, testEntityB.TestEnum.Value);
+
+			testEntityA.TestEnum.Value = Test.Woof;
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			Assert.AreEqual(Test.Woof, testEntityServer.TestEnum.Value);
+			Assert.AreEqual(Test.Woof, testEntityB.TestEnum.Value);
+
+		}
+
+		[Test]
+		public void Test_EntityReferenceSync() {
+
+			TestEntity testEntityA = new TestEntity();
+
+			testEntityA.TestEntityReference.Value = testEntityA;
+
+			ClientA.Spawn(testEntityA);
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+			ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
+
+			TestEntity testEntityServer = (TestEntity)entityServer;
+			TestEntity testEntityB = (TestEntity)entityB;
+
+			Assert.AreSame(testEntityServer, testEntityServer.TestEntityReference.Value);
+			Assert.AreSame(testEntityB, testEntityB.TestEntityReference.Value);
+
+		}
+
+
 	}
 }

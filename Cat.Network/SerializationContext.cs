@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Cat.Network {
@@ -12,11 +13,13 @@ namespace Cat.Network {
 	}
 
 	internal sealed class SerializationContext : ISerializationContext {
+
 		private Dictionary<Type, (object Serializer, object Deserializer)> SerializationMethods { get; } = new Dictionary<Type, (object Serializer, object Deserializer)>();
 
 		internal bool DeserializeDirtiesProperty { get; set; }
 
 		public SerializationContext() {
+
 			RegisterSerializationFunction<byte>(SerializeByte, DeserializeByte);
 			RegisterSerializationFunction<short>(SerializeShort, DeserializeShort);
 			RegisterSerializationFunction<int>(SerializeInt, DeserializeInt);
@@ -33,15 +36,33 @@ namespace Cat.Network {
 		}
 
 		public Action<BinaryWriter, T> GetSerializationFunction<T>() {
-			if (SerializationMethods.TryGetValue(typeof(T), out (object Serializer, object Deserializer) methods)) {
-				return (Action<BinaryWriter, T>)(methods.Serializer);
+
+			Type serializedType = typeof(T);
+
+			if (typeof(T).IsEnum) {
+				serializedType = Enum.GetUnderlyingType(serializedType);
+			} else if (typeof(NetworkEntity).IsAssignableFrom(typeof(T))) {
+				serializedType = typeof(NetworkEntity);
+			}
+
+			if (SerializationMethods.TryGetValue(serializedType, out (object Serializer, object Deserializer) methods)) {
+				return Unsafe.As<Action<BinaryWriter, T>>(methods.Serializer);
 			}
 			throw new Exception($"Unsupported type encountered in {nameof(NetworkProperty)}: {typeof(T)}");
 		}
 
 		public Func<BinaryReader, NetworkProperty<T>, T> GetDeserializationFunction<T>() {
-			if (SerializationMethods.TryGetValue(typeof(T), out (object Serializer, object Deserializer) methods)) {
-				return (Func<BinaryReader, NetworkProperty<T>, T>)methods.Deserializer;
+
+			Type serializedType = typeof(T);
+
+			if (typeof(T).IsEnum) {
+				serializedType = Enum.GetUnderlyingType(serializedType);
+			} else if (typeof(NetworkEntity).IsAssignableFrom(typeof(T))) {
+				serializedType = typeof(NetworkEntity);
+			}
+
+			if (SerializationMethods.TryGetValue(serializedType, out (object Serializer, object Deserializer) methods)) {
+				return Unsafe.As<Func<BinaryReader, NetworkProperty<T>, T>>(methods.Deserializer);
 			}
 			throw new Exception($"Unsupported type encountered in {nameof(NetworkProperty)}: {typeof(T)}");
 		}
@@ -99,6 +120,8 @@ namespace Cat.Network {
 		private static string DeserializeString(BinaryReader reader, NetworkProperty<string> NetworkProperty) {
 			return reader.ReadBoolean() ? reader.ReadString() : null;
 		}
+
+
 
 	}
 }

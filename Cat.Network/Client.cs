@@ -27,6 +27,8 @@ namespace Cat.Network {
 
 		public Client(IProxyManager proxyManager) {
 			InitializeNetworkRequestParsers();
+			SerializationContext.RegisterSerializationFunction<NetworkEntity>(SerializeEntityReference, DeserializeEntityReference);
+
 			ProxyManager = proxyManager;
 		}
 
@@ -233,5 +235,43 @@ namespace Cat.Network {
 		public virtual void Dispose() {
 			ProxyManager?.Dispose();
 		}
+
+
+		private void SerializeEntityReference(BinaryWriter writer, NetworkEntity value) {
+			writer.Write(value != null);
+			if (value != null) {
+				writer.Write(value.NetworkID.ToByteArray());
+			}
+		}
+
+		private NetworkEntity DeserializeEntityReference(BinaryReader reader, NetworkProperty<NetworkEntity> networkProperty) {
+			bool hasValue = reader.ReadBoolean();
+			if (hasValue) {
+				Guid networkID = new Guid(reader.ReadBytes(16));
+
+				NetworkEntity result;
+
+				// Must null check because RPC Deserialize function has no property associated.
+				if (networkProperty != null) {
+					networkProperty.ResolutionFunction = ResolutionFunction;
+
+					NetworkEntity ResolutionFunction() {
+						if (TryGetEntityByNetworkID(networkID, out result)) {
+							return result;
+						}
+						return null;
+					}
+				}
+
+				if (TryGetEntityByNetworkID(networkID, out result)) {
+					return result;
+				}
+
+			} else if (networkProperty != null) {
+				networkProperty.ResolutionFunction = null;
+			}
+			return null;
+		}
+
 	}
 }
