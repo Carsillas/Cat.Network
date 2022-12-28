@@ -341,8 +341,20 @@ namespace Cat.Network {
 						writer.Write((byte)RequestType.Multicast);
 						writer.Write(networkID.ToByteArray());
 						writer.Write(clientDetails.ProfileEntity.NetworkID.ToByteArray());
+
+						long rpcBytesPosition = reader.BaseStream.Position;
 						writer.Write(reader.ReadBytes((int)(reader.BaseStream.Length - reader.BaseStream.Position)));
+						reader.BaseStream.Position = rpcBytesPosition;
+
 						
+						RPCContext.Invoker = clientDetails.ProfileEntity;
+
+						try {
+							entity.Serializer.HandleIncomingMulticastInvocation(reader, true);
+						} finally {
+							RPCContext.Invoker = null;
+						}
+
 						rpcs.Add(new OutgoingRPC {
 							Bytes = stream.ToArray(),
 							RequestType = RequestType.Multicast

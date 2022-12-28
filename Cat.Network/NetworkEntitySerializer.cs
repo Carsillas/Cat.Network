@@ -15,8 +15,14 @@ namespace Cat.Network {
 		internal SerializationContext SerializationContext { get; private set; }
 
 		private Dictionary<string, NetworkProperty> Properties { get; set; }
+
+		private class MulticastInfo {
+			public MethodInfo Method { get; set; }
+			public Multicast Metadata { get;set;}
+		}
+
 		private IReadOnlyDictionary<Guid, MethodInfo> RPCs { get; set; }
-		private IReadOnlyDictionary<Guid, MethodInfo> Multicasts { get; set; }
+		private IReadOnlyDictionary<Guid, MulticastInfo> Multicasts { get; set; }
 
 		private NetworkEntity Entity { get; }
 
@@ -132,7 +138,7 @@ namespace Cat.Network {
 		}
 
 		internal void WriteMulticastID(BinaryWriter writer, MethodInfo methodInfo) {
-			writer.Write(Multicasts.Where(kvp => kvp.Value == methodInfo).First().Key.ToByteArray());
+			writer.Write(Multicasts.Where(kvp => kvp.Value.Method == methodInfo).First().Key.ToByteArray());
 		}
 
 		internal void HandleIncomingRPCInvocation(BinaryReader reader) {
@@ -151,29 +157,25 @@ namespace Cat.Network {
 						.MakeGenericMethod(Parameters.Select(Parameter => Parameter.ParameterType).ToArray())
 						.Invoke(Entity, new object[] { reader, rpc });
 				}
-
-
 			}
 
 		}
-		internal void HandleIncomingMulticastInvocation(BinaryReader reader) {
+		internal void HandleIncomingMulticastInvocation(BinaryReader reader, bool requireServerPermission) {
 
 			Guid multicastID = new Guid(reader.ReadBytes(16));
-			if (Multicasts.TryGetValue(multicastID, out MethodInfo multicast)) {
-				ParameterInfo[] Parameters = multicast.GetParameters();
+			if (Multicasts.TryGetValue(multicastID, out MulticastInfo multicast) && (multicast.Metadata.ExecuteOnServer || !requireServerPermission)) {
+				ParameterInfo[] Parameters = multicast.Method.GetParameters();
 
 				MethodInfo method = typeof(NetworkEntity).GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
 					.First(m => m.Name == $"DeserializeInvokeAction{Parameters.Length}");
 
 				if (Parameters.Length == 0) {
-					method.Invoke(Entity, new object[] { reader, multicast });
+					method.Invoke(Entity, new object[] { reader, multicast.Method });
 				} else {
 					method.GetGenericMethodDefinition()
 						.MakeGenericMethod(Parameters.Select(Parameter => Parameter.ParameterType).ToArray())
-						.Invoke(Entity, new object[] { reader, multicast });
+						.Invoke(Entity, new object[] { reader, multicast.Method });
 				}
-
-
 			}
 
 		}
@@ -266,8 +268,8 @@ namespace Cat.Network {
 
 		private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>> RPCsCache { get; } =
 			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>>();
-		private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>> MulticastsCache { get; } =
-			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>>();
+		private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MulticastInfo>> MulticastsCache { get; } =
+			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MulticastInfo>>();
 		private static IReadOnlyDictionary<Guid, MethodInfo> GetRPCs(Type type) {
 			return RPCsCache.GetOrAdd(type, ValueFactory);
 
@@ -296,10 +298,10 @@ namespace Cat.Network {
 			}
 		}
 
-		private static IReadOnlyDictionary<Guid, MethodInfo> GetMulticasts(Type type) {
+		private static IReadOnlyDictionary<Guid, MulticastInfo> GetMulticasts(Type type) {
 			return MulticastsCache.GetOrAdd(type, ValueFactory);
 
-			IReadOnlyDictionary<Guid, MethodInfo> ValueFactory(Type key) {
+			IReadOnlyDictionary<Guid, MulticastInfo> ValueFactory(Type key) {
 
 				Type currentType = key;
 				IEnumerable<MethodInfo> currentList = Enumerable.Empty<MethodInfo>();
@@ -314,7 +316,7 @@ namespace Cat.Network {
 
 				return methods.ToDictionary(
 				methodInfo => GetStringHash(methodInfo.ToString()),
-				methodInfo => methodInfo);
+				methodInfo => new MulticastInfo { Method = methodInfo, Metadata = methodInfo.GetCustomAttribute<Multicast>() });
 
 				Guid GetStringHash(string value) {
 					byte[] stringBytes = Encoding.UTF8.GetBytes(value);

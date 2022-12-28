@@ -9,6 +9,10 @@ namespace Cat.Network {
 	public class RPC : Attribute { }
 
 	[AttributeUsage(AttributeTargets.Method)]
-	public class Multicast : Attribute { }
+	public class Multicast : Attribute {
+	
+		public bool ExecuteOnServer { get; set; }
+	
+	}
 
 }

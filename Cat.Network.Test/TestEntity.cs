@@ -32,6 +32,12 @@ namespace Cat.Network.Test {
 			MulticastExecuted = true;
 		}
 
+		[Multicast(ExecuteOnServer = true)]
+		private void IncrementTestIntCreateOnly() {
+			TestIntCreateOnly.Value++;
+		}
+
+
 		public void Increment() {
 			InvokeRPC(TestRPC);
 		}
@@ -41,6 +47,10 @@ namespace Cat.Network.Test {
 
 		public void InvokeTestMulticast() {
 			Multicast(TestMulticast);
+		}
+
+		public void InvokeIncrementTestIntCreateOnly() {
+			Multicast(IncrementTestIntCreateOnly);
 		}
 
 	}

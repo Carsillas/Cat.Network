@@ -382,14 +382,27 @@ namespace Cat.Network.Test {
 			Assert.AreEqual(123, testEntityB.TestIntCreateOnly.Value);
 
 			var (ClientC, ClientCTransport, ProxyManagerC) = AddClient();
+
 			Server.Tick();
 			ClientC.Tick();
 
 			ClientC.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityC);
 			TestEntity testEntityC = (TestEntity)entityC;
 
+
 			Assert.AreEqual(123, testEntityB.TestIntCreateOnly.Value);
-			Assert.AreEqual(100, testEntityC.TestIntCreateOnly.Value);
+			Assert.AreEqual(123, testEntityC.TestIntCreateOnly.Value);
+
+			testEntityA.InvokeIncrementTestIntCreateOnly();
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+			ClientC.Tick();
+
+			Assert.AreEqual(101, testEntityA.TestIntCreateOnly.Value);
+			Assert.AreEqual(124, testEntityB.TestIntCreateOnly.Value);
+			Assert.AreEqual(124, testEntityC.TestIntCreateOnly.Value);
 
 		}
 

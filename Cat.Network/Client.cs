@@ -211,7 +211,7 @@ namespace Cat.Network {
 				}
 
 				try {
-					entity.Serializer.HandleIncomingMulticastInvocation(reader);
+					entity.Serializer.HandleIncomingMulticastInvocation(reader, false);
 				} finally {
 					RPCContext.Invoker = null;
 				}
