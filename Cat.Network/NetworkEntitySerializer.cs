@@ -6,21 +6,15 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using static Cat.Network.ReflectionUtils;
 
 namespace Cat.Network {
-	internal sealed class NetworkEntitySerializer {
 
-		private static HashAlgorithm HashAlgorithm { get; } = MD5.Create();
+	internal sealed class NetworkEntitySerializer {
 
 		internal SerializationContext SerializationContext { get; private set; }
 
-		private Dictionary<string, NetworkProperty> Properties { get; set; }
-
-		private class MulticastInfo {
-			public MethodInfo Method { get; set; }
-			public Multicast Metadata { get;set;}
-		}
-
+		private IReadOnlyDictionary<string, NetworkProperty> Properties { get; set; }
 		private IReadOnlyDictionary<Guid, MethodInfo> RPCs { get; set; }
 		private IReadOnlyDictionary<Guid, MulticastInfo> Multicasts { get; set; }
 
@@ -54,9 +48,7 @@ namespace Cat.Network {
 		internal NetworkEntitySerializer(NetworkEntity entity) {
 			Entity = entity;
 
-			Properties = GetNetworkProperties(Entity.GetType()).ToDictionary(
-				property => $"{property.DeclaringType.Name}.{property.Name}",
-				property => (NetworkProperty)property.GetValue(Entity));
+			Properties = GetNetworkProperties(Entity);
 
 			RPCs = GetRPCs(Entity.GetType());
 			Multicasts = GetMulticasts(Entity.GetType());
@@ -209,7 +201,7 @@ namespace Cat.Network {
 			foreach (var propertyPair in Properties) {
 
 				bool creationFlag = triggers.HasFlag(NetworkPropertySerializeTrigger.Creation) && propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Creation);
-				bool modifyFlag = triggers.HasFlag(NetworkPropertySerializeTrigger.Modification) &&	propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Modification);
+				bool modifyFlag = triggers.HasFlag(NetworkPropertySerializeTrigger.Modification) && propertyPair.Value.Triggers.HasFlag(NetworkPropertySerializeTrigger.Modification);
 
 				if (creationFlag) {
 					Write();
@@ -238,92 +230,6 @@ namespace Cat.Network {
 
 		}
 
-		private static ConcurrentDictionary<Type, IReadOnlyList<PropertyInfo>> NetworkPropertiesCache { get; } = new ConcurrentDictionary<Type, IReadOnlyList<PropertyInfo>>();
-		private static IReadOnlyList<PropertyInfo> GetNetworkProperties(Type type) {
-			return NetworkPropertiesCache.GetOrAdd(type, ValueFactory);
 
-			IReadOnlyList<PropertyInfo> ValueFactory(Type key) {
-
-				Type currentType = key;
-				IEnumerable<PropertyInfo> currentList = Enumerable.Empty<PropertyInfo>();
-				while (currentType != null) {
-					currentList = currentList.Concat(currentType.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
-					currentType = currentType.BaseType;
-				}
-
-				List<PropertyInfo> properties =
-					currentList.Where(X => typeof(NetworkProperty).IsAssignableFrom(X.PropertyType))
-					.OrderBy(X => X.Name)
-					.ToList();
-
-				if (properties.Any(Property => Property.SetMethod != null || Property.CanWrite)) {
-					string message = $"NetworkProperties must be get-only!\n" +
-						string.Join("\n", properties.Where(property => property.SetMethod != null || property.CanWrite).Select(property => $"{key.FullName} -> {property.DeclaringType.FullName}.{property.Name}"));
-					throw new AccessViolationException(message);
-				}
-
-				return properties;
-			}
-		}
-
-		private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>> RPCsCache { get; } =
-			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>>();
-		private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MulticastInfo>> MulticastsCache { get; } =
-			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MulticastInfo>>();
-		private static IReadOnlyDictionary<Guid, MethodInfo> GetRPCs(Type type) {
-			return RPCsCache.GetOrAdd(type, ValueFactory);
-
-			IReadOnlyDictionary<Guid, MethodInfo> ValueFactory(Type key) {
-
-				Type currentType = key;
-				IEnumerable<MethodInfo> currentList = Enumerable.Empty<MethodInfo>();
-				while (currentType != null) {
-					currentList = currentList.Concat(currentType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
-					currentType = currentType.BaseType;
-				}
-
-				List<MethodInfo> methods =
-					currentList.Where(X => X.IsDefined(typeof(RPC)))
-					.ToList();
-
-				return methods.ToDictionary(
-				methodInfo => GetStringHash(methodInfo.ToString()),
-				methodInfo => methodInfo);
-
-				Guid GetStringHash(string value) {
-					byte[] stringBytes = Encoding.UTF8.GetBytes(value);
-					byte[] hash = HashAlgorithm.ComputeHash(stringBytes);
-					return new Guid(hash);
-				}
-			}
-		}
-
-		private static IReadOnlyDictionary<Guid, MulticastInfo> GetMulticasts(Type type) {
-			return MulticastsCache.GetOrAdd(type, ValueFactory);
-
-			IReadOnlyDictionary<Guid, MulticastInfo> ValueFactory(Type key) {
-
-				Type currentType = key;
-				IEnumerable<MethodInfo> currentList = Enumerable.Empty<MethodInfo>();
-				while (currentType != null) {
-					currentList = currentList.Concat(currentType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
-					currentType = currentType.BaseType;
-				}
-
-				List<MethodInfo> methods =
-					currentList.Where(X => X.IsDefined(typeof(Multicast)))
-					.ToList();
-
-				return methods.ToDictionary(
-				methodInfo => GetStringHash(methodInfo.ToString()),
-				methodInfo => new MulticastInfo { Method = methodInfo, Metadata = methodInfo.GetCustomAttribute<Multicast>() });
-
-				Guid GetStringHash(string value) {
-					byte[] stringBytes = Encoding.UTF8.GetBytes(value);
-					byte[] hash = HashAlgorithm.ComputeHash(stringBytes);
-					return new Guid(hash);
-				}
-			}
-		}
 	}
 }

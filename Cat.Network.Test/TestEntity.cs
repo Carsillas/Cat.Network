@@ -15,11 +15,20 @@ namespace Cat.Network.Test {
 		Purple
 	}
 
+	public class TestCompoundProperty {
+
+		public NetworkProperty<int> A { get; } = new NetworkProperty<int>();
+		public NetworkProperty<int> B { get; } = new NetworkProperty<int>();
+
+	}
+
 	public class TestEntity : NetworkEntity {
 		public NetworkProperty<int> TestInt { get; } = new NetworkProperty<int>();
 		public NetworkProperty<Test> TestEnum { get; } = new NetworkProperty<Test>();
 		public NetworkProperty<int> TestIntCreateOnly { get; } = new NetworkProperty<int>(NetworkPropertySerializeTrigger.Creation);
 		public NetworkProperty<TestEntity> TestEntityReference { get; } = new NetworkProperty<TestEntity>();
+
+		public CompoundNetworkProperty<TestCompoundProperty> TestCompound { get; } = new CompoundNetworkProperty<TestCompoundProperty>();
 
 
 		public bool MulticastExecuted { get; set; }
