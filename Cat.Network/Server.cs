@@ -108,15 +108,20 @@ namespace Cat.Network {
 
 			foreach (ClientDetails client in Clients) {
 				while (client.Transport.TryReadPacket(out byte[] request)) {
-					using (MemoryStream stream = new MemoryStream(request)) {
-						using (BinaryReader reader = new BinaryReader(stream)) {
-							RequestType requestType = (RequestType)reader.ReadByte();
-							if (RequestParsers.TryGetValue(requestType, out Action<ClientDetails, BinaryReader> handler)) {
-								handler.Invoke(client, reader);
-							} else {
-								Console.WriteLine($"Unknown network request type: {requestType}");
+					try {
+						using (MemoryStream stream = new MemoryStream(request)) {
+							using (BinaryReader reader = new BinaryReader(stream)) {
+								RequestType requestType = (RequestType)reader.ReadByte();
+								if (RequestParsers.TryGetValue(requestType, out Action<ClientDetails, BinaryReader> handler)) {
+									handler.Invoke(client, reader);
+								} else {
+									Console.WriteLine($"Unknown network request type: {requestType}");
+								}
 							}
 						}
+					} catch(Exception e) {
+						Console.Error.WriteLine(e.Message);
+						Console.Error.WriteLine(e.StackTrace);
 					}
 
 				}
