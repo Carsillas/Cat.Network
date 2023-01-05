@@ -29,6 +29,11 @@ namespace Cat.Network {
 			Triggers = triggers;
 		}
 
+		public void MarkDirty() {
+			Dirty = true;
+			Entity.Serializer.UpdateDirty = true;
+			Entity.Serializer.CreateDirty = true;
+		}
 
 		internal abstract void Serialize(BinaryWriter writer);
 		internal abstract void Deserialize(BinaryReader reader);
@@ -86,9 +91,7 @@ namespace Cat.Network {
 			if (!EqualityComparer<T>.Default.Equals(previous, value)) {
 				OnValueChanged?.Invoke(previous);
 				if (markDirty) {
-					Dirty = true;
-					Entity.Serializer.UpdateDirty = true;
-					Entity.Serializer.CreateDirty = true;
+					MarkDirty();
 				}
 			}
 		}
