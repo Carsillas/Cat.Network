@@ -3,69 +3,18 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Text;
+using Cat.Network.Entities;
+using Cat.Network.Properties;
 
-namespace Cat.Network {
+namespace Cat.Network
+{
 
-	public interface ISerializationContext {
 
-		void RegisterSerializationFunction<T>(Action<BinaryWriter, T> serializeMethod, Func<BinaryReader, NetworkProperty<T>, T> deserializeMethod);
+    internal sealed class SerializationContext {
 
-	}
-
-	internal sealed class SerializationContext : ISerializationContext {
-
-		private Dictionary<Type, (object Serializer, object Deserializer)> SerializationMethods { get; } = new Dictionary<Type, (object Serializer, object Deserializer)>();
 
 		internal bool DeserializeDirtiesProperty { get; set; }
 
-		public SerializationContext() {
-
-			RegisterSerializationFunction<byte>(SerializeByte, DeserializeByte);
-			RegisterSerializationFunction<short>(SerializeShort, DeserializeShort);
-			RegisterSerializationFunction<int>(SerializeInt, DeserializeInt);
-			RegisterSerializationFunction<long>(SerializeLong, DeserializeLong);
-			RegisterSerializationFunction<ulong>(SerializeULong, DeserializeULong);
-			RegisterSerializationFunction<float>(SerializeFloat, DeserializeFloat);
-			RegisterSerializationFunction<string>(SerializeString, DeserializeString);
-			RegisterSerializationFunction<bool>(SerializeBool, DeserializeBool);
-
-		}
-
-		public void RegisterSerializationFunction<T>(Action<BinaryWriter, T> serializeMethod, Func<BinaryReader, NetworkProperty<T>, T> deserializeMethod) {
-			SerializationMethods.Add(typeof(T), (serializeMethod, deserializeMethod));
-		}
-
-		public Action<BinaryWriter, T> GetSerializationFunction<T>() {
-
-			Type serializedType = typeof(T);
-
-			if (typeof(T).IsEnum) {
-				serializedType = Enum.GetUnderlyingType(serializedType);
-			} else if (typeof(NetworkEntity).IsAssignableFrom(typeof(T))) {
-				serializedType = typeof(NetworkEntity);
-			}
-
-			if (SerializationMethods.TryGetValue(serializedType, out (object Serializer, object Deserializer) methods)) {
-				return Unsafe.As<Action<BinaryWriter, T>>(methods.Serializer);
-			}
-			throw new Exception($"Unsupported type encountered in {nameof(NetworkProperty)}: {typeof(T)}");
-		}
-
-		public Func<BinaryReader, NetworkProperty<T>, T> GetDeserializationFunction<T>() {
-
-			Type serializedType = typeof(T);
-
-			if (typeof(T).IsEnum) {
-				serializedType = Enum.GetUnderlyingType(serializedType);
-			} else if (typeof(NetworkEntity).IsAssignableFrom(typeof(T))) {
-				serializedType = typeof(NetworkEntity);
-			}
-
-			if (SerializationMethods.TryGetValue(serializedType, out (object Serializer, object Deserializer) methods)) {
-				return Unsafe.As<Func<BinaryReader, NetworkProperty<T>, T>>(methods.Deserializer);
-			}
-			throw new Exception($"Unsupported type encountered in {nameof(NetworkProperty)}: {typeof(T)}");
-		}
 
 
 		private static void SerializeByte(BinaryWriter writer, byte value) {

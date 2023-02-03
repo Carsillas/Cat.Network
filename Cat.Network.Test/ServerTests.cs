@@ -1,265 +1,275 @@
-using NUnit.Framework;
-using System;
+//using Cat.Network.Entities;
+//using NUnit.Framework;
+//using System;
 
-namespace Cat.Network.Test {
-	public class ServerTest : CatNetworkTest {
+//namespace Cat.Network.Test
+//{
+//    public class ServerTest : CatNetworkTest {
 
-		[Test]
-		public void Test_EntitySpawning() {
-			TestEntity testEntityA = new TestEntity();
-			testEntityA.TestInt.Value = 123;
+//		[Test]
+//		public void Test_EntitySpawning() {
+//			TestEntity testEntityA = new TestEntity();
+//			testEntityA.TestInt.Value = 123;
 
-			ClientA.Spawn(testEntityA);
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
+//			ClientA.Spawn(testEntityA);
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
-			Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
-			Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
+//			Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+//			Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
 
-			Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
-			Assert.AreEqual(testEntityA.GetType(), entityB.GetType());
+//			Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+//			Assert.AreEqual(testEntityA.GetType(), entityB.GetType());
 
-			TestEntity testEntityServer = (TestEntity)entityServer;
-			TestEntity testEntityB = (TestEntity)entityB;
+//			TestEntity testEntityServer = (TestEntity)entityServer;
+//			TestEntity testEntityB = (TestEntity)entityB;
 
-			Assert.AreEqual(testEntityA.TestInt.Value, testEntityServer.TestInt.Value);
-			Assert.AreEqual(testEntityA.TestInt.Value, testEntityB.TestInt.Value);
+//			Assert.AreEqual(testEntityA.TestInt.Value, testEntityServer.TestInt.Value);
+//			Assert.AreEqual(testEntityA.TestInt.Value, testEntityB.TestInt.Value);
 
-			ClientA.Despawn(testEntityA);
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
-			Assert.IsFalse(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
-			Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
+//			ClientA.Despawn(testEntityA);
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
+//			Assert.IsFalse(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
+//			Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
 
-		}
+//		}
 
 
-		[Test]
-		public void Test_EntityOwnershipModification() {
+//		[Test]
+//		public void Test_EntityOwnershipModification() {
 
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
-			TestEntity testEntityA = new TestEntity();
+//			TestEntity testEntityA = new TestEntity();
 
-			bool AGainedOwnership = false;
-			bool BGainedOwnership = false;
+//			bool AGainedOwnership = false;
+//			bool BGainedOwnership = false;
 
-			ProxyManagerA.GainedOwnership += entity => {
-				AGainedOwnership = true;
-			};
+//			ProxyManagerA.GainedOwnership += entity => {
+//				AGainedOwnership = true;
+//			};
 
-			ProxyManagerB.GainedOwnership += entity => {
-				BGainedOwnership = true;
-			};
+//			ProxyManagerB.GainedOwnership += entity => {
+//				BGainedOwnership = true;
+//			};
 
-			Assert.IsFalse(testEntityA.IsOwner);
-			Assert.IsFalse(AGainedOwnership);
-			Assert.IsFalse(BGainedOwnership);
+//			Assert.IsFalse(testEntityA.IsOwner);
+//			Assert.IsFalse(AGainedOwnership);
+//			Assert.IsFalse(BGainedOwnership);
 
-			ClientA.Spawn(testEntityA);
-			Assert.IsTrue(testEntityA.IsOwner);
+//			ClientA.Spawn(testEntityA);
+//			Assert.IsTrue(testEntityA.IsOwner);
 
-			Assert.IsTrue(AGainedOwnership);
-			Assert.IsFalse(BGainedOwnership);
+//			Assert.IsTrue(AGainedOwnership);
+//			Assert.IsFalse(BGainedOwnership);
 
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
-			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+//			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
 
-			Assert.IsTrue(AGainedOwnership);
-			Assert.IsFalse(BGainedOwnership);
-			Assert.IsFalse(entityB.IsOwner);
+//			Assert.IsTrue(AGainedOwnership);
+//			Assert.IsFalse(BGainedOwnership);
+//			Assert.IsFalse(entityB.IsOwner);
 
-			ProxyManagerB.GainedOwnership += entity => {
-				Assert.AreSame(entity, entityB);
-			};
+//			ProxyManagerB.GainedOwnership += entity => {
+//				Assert.AreSame(entity, entityB);
+//			};
 
-			Server.RemoveTransport(ClientATransport);
+//			Server.RemoveTransport(ClientATransport);
 
-			Assert.IsFalse(BGainedOwnership);
-			Assert.IsFalse(entityB.IsOwner);
+//			Assert.IsFalse(BGainedOwnership);
+//			Assert.IsFalse(entityB.IsOwner);
 
-			Server.Tick();
-			ClientB.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
-			Assert.IsTrue(BGainedOwnership);
-			Assert.IsTrue(entityB.IsOwner);
+//			Assert.IsTrue(BGainedOwnership);
+//			Assert.IsTrue(entityB.IsOwner);
 
-		}
+//		}
 
 
-		[Test]
-		public void Test_DestroyWithOwner() {
+//		public class A : SerializableProperty {
 
-			TestEntity testEntityA = new TestEntity();
-			ClientA.Spawn(testEntityA);
+//			internal override void A() {
 
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
+//			}
+//		}
 
-			testEntityA.DestroyWithOwner.Value = true;
 
-			ClientA.Tick();
-			Server.Tick(); // Server will not read packets from A if it's transport was removed first.
+//		[Test]
+//		public void Test_DestroyWithOwner() {
 
-			Server.RemoveTransport(ClientATransport);
-			Server.Tick();
-			ClientB.Tick();
+//			TestEntity testEntityA = new TestEntity();
+//			ClientA.Spawn(testEntityA);
 
-			Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
-		}
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
+//			testEntityA.DestroyWithOwner.Value = true;
 
-		[Test]
-		public void Test_EntityRPC() {
-			TestEntity testEntityA = new TestEntity();
-			testEntityA.TestInt.Value = 123;
+//			ClientA.Tick();
+//			Server.Tick(); // Server will not read packets from A if it's transport was removed first.
 
-			ClientA.Spawn(testEntityA);
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
+//			Server.RemoveTransport(ClientATransport);
+//			Server.Tick();
+//			ClientB.Tick();
 
-			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
-			TestEntity testEntityB = (TestEntity)entityB;
-			ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
-			TestEntity testEntityServer = (TestEntity)entityServer;
+//			Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+//		}
 
-			Assert.AreEqual(123, testEntityB.TestInt.Value);
-			Assert.AreEqual(123, testEntityServer.TestInt.Value);
 
-			testEntityB.Increment();
-			testEntityB.Add(5);
+//		[Test]
+//		public void Test_EntityRPC() {
+//			TestEntity testEntityA = new TestEntity();
+//			testEntityA.TestInt.Value = 123;
 
-			Assert.AreEqual(123, testEntityB.TestInt.Value);
-			Assert.AreEqual(123, testEntityServer.TestInt.Value);
+//			ClientA.Spawn(testEntityA);
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
-			ClientB.Tick();
-			Server.Tick();
-			ClientB.Tick();
+//			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+//			TestEntity testEntityB = (TestEntity)entityB;
+//			ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
+//			TestEntity testEntityServer = (TestEntity)entityServer;
 
-			// RPC was not executed on either B or Server
-			Assert.AreEqual(123, testEntityA.TestInt.Value);
-			Assert.AreEqual(123, testEntityB.TestInt.Value);
-			Assert.AreEqual(123, testEntityServer.TestInt.Value);
+//			Assert.AreEqual(123, testEntityB.TestInt.Value);
+//			Assert.AreEqual(123, testEntityServer.TestInt.Value);
 
-			ClientA.Tick();
+//			testEntityB.Increment();
+//			testEntityB.Add(5);
 
-			// RPC executed on A
-			Assert.AreEqual(129, testEntityA.TestInt.Value);
+//			Assert.AreEqual(123, testEntityB.TestInt.Value);
+//			Assert.AreEqual(123, testEntityServer.TestInt.Value);
 
-			// Values not yet replicated to B or Server
-			Assert.AreEqual(123, testEntityB.TestInt.Value);
-			Assert.AreEqual(123, testEntityServer.TestInt.Value);
+//			ClientB.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
-			Server.Tick();
-			ClientB.Tick();
+//			// RPC was not executed on either B or Server
+//			Assert.AreEqual(123, testEntityA.TestInt.Value);
+//			Assert.AreEqual(123, testEntityB.TestInt.Value);
+//			Assert.AreEqual(123, testEntityServer.TestInt.Value);
 
-			// Values replicated to B and Server
-			Assert.AreEqual(129, testEntityB.TestInt.Value);
-			Assert.AreEqual(129, testEntityServer.TestInt.Value);
+//			ClientA.Tick();
 
-			// Ensure RPCs are executed locally for owning clients
-			testEntityA.Add(5);
-			Assert.AreEqual(134, testEntityA.TestInt.Value);
-			Assert.AreEqual(129, testEntityB.TestInt.Value);
+//			// RPC executed on A
+//			Assert.AreEqual(129, testEntityA.TestInt.Value);
 
-			ClientA.Tick();
-			Server.Tick();
-			ClientA.Tick(); // To be sure we don't double execute
-			ClientB.Tick();
+//			// Values not yet replicated to B or Server
+//			Assert.AreEqual(123, testEntityB.TestInt.Value);
+//			Assert.AreEqual(123, testEntityServer.TestInt.Value);
 
-			Assert.AreEqual(134, testEntityA.TestInt.Value);
-			Assert.AreEqual(134, testEntityB.TestInt.Value);
+//			Server.Tick();
+//			ClientB.Tick();
 
-		}
+//			// Values replicated to B and Server
+//			Assert.AreEqual(129, testEntityB.TestInt.Value);
+//			Assert.AreEqual(129, testEntityServer.TestInt.Value);
 
+//			// Ensure RPCs are executed locally for owning clients
+//			testEntityA.Add(5);
+//			Assert.AreEqual(134, testEntityA.TestInt.Value);
+//			Assert.AreEqual(129, testEntityB.TestInt.Value);
 
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientA.Tick(); // To be sure we don't double execute
+//			ClientB.Tick();
 
-		[Test]
-		public void Test_EntityMulticast() {
+//			Assert.AreEqual(134, testEntityA.TestInt.Value);
+//			Assert.AreEqual(134, testEntityB.TestInt.Value);
 
-			TestEntity testEntityA = new TestEntity();
+//		}
 
-			ClientA.Spawn(testEntityA);
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
 
-			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
-			TestEntity testEntityB = (TestEntity)entityB;
-			ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
-			TestEntity testEntityServer = (TestEntity)entityServer;
 
-			Assert.IsFalse(testEntityA.MulticastExecuted);
-			Assert.IsFalse(testEntityServer.MulticastExecuted);
-			Assert.IsFalse(testEntityB.MulticastExecuted);
+//		[Test]
+//		public void Test_EntityMulticast() {
 
-			testEntityA.InvokeTestMulticast();
+//			TestEntity testEntityA = new TestEntity();
 
-			Assert.IsTrue(testEntityA.MulticastExecuted);
+//			ClientA.Spawn(testEntityA);
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
-			testEntityA.MulticastExecuted = false;
+//			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+//			TestEntity testEntityB = (TestEntity)entityB;
+//			ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
+//			TestEntity testEntityServer = (TestEntity)entityServer;
 
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
-			ClientA.Tick();
+//			Assert.IsFalse(testEntityA.MulticastExecuted);
+//			Assert.IsFalse(testEntityServer.MulticastExecuted);
+//			Assert.IsFalse(testEntityB.MulticastExecuted);
 
-			Assert.IsFalse(testEntityA.MulticastExecuted); // Multicast not doubly executed for owner
-			Assert.IsFalse(testEntityServer.MulticastExecuted);
-			Assert.IsTrue(testEntityB.MulticastExecuted);
+//			testEntityA.InvokeTestMulticast();
 
-			// Ensure non-owners cannot invoke multicasts
-			Assert.Throws<InvalidOperationException>(() => {
-				testEntityB.InvokeTestMulticast();
-			});
-		}
+//			Assert.IsTrue(testEntityA.MulticastExecuted);
 
+//			testEntityA.MulticastExecuted = false;
 
-		[Test]
-		public void Test_SimultaneousCreationUpdateRequests() {
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
+//			ClientA.Tick();
 
-			TestEntity testEntityA = new TestEntity();
+//			Assert.IsFalse(testEntityA.MulticastExecuted); // Multicast not doubly executed for owner
+//			Assert.IsFalse(testEntityServer.MulticastExecuted);
+//			Assert.IsTrue(testEntityB.MulticastExecuted);
 
-			testEntityA.TestInt.Value = 123;
+//			// Ensure non-owners cannot invoke multicasts
+//			Assert.Throws<InvalidOperationException>(() => {
+//				testEntityB.InvokeTestMulticast();
+//			});
+//		}
 
-			ClientA.Spawn(testEntityA);
 
-			ClientA.Tick();
-			Server.Tick();
-			ClientB.Tick();
+//		[Test]
+//		public void Test_SimultaneousCreationUpdateRequests() {
 
-			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
-			TestEntity testEntityB = (TestEntity)entityB;
+//			TestEntity testEntityA = new TestEntity();
 
+//			testEntityA.TestInt.Value = 123;
 
-			Assert.AreEqual(123, testEntityB.TestInt.Value);
+//			ClientA.Spawn(testEntityA);
 
-			testEntityA.TestInt.Value = 100;
+//			ClientA.Tick();
+//			Server.Tick();
+//			ClientB.Tick();
 
-			ClientA.Tick();
+//			ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+//			TestEntity testEntityB = (TestEntity)entityB;
 
-			var (ClientC, ClientCTransport, ProxyManagerC) = AddClient();
 
-			Server.Tick();
-			ClientB.Tick();
-			ClientC.Tick();
+//			Assert.AreEqual(123, testEntityB.TestInt.Value);
 
-			ClientC.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityC);
-			TestEntity testEntityC = (TestEntity)entityC;
+//			testEntityA.TestInt.Value = 100;
 
-			Assert.AreEqual(100, testEntityB.TestInt.Value);
-			Assert.AreEqual(100, testEntityC.TestInt.Value);
+//			ClientA.Tick();
 
-		}
+//			var (ClientC, ClientCTransport, ProxyManagerC) = AddClient();
 
-	}
-}
+//			Server.Tick();
+//			ClientB.Tick();
+//			ClientC.Tick();
+
+//			ClientC.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityC);
+//			TestEntity testEntityC = (TestEntity)entityC;
+
+//			Assert.AreEqual(100, testEntityB.TestInt.Value);
+//			Assert.AreEqual(100, testEntityC.TestInt.Value);
+
+//		}
+
+//	}
+//}

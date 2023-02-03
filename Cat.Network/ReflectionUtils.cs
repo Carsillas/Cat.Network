@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Cat.Network.Entities;
+using Cat.Network.Properties;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -6,9 +8,12 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
-namespace Cat.Network {
-	internal static class ReflectionUtils {
+namespace Cat.Network
+{
+
+    internal static class ReflectionUtils {
 
 		private static HashAlgorithm HashAlgorithm { get; } = MD5.Create();
 
@@ -186,69 +191,6 @@ namespace Cat.Network {
 		}
 
 
-		public class MulticastInfo {
-			public MethodInfo Method { get; set; }
-			public Multicast Metadata { get; set; }
-		}
-
-		private static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>> RPCsCache { get; } =
-			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MethodInfo>>();
-		public static IReadOnlyDictionary<Guid, MethodInfo> GetRPCs(Type type) {
-			return RPCsCache.GetOrAdd(type, ValueFactory);
-
-			IReadOnlyDictionary<Guid, MethodInfo> ValueFactory(Type key) {
-
-				Type currentType = key;
-				IEnumerable<MethodInfo> currentList = Enumerable.Empty<MethodInfo>();
-				while (currentType != null) {
-					currentList = currentList.Concat(currentType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
-					currentType = currentType.BaseType;
-				}
-
-				List<MethodInfo> methods =
-					currentList.Where(X => X.IsDefined(typeof(RPC)))
-					.ToList();
-
-				return methods.ToDictionary(
-				methodInfo => GetStringHash(methodInfo.ToString()),
-				methodInfo => methodInfo);
-
-				Guid GetStringHash(string value) {
-					byte[] stringBytes = Encoding.UTF8.GetBytes(value);
-					byte[] hash = HashAlgorithm.ComputeHash(stringBytes);
-					return new Guid(hash);
-				}
-			}
-		}
-		public static ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MulticastInfo>> MulticastsCache { get; } =
-			new ConcurrentDictionary<Type, IReadOnlyDictionary<Guid, MulticastInfo>>();
-		public static IReadOnlyDictionary<Guid, MulticastInfo> GetMulticasts(Type type) {
-			return MulticastsCache.GetOrAdd(type, ValueFactory);
-
-			IReadOnlyDictionary<Guid, MulticastInfo> ValueFactory(Type key) {
-
-				Type currentType = key;
-				IEnumerable<MethodInfo> currentList = Enumerable.Empty<MethodInfo>();
-				while (currentType != null) {
-					currentList = currentList.Concat(currentType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly));
-					currentType = currentType.BaseType;
-				}
-
-				List<MethodInfo> methods =
-					currentList.Where(X => X.IsDefined(typeof(Multicast)))
-					.ToList();
-
-				return methods.ToDictionary(
-				methodInfo => GetStringHash(methodInfo.ToString()),
-				methodInfo => new MulticastInfo { Method = methodInfo, Metadata = methodInfo.GetCustomAttribute<Multicast>() });
-
-				Guid GetStringHash(string value) {
-					byte[] stringBytes = Encoding.UTF8.GetBytes(value);
-					byte[] hash = HashAlgorithm.ComputeHash(stringBytes);
-					return new Guid(hash);
-				}
-			}
-		}
 
 
 	}

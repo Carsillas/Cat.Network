@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Cat.Network {
+namespace Cat.Network.Properties {
 
 	public abstract class CompoundNetworkProperty { 
 	

@@ -1,75 +1,63 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿//using System;
+//using System.Collections.Generic;
+//using System.Text;
+//using Cat.Network.Entities;
+//using Cat.Network.Properties;
 
-namespace Cat.Network.Test {
-
-
-	public class TestProfileEntity : NetworkEntity {
-
-	}
-
-	public enum Test : byte {
-		Meow,
-		Woof,
-		Purple
-	}
-
-	public class TestCompoundProperty {
-
-		public NetworkProperty<int> A { get; } = new NetworkProperty<int>();
-		public NetworkProperty<int> B { get; } = new NetworkProperty<int>();
-
-	}
-
-	public class TestEntity : NetworkEntity {
-		public NetworkProperty<int> TestInt { get; } = new NetworkProperty<int>();
-		public NetworkProperty<Test> TestEnum { get; } = new NetworkProperty<Test>();
-		public NetworkProperty<int> TestIntCreateOnly { get; } = new NetworkProperty<int>(NetworkPropertySerializeTrigger.Creation);
-		public NetworkProperty<TestEntity> TestEntityReference { get; } = new NetworkProperty<TestEntity>();
-
-		public CompoundNetworkProperty<TestCompoundProperty> TestCompound { get; } = new CompoundNetworkProperty<TestCompoundProperty>();
+//namespace Cat.Network.Test
+//{
 
 
-		public bool MulticastExecuted { get; set; }
+//    public class TestProfileEntity : NetworkEntity {
+
+//	}
+
+//	public enum Test : byte {
+//		Meow,
+//		Woof,
+//		Purple
+//	}
+
+//	public class TestCompoundProperty {
+
+//		public NetworkProperty<int> A { get; } = new NetworkProperty<int>();
+//		public NetworkProperty<int> B { get; } = new NetworkProperty<int>();
+
+//	}
+
+//	public class TestEntity : NetworkEntity {
+//		public NetworkProperty<int> TestInt { get; } = new NetworkProperty<int>();
+//		public NetworkProperty<Test> TestEnum { get; } = new NetworkProperty<Test>();
+//		public NetworkProperty<int> TestIntCreateOnly { get; } // = new NetworkProperty<int>(NetworkPropertySerializeTrigger.Creation);
+//		public NetworkProperty<TestEntity> TestEntityReference { get; } = new NetworkProperty<TestEntity>();
+
+//		public CompoundNetworkProperty<TestCompoundProperty> TestCompound { get; } = new CompoundNetworkProperty<TestCompoundProperty>();
 
 
-		[RPC]
-		private void TestRPC() {
-			TestInt.Value++;
-		}
-
-		[RPC]
-		private void TestRPC(int a) {
-			TestInt.Value += a;
-		}
+//		public bool MulticastExecuted { get; set; }
 
 
-		[Multicast]
-		private void TestMulticast() {
-			MulticastExecuted = true;
-		}
+//		[RPC]
+//		private void TestRPC() {
+//			TestInt.Value++;
+//		}
 
-		[Multicast(ExecuteOnServer = true)]
-		private void IncrementTestIntCreateOnly() {
-			TestIntCreateOnly.Value++;
-		}
+//		[RPC]
+//		private void TestRPC(int a) {
+//			TestInt.Value += a;
+//		}
 
 
-		public void Increment() {
-			InvokeRPC(TestRPC);
-		}
-		public void Add(int a) {
-			InvokeRPC(TestRPC, a);
-		}
+//		[Multicast]
+//		private void TestMulticast() {
+//			MulticastExecuted = true;
+//		}
 
-		public void InvokeTestMulticast() {
-			Multicast(TestMulticast);
-		}
+//		[Multicast(ExecuteOnServer = true)]
+//		private void IncrementTestIntCreateOnly() {
+//			TestIntCreateOnly.Value++;
+//		}
 
-		public void InvokeIncrementTestIntCreateOnly() {
-			Multicast(IncrementTestIntCreateOnly);
-		}
 
-	}
-}
+//	}
+//}

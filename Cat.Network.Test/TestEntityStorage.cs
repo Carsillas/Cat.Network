@@ -2,9 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Cat.Network.Entities;
 
-namespace Cat.Network.Test {
-	public class TestEntityStorage : IEntityStorage {
+namespace Cat.Network.Test
+{
+    public class TestEntityStorage : IEntityStorage {
 		private Dictionary<Guid, NetworkEntity> Entities { get; } = new Dictionary<Guid, NetworkEntity>();
 
 		public void RegisterEntity(NetworkEntity entity) {

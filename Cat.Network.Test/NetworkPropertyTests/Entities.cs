@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Cat.Network.Entities;
+using Cat.Network.Properties;
 
 namespace Cat.Network.Test.NetworkPropertyTests;
 

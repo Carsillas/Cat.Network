@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Cat.Network.Entities;
 
-namespace Cat.Network {
-	public interface IEntityStorage {
+namespace Cat.Network
+{
+    public interface IEntityStorage {
 		void RegisterEntity(NetworkEntity entity);
 		void UnregisterEntity(Guid entityNetworkID);
 
