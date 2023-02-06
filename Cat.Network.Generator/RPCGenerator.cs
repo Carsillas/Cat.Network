@@ -173,8 +173,8 @@ namespace {Namespace} {{
 
 				foreach (MethodData method in MethodDatas) {
 					stringBuilder.AppendLine($@"
-		{method.InterfaceMethodDeclaration} {{
-			{method.ClassMethodInvocation};
+		public {method.InterfaceMethodDeclaration} {{
+			System.Runtime.CompilerServices.Unsafe.As<RPC.{ClassName}>(this).{method.ClassMethodInvocation};
 		}}
 ");
 				}
