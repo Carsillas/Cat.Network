@@ -25,6 +25,8 @@ namespace Cat.Network {
 		internal bool CreateDirty { get; set; }
 		internal bool Dirty { get; set; }
 
+		internal byte[] PropertyNameBytes { get; set; }
+
 		protected NetworkProperty(NetworkPropertySerializeTrigger triggers) {
 			Triggers = triggers;
 		}

@@ -18,6 +18,17 @@ namespace Cat.Network {
 		private IReadOnlyDictionary<Guid, MethodInfo> RPCs { get; set; }
 		private IReadOnlyDictionary<Guid, MulticastInfo> Multicasts { get; set; }
 
+
+		private static Dictionary<string, byte[]> PreserializedPropertyNames { get; } = new Dictionary<string, byte[]>();
+
+		private MemoryStream CreateStream { get; } = new MemoryStream(256);
+		private MemoryStream UpdateStream { get; } = new MemoryStream(256);
+
+		private BinaryWriter CreateWriter { get; }
+		private BinaryWriter UpdateWriter { get; }
+
+
+
 		private NetworkEntity Entity { get; }
 
 		private bool _CreateDirty;
@@ -39,14 +50,18 @@ namespace Cat.Network {
 
 
 		private int LastUpdateTime { get; set; }
-		private byte[] CachedCreateRequest { get; set; }
-		private byte[] CachedUpdateRequest { get; set; }
-		private byte[] CachedDeleteRequest { get; set; }
+		private RequestBuffer? CachedCreateRequest { get; set; }
+		private RequestBuffer? CachedUpdateRequest { get; set; }
+		private RequestBuffer? CachedDeleteRequest { get; set; }
+
 
 		private List<byte[]> OutgoingRPCs { get; set; } = new List<byte[]>();
 
 		internal NetworkEntitySerializer(NetworkEntity entity) {
 			Entity = entity;
+
+			CreateWriter = new BinaryWriter(CreateStream);
+			UpdateWriter = new BinaryWriter(UpdateStream);
 
 			Properties = GetNetworkProperties(Entity);
 
@@ -70,52 +85,56 @@ namespace Cat.Network {
 			}
 		}
 
-		internal byte[] GetDeleteRequest() {
+		internal RequestBuffer GetDeleteRequest() {
 			if (CachedDeleteRequest == null) {
 				using (MemoryStream stream = new MemoryStream(24)) {
 					using (BinaryWriter writer = new BinaryWriter(stream)) {
 						writer.Write((byte)RequestType.DeleteEntity);
 						writer.Write(Entity.NetworkID.ToByteArray());
 
-						CachedDeleteRequest = stream.ToArray();
+						CachedDeleteRequest = new RequestBuffer { Buffer = stream.ToArray(), ByteCount = (int)stream.Length };
 					}
 				}
 			}
 
-			return CachedDeleteRequest;
+			return CachedDeleteRequest.Value;
 		}
 
-		internal byte[] GetCreateRequest() {
+		internal RequestBuffer GetCreateRequest() {
 			if (CachedCreateRequest == null) {
-				using (MemoryStream stream = new MemoryStream(256)) {
-					using (BinaryWriter writer = new BinaryWriter(stream)) {
-						writer.Write((byte)RequestType.CreateEntity);
-						writer.Write(Entity.NetworkID.ToByteArray());
-						writer.Write(Entity.GetType().AssemblyQualifiedName);
+				CreateWriter.BaseStream.Seek(0, SeekOrigin.Begin);
 
-						WriteNetworkProperties(writer, NetworkPropertySerializeTrigger.Creation);
+				CreateWriter.Write((byte)RequestType.CreateEntity);
+				CreateWriter.Write(Entity.NetworkID.ToByteArray());
+				CreateWriter.Write(Entity.GetType().AssemblyQualifiedName);
 
-						CachedCreateRequest = stream.ToArray();
-					}
-				}
+				WriteNetworkProperties(CreateWriter, NetworkPropertySerializeTrigger.Creation);
+
+				CachedCreateRequest = new RequestBuffer {
+					Buffer = CreateStream.GetBuffer(),
+					ByteCount = (int)CreateStream.Length
+				};
 			}
 
-			return CachedCreateRequest;
+			return CachedCreateRequest.Value;
 		}
 
-		internal byte[] GetUpdateRequest(int time) {
+		internal RequestBuffer? GetUpdateRequest(int time) {
 			if (CachedUpdateRequest == null) {
 				LastUpdateTime = time;
-				using (MemoryStream stream = new MemoryStream(256)) {
-					using (BinaryWriter writer = new BinaryWriter(stream)) {
-						writer.Write((byte)RequestType.UpdateEntity);
-						writer.Write(Entity.NetworkID.ToByteArray());
 
-						WriteNetworkProperties(writer, NetworkPropertySerializeTrigger.Modification);
+				UpdateWriter.BaseStream.Seek(0, SeekOrigin.Begin);
 
-						CachedUpdateRequest = stream.ToArray();
-					}
-				}
+				UpdateWriter.Write((byte)RequestType.UpdateEntity);
+				UpdateWriter.Write(Entity.NetworkID.ToByteArray());
+
+				WriteNetworkProperties(UpdateWriter, NetworkPropertySerializeTrigger.Modification);
+
+				CachedUpdateRequest = new RequestBuffer {
+					Buffer = UpdateStream.GetBuffer(),
+					ByteCount = (int)UpdateStream.Length
+				};
+
 			}
 
 			if (time == LastUpdateTime) {
@@ -191,6 +210,28 @@ namespace Cat.Network {
 			}
 		}
 
+
+		private byte[] GetSerializedPropertyName(string name, NetworkProperty property) {
+			if(property.PropertyNameBytes == null) {
+
+				if(!PreserializedPropertyNames.TryGetValue(name, out byte[] serialized)) {
+					using (MemoryStream stream = new MemoryStream(name.Length * 2)) {
+						using (BinaryWriter writer = new BinaryWriter(stream)) {
+							writer.Write(name);
+
+							serialized = stream.ToArray();
+							PreserializedPropertyNames.Add(name, serialized);
+						}
+					}
+				}
+
+				property.PropertyNameBytes = serialized;
+
+			}
+
+			return property.PropertyNameBytes;
+		}
+
 		private void WriteNetworkProperties(BinaryWriter writer, NetworkPropertySerializeTrigger triggers) {
 
 			uint propertyCount = 0;
@@ -211,7 +252,7 @@ namespace Cat.Network {
 				}
 
 				void Write() {
-					writer.Write(propertyPair.Key);
+					writer.Write(GetSerializedPropertyName(propertyPair.Key, propertyPair.Value));
 					propertyPair.Value.Serialize(writer);
 					propertyCount++;
 				}

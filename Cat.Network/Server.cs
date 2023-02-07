@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
 
 namespace Cat.Network {
 	public class Server {
@@ -172,7 +173,10 @@ namespace Cat.Network {
 							writer.Write((byte)RequestType.DeleteEntity);
 							writer.Write(entity.NetworkID.ToByteArray());
 
-							client.Transport.SendPacket(stream.ToArray());
+							client.Transport.SendPacket(new RequestBuffer {
+								Buffer = stream.ToArray(),
+								ByteCount = (int)stream.Length
+							});
 						}
 					}
 
@@ -195,9 +199,9 @@ namespace Cat.Network {
 					}
 
 					if (!client.EntitiesToCreate.Contains(entity)) {
-						byte[] bytes = entity.Serializer.GetUpdateRequest(Time);
-						if (bytes != null) {
-							client.Transport.SendPacket(bytes);
+						RequestBuffer? request = entity.Serializer.GetUpdateRequest(Time);
+						if (request.HasValue) {
+							client.Transport.SendPacket(request.Value);
 						}
 					}
 
@@ -206,10 +210,16 @@ namespace Cat.Network {
 					if (OutgoingRPCs.TryGetValue(entity, out List<OutgoingRPC> outgoingRpcs)) {
 						foreach (OutgoingRPC rpc in outgoingRpcs) {
 							if(rpc.RequestType == RequestType.RPC && isOwner) {
-								client.Transport.SendPacket(rpc.Bytes);
+								client.Transport.SendPacket(new RequestBuffer {
+									Buffer = rpc.Bytes,
+									ByteCount = rpc.Bytes.Length
+								});
 							}
 							if(rpc.RequestType == RequestType.Multicast && !isOwner) {
-								client.Transport.SendPacket(rpc.Bytes);
+								client.Transport.SendPacket(new RequestBuffer {
+									Buffer = rpc.Bytes,
+									ByteCount = rpc.Bytes.Length
+								});
 							}
 						}
 					}
@@ -227,7 +237,10 @@ namespace Cat.Network {
 					writer.Write((byte)RequestType.AssignOwner);
 					writer.Write(entity.NetworkID.ToByteArray());
 
-					client.Transport.SendPacket(stream.ToArray());
+					client.Transport.SendPacket(new RequestBuffer {
+						Buffer = stream.ToArray(),
+						ByteCount = (int) stream.Length
+					});
 				}
 			}
 		}

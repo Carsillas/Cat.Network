@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 
 namespace Cat.Network {
@@ -101,17 +102,20 @@ namespace Cat.Network {
 					continue;
 				}
 
-				byte[] bytes = entity.Serializer.GetUpdateRequest(Time);
+				RequestBuffer? request = entity.Serializer.GetUpdateRequest(Time);
 
-				if (bytes != null) {
-					Transport.SendPacket(bytes);
+				if (request.HasValue) {
+					Transport.SendPacket(request.Value);
 				}
 			}
 
 			foreach (NetworkEntity entity in Entities.Values) {
 				List<byte[]> outgoingRPCs = entity.Serializer.GetOutgoingRPCs();
 				foreach (byte[] bytes in outgoingRPCs) {
-					Transport.SendPacket(bytes);
+					Transport.SendPacket(new RequestBuffer {
+						Buffer = bytes,
+						ByteCount = bytes.Length
+					});
 				}
 			}
 
