@@ -11,7 +11,7 @@ namespace Cat.Network
 
 		bool TryGetEntityByNetworkID(Guid entityNetworkID, out NetworkEntity entity);
 
-		HashSet<NetworkEntity> GetRelevantEntities(NetworkEntity entity);
+		void ProcessRelevantEntities(NetworkEntity entity, Action<NetworkEntity> processFunction);
 
 	}
 }

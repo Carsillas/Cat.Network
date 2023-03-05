@@ -11,5 +11,8 @@ namespace Cat.Network.Generator
 
         NetworkProperty[] NetworkProperties { get; set; }
 
+
+
+
     }
 }

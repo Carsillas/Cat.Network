@@ -29,19 +29,6 @@ namespace Cat.Network.Properties {
 			}
 		}
 
-
-		private Func<T> _ResolutionFunction;
-		internal Func<T> ResolutionFunction {
-			private get => _ResolutionFunction;
-			set {
-				_ResolutionFunction = value ?? DefaultResolutionFunction;
-			}
-		}
-
-		private T DefaultResolutionFunction() {
-			return _Value;
-		}
-
 		private void UpdateValue(T value, bool markDirty) {
 			T previous = Value;
 			_Value = value;

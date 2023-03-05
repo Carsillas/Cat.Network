@@ -1,12 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="7.0.0-preview.2.22152.2" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Cat.Network.Generator\Cat.Network.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

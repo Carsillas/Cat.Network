@@ -6,7 +6,6 @@ namespace Cat.Network {
 
 	public interface ITransport {
 		void SendPacket(byte[] bytes);
-
 		bool TryReadPacket(out byte[] bytes);
 
 	}
