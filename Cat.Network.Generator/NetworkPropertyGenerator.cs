@@ -100,6 +100,7 @@ namespace Cat.Network.Generator {
 
 
 		private const string NetworkEntityInitializerInterfaceFQN = "Cat.Network.Generator.INetworkEntityInitializer";
+		private const string NetworkEntitySerializerInterfaceFQN = "Cat.Network.Generator.INetworkEntitySerializer";
 		private const string NetworkPropertyFQN = "Cat.Network.Properties.NetworkProperty";
 		public const string UnsafeFQN = "System.Runtime.CompilerServices.Unsafe";
 
@@ -110,11 +111,15 @@ namespace Cat.Network.Generator {
 
 namespace {Namespace} {{
 
-	partial class {ClassName} : {NetworkEntityInitializerInterfaceFQN} {{
+	partial class {ClassName} {{
 
 {GenerateProperties()}
 
 {GenerateInitializer()}
+
+{GenerateSerializer()}
+
+{GenerateDeserializer()}
 
 	}}
 
@@ -167,6 +172,29 @@ namespace {Namespace} {{
 			return stringBuilder.ToString();
 		}
 
+
+		private string GenerateSerializer() {
+			StringBuilder stringBuilder = new StringBuilder();
+
+			stringBuilder.AppendLine($"\t\tvoid {NetworkEntitySerializerInterfaceFQN}.Serialize(System.Span<byte> bytes) {{");
+			stringBuilder.AppendLine($"\t\t\t{NetworkPropertyFQN}[] networkProperties = {UnsafeFQN}.As<{NetworkEntityInitializerInterfaceFQN}>(this).NetworkProperties;");
+
+			stringBuilder.AppendLine($"\t\t}}");
+
+			return stringBuilder.ToString();
+		}
+
+		private string GenerateDeserializer() {
+			StringBuilder stringBuilder = new StringBuilder();
+
+			stringBuilder.AppendLine($"\t\tvoid {NetworkEntitySerializerInterfaceFQN}.Deserialize(System.ReadOnlySpan<byte> bytes) {{");
+			stringBuilder.AppendLine($"\t\t\t{NetworkPropertyFQN}[] networkProperties = {UnsafeFQN}.As<{NetworkEntityInitializerInterfaceFQN}>(this).NetworkProperties;");
+
+
+			stringBuilder.AppendLine($"\t\t}}");
+
+			return stringBuilder.ToString();
+		}
 
 	}
 

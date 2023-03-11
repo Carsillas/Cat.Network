@@ -6,20 +6,20 @@ namespace Cat.Network.Entities
 {
 
 	[NetworkProperty(AccessModifier.Public, typeof(bool), "DestroyWithOwner")]
-	public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
+	public abstract partial class NetworkEntity : INetworkEntityInitializer, IEquatable<NetworkEntity> {
 		
 		public Guid NetworkID { get; internal set; }
-		public bool IsOwner { get; internal set; }
+		public bool IsOwner { get; internal set; } = true;
 
 
 		private NetworkProperty[] NetworkProperties;
 		NetworkProperty[] INetworkEntityInitializer.NetworkProperties { get => NetworkProperties; set => NetworkProperties = value; }
 
+		internal int LastDirtyTick;
+
 
 		public NetworkEntity() {
 			((INetworkEntityInitializer)this).Initialize();
-
-
 		}
 
 		public bool Equals(NetworkEntity other) {
