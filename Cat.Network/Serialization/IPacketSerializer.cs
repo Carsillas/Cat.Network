@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 namespace Cat.Network.Serialization;
 public interface IPacketSerializer {
 
-	void UpdateEntity(NetworkEntity targetEntity, ReadOnlySpan<byte> data);
+	void UpdateEntity(NetworkEntity targetEntity, ReadOnlySpan<byte> content);
 
-	NetworkEntity CreateEntity(Guid networkID, ReadOnlySpan<byte> data);
+	NetworkEntity CreateEntity(Guid networkID, ReadOnlySpan<byte> content);
 
 }

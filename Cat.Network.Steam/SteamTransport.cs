@@ -13,12 +13,18 @@ namespace Cat.Network.Steam {
 			Packets.Enqueue(bytes);
 		}
 
-		public void SendPacket(byte[] bytes) {
-			Connection.SendMessage(bytes, 0, bytes.Length, SendType.Reliable);
+		public void SendPacket(byte[] buffer, int count) {
+
+			Connection.SendMessage(buffer, 0, count, SendType.Reliable);
 		}
 
 		public bool TryReadPacket(out byte[] bytes) {
 			return Packets.TryDequeue(out bytes);
+		}
+
+		public void ProcessPackets(ITransport.PacketProcessor processor) {
+		
+
 		}
 	}
 }

@@ -31,13 +31,12 @@ public class DefaultPacketSerializer : IPacketSerializer {
 		CreateEntitySerializer = new DefaultEntitySerializer(CreateOptions);
 	}
 
-	public NetworkEntity CreateEntity(Guid networkID, ReadOnlySpan<byte> data) {
+	public NetworkEntity CreateEntity(Guid networkID, ReadOnlySpan<byte> content) {
 
-
-
+		return null;
 	}
 
-	public void UpdateEntity(NetworkEntity targetEntity, ReadOnlySpan<byte> data) {
+	public void UpdateEntity(NetworkEntity targetEntity, ReadOnlySpan<byte> content) {
 
 
 

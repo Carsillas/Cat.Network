@@ -100,7 +100,6 @@ namespace Cat.Network.Generator {
 
 
 		private const string NetworkEntityInitializerInterfaceFQN = "Cat.Network.Generator.INetworkEntityInitializer";
-		private const string NetworkEntitySerializerInterfaceFQN = "Cat.Network.Generator.INetworkEntitySerializer";
 		private const string NetworkPropertyFQN = "Cat.Network.Properties.NetworkProperty";
 		public const string UnsafeFQN = "System.Runtime.CompilerServices.Unsafe";
 
@@ -116,10 +115,6 @@ namespace {Namespace} {{
 {GenerateProperties()}
 
 {GenerateInitializer()}
-
-{GenerateSerializer()}
-
-{GenerateDeserializer()}
 
 	}}
 
@@ -164,32 +159,8 @@ namespace {Namespace} {{
 			stringBuilder.AppendLine($"\t\t\t{UnsafeFQN}.As<{NetworkEntityInitializerInterfaceFQN}>(this).NetworkProperties = networkProperties;");
 			for (int i = 0; i < NetworkPropertyAttributes.Count; i++) {
 				NetworkPropertyAttributeData data = NetworkPropertyAttributes[i];
-				stringBuilder.AppendLine($"\t\t\tnetworkProperties[{i}] = new {NetworkPropertyFQN}<{data.FullyQualifiedTypeName}>();");
+				stringBuilder.AppendLine($"\t\t\tnetworkProperties[{i}] = new {NetworkPropertyFQN}<{data.FullyQualifiedTypeName}> {{ Index = {i}, Name = {data.Name} }};");
 			}
-
-			stringBuilder.AppendLine($"\t\t}}");
-
-			return stringBuilder.ToString();
-		}
-
-
-		private string GenerateSerializer() {
-			StringBuilder stringBuilder = new StringBuilder();
-
-			stringBuilder.AppendLine($"\t\tvoid {NetworkEntitySerializerInterfaceFQN}.Serialize(System.Span<byte> bytes) {{");
-			stringBuilder.AppendLine($"\t\t\t{NetworkPropertyFQN}[] networkProperties = {UnsafeFQN}.As<{NetworkEntityInitializerInterfaceFQN}>(this).NetworkProperties;");
-
-			stringBuilder.AppendLine($"\t\t}}");
-
-			return stringBuilder.ToString();
-		}
-
-		private string GenerateDeserializer() {
-			StringBuilder stringBuilder = new StringBuilder();
-
-			stringBuilder.AppendLine($"\t\tvoid {NetworkEntitySerializerInterfaceFQN}.Deserialize(System.ReadOnlySpan<byte> bytes) {{");
-			stringBuilder.AppendLine($"\t\t\t{NetworkPropertyFQN}[] networkProperties = {UnsafeFQN}.As<{NetworkEntityInitializerInterfaceFQN}>(this).NetworkProperties;");
-
 
 			stringBuilder.AppendLine($"\t\t}}");
 

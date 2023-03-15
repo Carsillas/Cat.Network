@@ -2,31 +2,29 @@
 using Cat.Network.Generator;
 using Cat.Network.Serialization;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text;
+using static Cat.Network.Serialization.SerializationUtils;
 
 namespace Cat.Network
 {
-
-	internal delegate void RequestProcessor(ReadOnlySpan<byte> data);
-
-    public class Client : ISerializationContext, IDisposable {
-
-
+	public class Client : ISerializationContext, IDisposable {
 
 		private int Time { get; set; }
 		private ITransport Transport { get; set; }
 		
 		public IProxyManager ProxyManager { get; }
-		private IPacketSerializer PacketSerializer { get; }
+		private IPacketSerializer Serializer { get; }
 
 
-		private byte[] OutgoingReliableDataBuffer = new byte[1_000_000]; // 1 MB
+		private byte[] OutgoingReliableDataBuffer = new byte[1_000_000];
 		
 
-		private Dictionary<RequestType, RequestProcessor> RequestProcessor { get; } = new Dictionary<RequestType, RequestProcessor>();
+		private Dictionary<RequestType, ClientRequestProcessor> RequestProcessors { get; } = new Dictionary<RequestType, ClientRequestProcessor>();
 
 		private Dictionary<Guid, NetworkEntity> Entities { get; } = new Dictionary<Guid, NetworkEntity>();
 		private Dictionary<Guid, NetworkEntity> OwnedEntities { get; } = new Dictionary<Guid, NetworkEntity>();
@@ -38,7 +36,7 @@ namespace Cat.Network
 			InitializeNetworkRequestParsers();
 
 			ProxyManager = proxyManager;
-			PacketSerializer = serializer;
+			Serializer = serializer;
 		}
 
 		public void Connect(ITransport serverTransport) {
@@ -103,7 +101,7 @@ namespace Cat.Network
 					//.WriteEntityData(something something something)
 					.Lock();
 
-				Transport.SendPacket(new Span<byte>(OutgoingReliableDataBuffer, 0, packet.Length));
+				Transport.SendPacket(OutgoingReliableDataBuffer, packet.Length);
 			}
 
 			foreach (NetworkEntity entity in EntitiesToSpawn) {
@@ -113,7 +111,7 @@ namespace Cat.Network
 					//.WriteEntityData(something something something)
 					.Lock();
 
-				Transport.SendPacket(new Span<byte>(OutgoingReliableDataBuffer, 0, packet.Length));
+				Transport.SendPacket(OutgoingReliableDataBuffer, packet.Length);
 			}
 
 			EntitiesToSpawn.Clear();
@@ -124,7 +122,7 @@ namespace Cat.Network
 					.WriteTarget(entity)
 					.Lock();
 
-				Transport.SendPacket(new Span<byte>(OutgoingReliableDataBuffer, 0, packet.Length));
+				Transport.SendPacket(OutgoingReliableDataBuffer, packet.Length);
 			}
 
 			EntitiesToDespawn.Clear();
@@ -137,8 +135,9 @@ namespace Cat.Network
 			void Processor(ReadOnlySpan<byte> bytes) {
 				try {
 					RequestType requestType = (RequestType)bytes[0];
-					if (RequestProcessor.TryGetValue(requestType, out RequestProcessor handler)) {
-						handler.Invoke(bytes.Slice(1));
+					if (RequestProcessors.TryGetValue(requestType, out ClientRequestProcessor handler)) {
+						ExtractPacketHeader(bytes, out Guid networkID, out ReadOnlySpan<byte> content);
+						handler.Invoke(networkID, content);
 					} else {
 						Console.WriteLine($"Unknown network request type: {requestType}");
 					}
@@ -151,43 +150,33 @@ namespace Cat.Network
 		}
 
 		private void InitializeNetworkRequestParsers() {
-			RequestProcessor.Add(RequestType.AssignOwner, HandleAssignOwnerRequest);
-			RequestProcessor.Add(RequestType.CreateEntity, HandleCreateEntityRequest);
-			RequestProcessor.Add(RequestType.UpdateEntity, HandleUpdateEntityRequest);
-			RequestProcessor.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
+			RequestProcessors.Add(RequestType.AssignOwner, HandleAssignOwnerRequest);
+			RequestProcessors.Add(RequestType.CreateEntity, HandleCreateEntityRequest);
+			RequestProcessors.Add(RequestType.UpdateEntity, HandleUpdateEntityRequest);
+			RequestProcessors.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
 		}
 
-		private void HandleCreateEntityRequest(ReadOnlySpan<byte> bytes) {
-
-			Guid networkID = new Guid(bytes.Slice(0, 16));
-
-			ReadOnlySpan<byte> entityData = bytes.Slice(16);
-
+		private void HandleCreateEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
 			if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {
 				if (!OwnedEntities.ContainsKey(existingEntity.NetworkID)) {
-					PacketSerializer.UpdateEntity(existingEntity, entityData);
+					Serializer.UpdateEntity(existingEntity, content);
 				}
 				return;
 			}
 
-			PacketSerializer.CreateEntity(networkID, entityData);
+			Serializer.CreateEntity(networkID, content);
 		}
 
-
-		private void HandleUpdateEntityRequest(ReadOnlySpan<byte> bytes) {
-			Guid networkID = new Guid(bytes.Slice(0, 16));
-
+		private void HandleUpdateEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
 			if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
 				if (OwnedEntities.ContainsKey(entity.NetworkID)) {
 					return;
 				}
-				PacketSerializer.UpdateEntity(entity, bytes.Slice(16));
+				Serializer.UpdateEntity(entity, content);
 			}
 		}
 
-		private void HandleDeleteEntityRequest(ReadOnlySpan<byte> bytes) {
-			Guid networkID = new Guid(bytes.Slice(0, 16));
-
+		private void HandleDeleteEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
 			if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
 				ProxyManager.OnEntityDeleted(entity);
 			}
@@ -196,12 +185,9 @@ namespace Cat.Network
 			OwnedEntities.Remove(networkID);
 		}
 
-		private void HandleAssignOwnerRequest(ReadOnlySpan<byte> bytes) {
-
-			Guid entityNetworkID = new Guid(reader.ReadBytes(16));
-
-			if (Entities.TryGetValue(entityNetworkID, out NetworkEntity entity)) {
-				OwnedEntities.Add(entityNetworkID, entity);
+		private void HandleAssignOwnerRequest(Guid networkID, ReadOnlySpan<byte> content) {
+			if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
+				OwnedEntities.Add(networkID, entity);
 				entity.IsOwner = true;
 				ProxyManager.OnGainedOwnership(entity);
 			}

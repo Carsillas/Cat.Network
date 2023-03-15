@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection.PortableExecutable;
+using static Cat.Network.Serialization.SerializationUtils;
 
 namespace Cat.Network.Server;
 
@@ -13,13 +13,13 @@ public class Server : ISerializationContext {
 
 
 	public IEntityStorage EntityStorage { get; }
-
-	private byte[] OutgoingReliableDataBuffer = new byte[1_000_000]; // 1 MB
-
+	public IPacketSerializer Serializer { get; }
 
 
+	private byte[] OutgoingReliableDataBuffer = new byte[1_000_000];
 
-	private Dictionary<RequestType, Action<RemoteClient, BinaryReader>> RequestParsers { get; } = new Dictionary<RequestType, Action<RemoteClient, BinaryReader>>();
+
+	private Dictionary<RequestType, ServerRequestProcessor> RequestProcessors { get; } = new Dictionary<RequestType, ServerRequestProcessor>();
 
 	private List<RemoteClient> Clients { get; } = new List<RemoteClient>();
 	private Dictionary<NetworkEntity, RemoteClient> Owners { get; } = new Dictionary<NetworkEntity, RemoteClient>();
@@ -30,10 +30,11 @@ public class Server : ISerializationContext {
 
 	private int Time { get; set; }
 
-	public Server(IEntityStorage entityStorage) {
+	public Server(IEntityStorage entityStorage, IPacketSerializer serializer) {
 		InitializeNetworkRequestParsers();
 
 		EntityStorage = entityStorage;
+		Serializer = serializer;
 	}
 
 	public void AddTransport(ITransport transport, NetworkEntity profileEntity) {
@@ -77,9 +78,9 @@ public class Server : ISerializationContext {
 
 
 	private void InitializeNetworkRequestParsers() {
-		RequestParsers.Add(RequestType.CreateEntity, HandleCreateEntityRequest);
-		RequestParsers.Add(RequestType.UpdateEntity, HandleUpdateEntityRequest);
-		RequestParsers.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
+		RequestProcessors.Add(RequestType.CreateEntity, HandleCreateEntityRequest);
+		RequestProcessors.Add(RequestType.UpdateEntity, HandleUpdateEntityRequest);
+		RequestProcessors.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
 	}
 
 
@@ -164,9 +165,10 @@ public class Server : ISerializationContext {
 
 			void Processor(ReadOnlySpan<byte> bytes) {
 				try {
-					RequestType requestType = (RequestType)reader.ReadByte();
-					if (RequestParsers.TryGetValue(requestType, out Action<RemoteClient, BinaryReader> handler)) {
-						handler.Invoke(client, reader);
+					RequestType requestType = (RequestType)bytes[0];
+					if (RequestProcessors.TryGetValue(requestType, out ServerRequestProcessor processor)) {
+						ExtractPacketHeader(bytes, out Guid networkID, out ReadOnlySpan<byte> content);
+						processor.Invoke(client, networkID, content);
 					} else {
 						Console.WriteLine($"Unknown network request type: {requestType}");
 					}
@@ -174,21 +176,16 @@ public class Server : ISerializationContext {
 					Console.Error.WriteLine(e.Message);
 					Console.Error.WriteLine(e.StackTrace);
 				}
-
 			}
 		}
 	}
 
-	private static void NotifyAssignedOwner(RemoteClient client, NetworkEntity entity) {
-		using (MemoryStream stream = new MemoryStream(20)) {
-			using (BinaryWriter writer = new BinaryWriter(stream)) {
 
-				writer.Write((byte)RequestType.AssignOwner);
-				writer.Write(entity.NetworkID.ToByteArray());
+	private void NotifyAssignedOwner(RemoteClient client, NetworkEntity entity) {
 
-				client.Transport.SendPacket(stream.ToArray());
-			}
-		}
+		Packet packet = new PacketWriter(OutgoingReliableDataBuffer).WriteRequestType(RequestType.AssignOwner).WriteTarget(entity).Lock();
+		client.Transport.SendPacket(OutgoingReliableDataBuffer, packet.Length);
+
 	}
 
 	private bool TryGetOwner(NetworkEntity entity, out RemoteClient owner) {
@@ -223,40 +220,25 @@ public class Server : ISerializationContext {
 	}
 
 
-	private void HandleCreateEntityRequest(RemoteClient remoteClient, BinaryReader reader) {
-		Guid networkID = new Guid(reader.ReadBytes(16));
-		string entityTypeName = reader.ReadString();
-		Type entityType = null;
+	private void HandleCreateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
 
-		try {
-			entityType = Type.GetType(entityTypeName);
-		} catch (Exception) { }
 
-		if (entityType != null && typeof(NetworkEntity).IsAssignableFrom(entityType)) {
-			NetworkEntity instance = (NetworkEntity)Activator.CreateInstance(entityType);
+		NetworkEntity instance = Serializer.CreateEntity(networkID, content);
 
-			instance.NetworkID = networkID;
+		EntityStorage.RegisterEntity(instance);
 
-			instance.Serializer.ReadNetworkProperties(reader);
-
-			EntityStorage.RegisterEntity(instance);
-
-			remoteClient.RelevantEntities.Add(instance);
-			SetOwner(instance, remoteClient);
-		}
+		SetOwner(instance, remoteClient);
+		
 	}
 
 
-	private void HandleUpdateEntityRequest(RemoteClient remoteClient, BinaryReader reader) {
-		Guid networkID = new Guid(reader.ReadBytes(16));
-
+	private void HandleUpdateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
 		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity)) {
-			entity.Serializer.ReadNetworkProperties(reader);
+			Serializer.UpdateEntity(entity, content);
 		}
 	}
 
-	private void HandleDeleteEntityRequest(RemoteClient remoteClient, BinaryReader Reader) {
-		Guid networkID = new Guid(Reader.ReadBytes(16));
+	private void HandleDeleteEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
 
 		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity)) {
 			SetOwner(entity, null);

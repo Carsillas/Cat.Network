@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Cat.Network.Serialization;
-internal interface ISerializationContext {
+public interface ISerializationContext {
 
 
 

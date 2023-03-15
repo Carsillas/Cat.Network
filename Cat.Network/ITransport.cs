@@ -8,7 +8,7 @@ namespace Cat.Network {
 
 		delegate void PacketProcessor(ReadOnlySpan<byte> packet);
 
-		void SendPacket(Span<byte> bytes);
+		void SendPacket(byte[] buffer, int count);
 		void ProcessPackets(PacketProcessor processor);
 			
 	}
