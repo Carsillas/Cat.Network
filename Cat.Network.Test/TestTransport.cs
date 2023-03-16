@@ -14,5 +14,13 @@ namespace Cat.Network.Test {
 		public bool TryReadPacket(out byte[] bytes) {
 			return Messages.TryDequeue(out bytes);
 		}
+
+		public void SendPacket(byte[] buffer, int count) {
+			throw new NotImplementedException();
+		}
+
+		public void ProcessPackets(ITransport.PacketProcessor processor) {
+			throw new NotImplementedException();
+		}
 	}
 }

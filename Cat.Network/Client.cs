@@ -12,7 +12,7 @@ using static Cat.Network.Serialization.SerializationUtils;
 
 namespace Cat.Network
 {
-	public class Client : ISerializationContext, IDisposable {
+	public class CatClient : ISerializationContext, IDisposable {
 
 		private int Time { get; set; }
 		private ITransport Transport { get; set; }
@@ -32,7 +32,7 @@ namespace Cat.Network
 		private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new HashSet<NetworkEntity>();
 
 
-		public Client(IProxyManager proxyManager, IPacketSerializer serializer) {
+		public CatClient(IProxyManager proxyManager, IPacketSerializer serializer) {
 			InitializeNetworkRequestParsers();
 
 			ProxyManager = proxyManager;

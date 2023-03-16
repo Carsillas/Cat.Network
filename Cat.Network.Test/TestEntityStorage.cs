@@ -25,5 +25,9 @@ namespace Cat.Network.Test
 		public HashSet<NetworkEntity> GetRelevantEntities(NetworkEntity entity) {
 			return Entities.Values.ToHashSet();
 		}
+
+		public void ProcessRelevantEntities(NetworkEntity entity, IEntityProcessor processor) {
+			throw new NotImplementedException();
+		}
 	}
 }

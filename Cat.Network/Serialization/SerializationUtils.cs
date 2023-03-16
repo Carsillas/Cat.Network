@@ -14,7 +14,6 @@ internal static class SerializationUtils {
 		content = bytes.Slice(20, length);
 	}
 
-
 	public delegate void ClientRequestProcessor(Guid networkID, ReadOnlySpan<byte> content);
 	public delegate void ServerRequestProcessor(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content);
 

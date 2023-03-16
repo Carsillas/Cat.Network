@@ -9,7 +9,7 @@ using static Cat.Network.Serialization.SerializationUtils;
 
 namespace Cat.Network.Server;
 
-public class Server : ISerializationContext {
+public class CatServer : ISerializationContext {
 
 
 	public IEntityStorage EntityStorage { get; }
@@ -30,7 +30,7 @@ public class Server : ISerializationContext {
 
 	private int Time { get; set; }
 
-	public Server(IEntityStorage entityStorage, IPacketSerializer serializer) {
+	public CatServer(IEntityStorage entityStorage, IPacketSerializer serializer) {
 		InitializeNetworkRequestParsers();
 
 		EntityStorage = entityStorage;
@@ -221,14 +221,11 @@ public class Server : ISerializationContext {
 
 
 	private void HandleCreateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
-
-
 		NetworkEntity instance = Serializer.CreateEntity(networkID, content);
 
 		EntityStorage.RegisterEntity(instance);
 
 		SetOwner(instance, remoteClient);
-		
 	}
 
 
@@ -239,7 +236,6 @@ public class Server : ISerializationContext {
 	}
 
 	private void HandleDeleteEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
-
 		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity)) {
 			SetOwner(entity, null);
 		}

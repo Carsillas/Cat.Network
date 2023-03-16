@@ -171,6 +171,8 @@ namespace {Namespace} {{
 
 				StringBuilder stringBuilder = new StringBuilder();
 
+				// TODO DONT USE UNSAFE
+
 				foreach (MethodData method in MethodDatas) {
 					stringBuilder.AppendLine($@"
 		public {method.InterfaceMethodDeclaration} {{

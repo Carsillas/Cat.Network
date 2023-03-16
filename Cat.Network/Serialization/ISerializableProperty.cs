@@ -6,6 +6,6 @@ using System.Threading.Tasks;
 
 namespace Cat.Network.Serialization;
 public interface ISerializableProperty {
-	int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer, int offset);
-	void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer, int offset);
+	void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer);
+	int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer);
 }

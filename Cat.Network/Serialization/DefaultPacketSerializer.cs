@@ -32,13 +32,14 @@ public class DefaultPacketSerializer : IPacketSerializer {
 	}
 
 	public NetworkEntity CreateEntity(Guid networkID, ReadOnlySpan<byte> content) {
+		NetworkEntity entity = null;
 
-		return null;
+		CreateEntitySerializer.ReadEntityContent(null, content, ref entity);
+
+		return entity;
 	}
 
 	public void UpdateEntity(NetworkEntity targetEntity, ReadOnlySpan<byte> content) {
-
-
-
+		UpdateEntitySerializer.ReadEntityContent(null, content, ref targetEntity);
 	}
 }

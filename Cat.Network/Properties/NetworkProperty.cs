@@ -14,8 +14,8 @@ namespace Cat.Network.Properties {
 
 		}
 
-		public abstract void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer, int offset);
-		public abstract int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer, int offset);
+		public abstract void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer);
+		public abstract int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer);
 
 	}
 
@@ -26,29 +26,29 @@ namespace Cat.Network.Properties {
 	}
 
 	public class CustomNetworkProperty<T> : NetworkProperty<T> where T : ISerializableProperty {
-		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer, int offset) => Value.Read(context, mode, buffer, offset);
+		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer) => Value.Read(context, mode, buffer);
 
-		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer, int offset) => Value.Write(context, mode, buffer, offset);
+		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer) => Value.Write(context, mode, buffer);
 	}
 
 	public class Int32NetworkProperty : NetworkProperty<int> {
-		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer, int offset) {
-			Value = BinaryPrimitives.ReadInt32LittleEndian(buffer.Slice(offset));
+		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer) {
+			Value = BinaryPrimitives.ReadInt32LittleEndian(buffer);
 		}
 
-		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer, int offset) {
-			BinaryPrimitives.WriteInt32LittleEndian(buffer.Slice(offset), Value);
+		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer) {
+			BinaryPrimitives.WriteInt32LittleEndian(buffer, Value);
 			return 4;
 		}
 	}
 
 	public class BooleanNetworkProperty : NetworkProperty<bool> {
-		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer, int offset) {
-			Value = buffer[offset] != 0;
+		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer) {
+			Value = buffer[0] != 0;
 		}
 
-		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer, int offset) {
-			buffer[offset] = (byte)(Value ? 1 : 0);
+		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer) {
+			buffer[0] = (byte)(Value ? 1 : 0);
 			return 1;
 		}
 	}

@@ -6,7 +6,7 @@ namespace Cat.Network.Entities
 {
 
 	[NetworkProperty(AccessModifier.Public, typeof(bool), "DestroyWithOwner")]
-	public abstract partial class NetworkEntity : INetworkEntityInitializer, IEquatable<NetworkEntity> {
+	public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 		
 		public Guid NetworkID { get; internal set; }
 		public bool IsOwner { get; internal set; } = true;
