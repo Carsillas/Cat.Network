@@ -1,5 +1,6 @@
 ﻿using Cat.Network.Entities;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection.PortableExecutable;
@@ -16,7 +17,7 @@ public class DefaultPacketSerializer : IPacketSerializer {
 		MemberSerializationMode = MemberSerializationMode.Partial
 	};
 	private SerializationOptions CreateOptions { get; } = new SerializationOptions {
-		TypeIdentifierMode = TypeIdentifierMode.FullName,
+		TypeIdentifierMode = TypeIdentifierMode.AssemblyQualifiedName,
 		MemberIdentifierMode = MemberIdentifierMode.Index,
 		MemberSelectionMode = MemberSelectionMode.All,
 		MemberSerializationMode = MemberSerializationMode.Complete
@@ -31,15 +32,40 @@ public class DefaultPacketSerializer : IPacketSerializer {
 		CreateEntitySerializer = new DefaultEntitySerializer(CreateOptions);
 	}
 
-	public NetworkEntity CreateEntity(Guid networkID, ReadOnlySpan<byte> content) {
+	public NetworkEntity ReadCreateEntity(Guid networkID, ReadOnlySpan<byte> content) {
 		NetworkEntity entity = null;
 
 		CreateEntitySerializer.ReadEntityContent(null, content, ref entity);
+		entity.NetworkID = networkID;
 
 		return entity;
 	}
 
-	public void UpdateEntity(NetworkEntity targetEntity, ReadOnlySpan<byte> content) {
+	public void ReadUpdateEntity(NetworkEntity targetEntity, ReadOnlySpan<byte> content) {
 		UpdateEntitySerializer.ReadEntityContent(null, content, ref targetEntity);
 	}
+
+
+	public int WriteCreateEntity(NetworkEntity targetEntity, Span<byte> content) {
+		
+		Span<byte> contentLength = content.Slice(0, 4);
+		Span<byte> contentData = content.Slice(4);
+
+		int length = CreateEntitySerializer.WriteEntityContent(null, contentData, targetEntity);
+		BinaryPrimitives.WriteInt32LittleEndian(contentLength, length);
+
+		return length + 4;
+	}
+
+	public int WriteUpdateEntity(NetworkEntity targetEntity, Span<byte> content) {
+
+		Span<byte> contentLength = content.Slice(0, 4);
+		Span<byte> contentData = content.Slice(4);
+
+		int length = UpdateEntitySerializer.WriteEntityContent(null, contentData, targetEntity);
+		BinaryPrimitives.WriteInt32LittleEndian(contentLength, length);
+
+		return length + 4;
+	}
+
 }

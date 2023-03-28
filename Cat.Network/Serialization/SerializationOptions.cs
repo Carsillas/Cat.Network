@@ -17,7 +17,7 @@ public struct SerializationOptions {
 
 public enum TypeIdentifierMode : byte {
 	None,
-	FullName
+	AssemblyQualifiedName
 }
 
 public enum MemberIdentifierMode : byte {

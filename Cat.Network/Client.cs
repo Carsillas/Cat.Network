@@ -12,7 +12,7 @@ using static Cat.Network.Serialization.SerializationUtils;
 
 namespace Cat.Network
 {
-	public class CatClient : ISerializationContext, IDisposable {
+	public class CatClient : IDisposable {
 
 		private int Time { get; set; }
 		private ITransport Transport { get; set; }
@@ -95,34 +95,25 @@ namespace Cat.Network
 					continue;
 				}
 
-				Packet packet = new PacketWriter(OutgoingReliableDataBuffer)
-					.WriteRequestType(RequestType.UpdateEntity)
-					.WriteTarget(entity)
-					//.WriteEntityData(something something something)
-					.Lock();
+				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
+				int contentLength = Serializer.WriteUpdateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
 
-				Transport.SendPacket(OutgoingReliableDataBuffer, packet.Length);
+				Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
 			}
 
 			foreach (NetworkEntity entity in EntitiesToSpawn) {
-				Packet packet = new PacketWriter(OutgoingReliableDataBuffer)
-					.WriteRequestType(RequestType.CreateEntity)
-					.WriteTarget(entity)
-					//.WriteEntityData(something something something)
-					.Lock();
+				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.CreateEntity, entity.NetworkID);
+				int contentLength = Serializer.WriteCreateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
 
-				Transport.SendPacket(OutgoingReliableDataBuffer, packet.Length);
+				Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
 			}
 
 			EntitiesToSpawn.Clear();
 
 			foreach (NetworkEntity entity in EntitiesToDespawn) {
-				Packet packet = new PacketWriter(OutgoingReliableDataBuffer)
-					.WriteRequestType(RequestType.DeleteEntity)
-					.WriteTarget(entity)
-					.Lock();
+				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.DeleteEntity, entity.NetworkID);
 
-				Transport.SendPacket(OutgoingReliableDataBuffer, packet.Length);
+				Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength);
 			}
 
 			EntitiesToDespawn.Clear();
@@ -134,9 +125,8 @@ namespace Cat.Network
 
 			void Processor(ReadOnlySpan<byte> bytes) {
 				try {
-					RequestType requestType = (RequestType)bytes[0];
+					ExtractPacketHeader(bytes, out RequestType requestType, out Guid networkID, out ReadOnlySpan<byte> content);
 					if (RequestProcessors.TryGetValue(requestType, out ClientRequestProcessor handler)) {
-						ExtractPacketHeader(bytes, out Guid networkID, out ReadOnlySpan<byte> content);
 						handler.Invoke(networkID, content);
 					} else {
 						Console.WriteLine($"Unknown network request type: {requestType}");
@@ -159,12 +149,13 @@ namespace Cat.Network
 		private void HandleCreateEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
 			if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {
 				if (!OwnedEntities.ContainsKey(existingEntity.NetworkID)) {
-					Serializer.UpdateEntity(existingEntity, content);
+					Serializer.ReadUpdateEntity(existingEntity, content);
 				}
 				return;
 			}
 
-			Serializer.CreateEntity(networkID, content);
+			NetworkEntity entity = Serializer.ReadCreateEntity(networkID, content);
+			Entities[networkID] = entity;
 		}
 
 		private void HandleUpdateEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
@@ -172,7 +163,7 @@ namespace Cat.Network
 				if (OwnedEntities.ContainsKey(entity.NetworkID)) {
 					return;
 				}
-				Serializer.UpdateEntity(entity, content);
+				Serializer.ReadUpdateEntity(entity, content);
 			}
 		}
 

@@ -7,15 +7,18 @@ namespace Cat.Network.Test {
 
 		[Test]
 		public void Test_EntitySpawning() {
-			TestEntity testEntityA = new TestEntity();
-			testEntityA.TestInt = 123;
+			TestEntity testEntityA = new TestEntity {
+				TestInt = 123
+			};
 
 			ClientA.Spawn(testEntityA);
+
 			ClientA.Tick();
 			Server.Tick();
 			ClientB.Tick();
 
-			Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+			bool serverHasEntity = ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
+			Assert.IsTrue(serverHasEntity);
 			Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
 
 			Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
@@ -28,9 +31,11 @@ namespace Cat.Network.Test {
 			Assert.AreEqual(testEntityA.TestInt, testEntityB.TestInt);
 
 			ClientA.Despawn(testEntityA);
+
 			ClientA.Tick();
 			Server.Tick();
 			ClientB.Tick();
+
 			Assert.IsFalse(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
 			Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
 

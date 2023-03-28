@@ -27,13 +27,13 @@ public class DefaultEntitySerializer : IEntitySerializer {
 
 		TypeIdentifierWriter = options.TypeIdentifierMode switch {
 			TypeIdentifierMode.None => NoOperation,
-			TypeIdentifierMode.FullName => WriteTypeFullName,
+			TypeIdentifierMode.AssemblyQualifiedName => WriteTypeAssemblyQualifiedName,
 			_ => throw new ArgumentOutOfRangeException(nameof(TypeIdentifierMode)),
 		};
 
 		TypeIdentifierReader = options.TypeIdentifierMode switch {
 			TypeIdentifierMode.None => NoOperation,
-			TypeIdentifierMode.FullName => ReadTypeFullName,
+			TypeIdentifierMode.AssemblyQualifiedName => ReadTypeFullName,
 			_ => throw new ArgumentOutOfRangeException(nameof(TypeIdentifierMode)),
 		};
 
@@ -111,9 +111,9 @@ public class DefaultEntitySerializer : IEntitySerializer {
 		return 0;
 	}
 
-	private static int WriteTypeFullName(ISerializationContext context, Span<byte> buffer, NetworkEntity entity) {
+	private static int WriteTypeAssemblyQualifiedName(ISerializationContext context, Span<byte> buffer, NetworkEntity entity) {
 		Span<byte> stringBuffer = buffer.Slice(4);
-		int stringByteLength = Encoding.Unicode.GetBytes(entity.GetType().FullName, stringBuffer);
+		int stringByteLength = Encoding.Unicode.GetBytes(entity.GetType().AssemblyQualifiedName, stringBuffer);
 		BinaryPrimitives.WriteInt32LittleEndian(buffer, stringByteLength);
 		return stringByteLength + 4;
 	}

@@ -11,16 +11,18 @@ namespace Cat.Network.Test {
 			Remote.Messages.Enqueue(bytes);
 		}
 
-		public bool TryReadPacket(out byte[] bytes) {
-			return Messages.TryDequeue(out bytes);
-		}
-
 		public void SendPacket(byte[] buffer, int count) {
-			throw new NotImplementedException();
+			byte[] copy = new byte[count];
+			Buffer.BlockCopy(buffer, 0, copy, 0, count);
+			Remote.Messages.Enqueue(copy);
 		}
 
 		public void ProcessPackets(ITransport.PacketProcessor processor) {
-			throw new NotImplementedException();
+			foreach (byte[] packet in Messages) {
+				processor(new ReadOnlySpan<byte>(packet));
+			}
+
+			Messages.Clear();
 		}
 	}
 }
