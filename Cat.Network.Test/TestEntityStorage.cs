@@ -37,14 +37,31 @@ namespace Cat.Network.Test
 			List<NetworkEntity> update = processor.RelevantEntities.Intersect(newRelevantEntities).ToList();
 
 			foreach(NetworkEntity entity in create) {
-				processor.CreateEntity(entity);
+				processor.CreateEntity(entity, AssignIfOwnerless(entity));
 			}
 			foreach (NetworkEntity entity in update) {
-				processor.UpdateEntity(entity);
+				processor.UpdateEntity(entity, AssignIfOwnerless(entity));
 			}
 			foreach (NetworkEntity entity in delete) {
+				UnassignIfOwned(entity);
 				processor.DeleteEntity(entity);
 			}
+
+			bool AssignIfOwnerless(NetworkEntity entity) {
+				if (!Owners.TryGetValue(entity, out NetworkEntity currentOwnerProfileEntity) || currentOwnerProfileEntity == null || !Entities.ContainsKey(currentOwnerProfileEntity.NetworkID)) {
+					currentOwnerProfileEntity = profileEntity;
+					Owners[entity] = profileEntity;
+				}
+
+				return profileEntity == currentOwnerProfileEntity;
+			}
+
+			void UnassignIfOwned(NetworkEntity entity) {
+				if(Owners.TryGetValue(entity, out NetworkEntity currentOwnerProfileEntity) && currentOwnerProfileEntity == profileEntity) {
+					Owners.Remove(entity);
+				}
+			}
+
 		}
 
 

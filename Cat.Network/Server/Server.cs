@@ -9,17 +9,19 @@ using static Cat.Network.Serialization.SerializationUtils;
 
 namespace Cat.Network.Server;
 
-public class CatServer {
+public class CatServer : ISerializationContext {
 
 
 	public IEntityStorage EntityStorage { get; }
 	public IPacketSerializer Serializer { get; }
+	bool ISerializationContext.DeserializeDirtiesProperty => true;
+	public int Time { get; private set; }
+
 
 	private Dictionary<RequestType, ServerRequestProcessor> RequestProcessors { get; } = new Dictionary<RequestType, ServerRequestProcessor>();
 	private List<RemoteClient> Clients { get; } = new List<RemoteClient>();
 
 
-	private int Time { get; set; }
 
 	public CatServer(IEntityStorage entityStorage, IPacketSerializer serializer) {
 		InitializeNetworkRequestParsers();
@@ -74,21 +76,20 @@ public class CatServer {
 		EntityStorage.UnregisterEntity(entity.NetworkID);
 	}
 
-	protected virtual void PreTick() {
+	protected virtual void Execute() {
 
 	}
 
 
 	public void Tick() {
-		PreTick();
 		Time++;
-		PostTick();
+		ProcessIncomingPackets();
+		Execute();
+		ProcessOutgoingPackets();
 	}
 
 
-	private void PostTick() {
-
-		ProcessIncomingPackets();
+	private void ProcessOutgoingPackets() {
 
 		foreach (RemoteClient client in Clients) {
 			EntityStorage.ProcessRelevantEntities(client.ProfileEntity, client);
@@ -125,7 +126,7 @@ public class CatServer {
 
 
 	private void HandleUpdateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
-		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity)) {
+		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity) && remoteClient.OwnedEntities.Contains(entity)) {
 			Serializer.ReadUpdateEntity(entity, content);
 		}
 	}

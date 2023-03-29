@@ -99,7 +99,7 @@ namespace Cat.Network.Generator {
 		public List<NetworkPropertyAttributeData> DeclaredNetworkPropertyAttributes { get; set; }
 
 
-		private const string NetworkEntityInitializerInterfaceFQN = "Cat.Network.Generator.INetworkEntityInitializer";
+		private const string NetworkEntityInterfaceFQN = "Cat.Network.Generator.INetworkEntity";
 		private const string NetworkPropertyFQN = "Cat.Network.Properties.NetworkProperty";
 		public const string UnsafeFQN = "System.Runtime.CompilerServices.Unsafe";
 
@@ -110,7 +110,7 @@ namespace Cat.Network.Generator {
 
 namespace {Namespace} {{
 
-	partial class {ClassName} : {NetworkEntityInitializerInterfaceFQN} {{
+	partial class {ClassName} : {NetworkEntityInterfaceFQN} {{
 
 {GenerateProperties()}
 
@@ -139,8 +139,8 @@ namespace {Namespace} {{
 
 				return 
 		$@" {{ 
-			get => {UnsafeFQN}.As<{NetworkPropertyFQN}<{data.FullyQualifiedTypeName}>>({UnsafeFQN}.As<{NetworkEntityInitializerInterfaceFQN}>(this).NetworkProperties[{propertyIndex}]).Value; 
-			set => {UnsafeFQN}.As<{NetworkPropertyFQN}<{data.FullyQualifiedTypeName}>>({UnsafeFQN}.As<{NetworkEntityInitializerInterfaceFQN}>(this).NetworkProperties[{propertyIndex}]).Value = value; 
+			get => {UnsafeFQN}.As<{NetworkPropertyFQN}<{data.FullyQualifiedTypeName}>>({UnsafeFQN}.As<{NetworkEntityInterfaceFQN}>(this).NetworkProperties[{propertyIndex}]).Value; 
+			set => {UnsafeFQN}.As<{NetworkPropertyFQN}<{data.FullyQualifiedTypeName}>>({UnsafeFQN}.As<{NetworkEntityInterfaceFQN}>(this).NetworkProperties[{propertyIndex}]).Value = value; 
 		}}";
 
 			}
@@ -151,15 +151,15 @@ namespace {Namespace} {{
 		private string GenerateInitializer() {
 			StringBuilder stringBuilder = new StringBuilder();
 
-			stringBuilder.AppendLine($"\t\tvoid {NetworkEntityInitializerInterfaceFQN}.Initialize() {{");
+			stringBuilder.AppendLine($"\t\tvoid {NetworkEntityInterfaceFQN}.Initialize() {{");
 
 			stringBuilder.AppendLine($"\t\t\t{NetworkPropertyFQN}[] networkProperties = new {NetworkPropertyFQN}[{NetworkPropertyAttributes.Count}];");
 
-			stringBuilder.AppendLine($"\t\t\t{NetworkEntityInitializerInterfaceFQN} entityInitializer = this;");
+			stringBuilder.AppendLine($"\t\t\t{NetworkEntityInterfaceFQN} entityInitializer = this;");
 			stringBuilder.AppendLine($"\t\t\tentityInitializer.NetworkProperties = networkProperties;");
 			for (int i = 0; i < NetworkPropertyAttributes.Count; i++) {
 				NetworkPropertyAttributeData data = NetworkPropertyAttributes[i];
-				stringBuilder.AppendLine($"\t\t\tnetworkProperties[{i}] = new {GetNetworkPropertyClass(data)} {{ Index = {i}, Name = \"{data.Name}\" }};");
+				stringBuilder.AppendLine($"\t\t\tnetworkProperties[{i}] = new {GetNetworkPropertyClass(data)} {{ Entity = this, Index = {i}, Name = \"{data.Name}\" }};");
 			}
 
 			stringBuilder.AppendLine($"\t\t}}");

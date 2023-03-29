@@ -11,10 +11,10 @@ using System.Text;
 namespace Cat.Network.Serialization;
 public class DefaultEntitySerializer : IEntitySerializer {
 
-	private delegate int SpanTypeWriteOperation(ISerializationContext context, Span<byte> buffer, NetworkEntity entity);
-	private delegate int SpanTypeReadOperation(ISerializationContext context, ReadOnlySpan<byte> buffer, NetworkEntity entity, out Type type);
-	private delegate int SpanPropertyWriteOperation(ISerializationContext context, Span<byte> buffer, NetworkProperty property);
-	private delegate int SpanPropertySelectionOperation(ISerializationContext context, ReadOnlySpan<byte> buffer, NetworkProperty[] properties, out NetworkProperty networkProperty);
+	private delegate int SpanTypeWriteOperation(Span<byte> buffer, NetworkEntity entity);
+	private delegate int SpanTypeReadOperation(ReadOnlySpan<byte> buffer, NetworkEntity entity, out Type type);
+	private delegate int SpanPropertyWriteOperation(Span<byte> buffer, NetworkProperty property);
+	private delegate int SpanPropertySelectionOperation(ReadOnlySpan<byte> buffer, NetworkProperty[] properties, out NetworkProperty networkProperty);
 
 	private SpanTypeWriteOperation TypeIdentifierWriter { get; }
 	private SpanTypeReadOperation TypeIdentifierReader { get; }
@@ -57,29 +57,29 @@ public class DefaultEntitySerializer : IEntitySerializer {
 		MemberSerializationMode = options.MemberSerializationMode;
 	}
 
-	public void ReadEntityContent(ISerializationContext context, ReadOnlySpan<byte> buffer, ref NetworkEntity entity) {
+	public void ReadEntityContent(ReadOnlySpan<byte> buffer, ref NetworkEntity entity) {
 		int position = 0;
 
-		position += TypeIdentifierReader(context, buffer, entity, out Type type);
+		position += TypeIdentifierReader(buffer, entity, out Type type);
 
 		if (entity == null) {
 			entity = (NetworkEntity)Activator.CreateInstance(type);
 		}
-		INetworkEntityInitializer entityInitializer = entity;
+		INetworkEntity entityInitializer = entity;
 		NetworkProperty[] properties = entityInitializer.NetworkProperties;
 
 		while (position < buffer.Length) {
-			position += MemberIdentifierReader(context, buffer.Slice(position), properties, out NetworkProperty property);
-			position += ReadPropertyValue(context, buffer.Slice(position), property);
+			position += MemberIdentifierReader(buffer.Slice(position), properties, out NetworkProperty property);
+			position += ReadPropertyValue(buffer.Slice(position), property);
 		}
 	}
 
-	public int WriteEntityContent(ISerializationContext context, Span<byte> buffer, NetworkEntity entity) {
+	public int WriteEntityContent(Span<byte> buffer, NetworkEntity entity) {
 		int position = 0;
 
-		position += TypeIdentifierWriter(context, buffer.Slice(position), entity);
+		position += TypeIdentifierWriter(buffer.Slice(position), entity);
 
-		INetworkEntityInitializer entityInitializer = entity;
+		INetworkEntity entityInitializer = entity;
 		NetworkProperty[] properties = entityInitializer.NetworkProperties;
 
 		foreach (NetworkProperty property in properties) {
@@ -88,37 +88,37 @@ public class DefaultEntitySerializer : IEntitySerializer {
 				continue;
 			}
 
-			position += MemberIdentifierWriter(context, buffer.Slice(position), property);
-			position += WritePropertyValue(context, buffer.Slice(position), property);
+			position += MemberIdentifierWriter(buffer.Slice(position), property);
+			position += WritePropertyValue(buffer.Slice(position), property);
 		}
 
 		return position;
 	}
 
-	private static int NoOperation(ISerializationContext _1, Span<byte> _2, NetworkEntity _3) => 0;
-	private static int NoOperation(ISerializationContext _1, ReadOnlySpan<byte> _2, NetworkEntity _3, out Type type) {
+	private static int NoOperation(Span<byte> _1, NetworkEntity _2) => 0;
+	private static int NoOperation(ReadOnlySpan<byte> _1, NetworkEntity _2, out Type type) {
 		type = null;
 		return 0;
 	}
 
-	private static int NoOperation(ISerializationContext _1, Span<byte> _2, NetworkProperty _3) => 0;
-	private static int NoOperation(ISerializationContext _1, ReadOnlySpan<byte> _2, out NetworkProperty networkProperty) {
+	private static int NoOperation(Span<byte> _1, NetworkProperty _2) => 0;
+	private static int NoOperation(ReadOnlySpan<byte> _1, out NetworkProperty networkProperty) {
 		networkProperty = null;
 		return 0;
 	}
-	private int NoOperation(ISerializationContext context, ReadOnlySpan<byte> buffer, NetworkProperty[] properties, out NetworkProperty networkProperty) {
+	private int NoOperation(ReadOnlySpan<byte> buffer, NetworkProperty[] properties, out NetworkProperty networkProperty) {
 		networkProperty = null;
 		return 0;
 	}
 
-	private static int WriteTypeAssemblyQualifiedName(ISerializationContext context, Span<byte> buffer, NetworkEntity entity) {
+	private static int WriteTypeAssemblyQualifiedName(Span<byte> buffer, NetworkEntity entity) {
 		Span<byte> stringBuffer = buffer.Slice(4);
 		int stringByteLength = Encoding.Unicode.GetBytes(entity.GetType().AssemblyQualifiedName, stringBuffer);
 		BinaryPrimitives.WriteInt32LittleEndian(buffer, stringByteLength);
 		return stringByteLength + 4;
 	}
 
-	private static int ReadTypeFullName(ISerializationContext context, ReadOnlySpan<byte> buffer, NetworkEntity entity, out Type type) {
+	private static int ReadTypeFullName(ReadOnlySpan<byte> buffer, NetworkEntity entity, out Type type) {
 
 		int typeNameLength = BinaryPrimitives.ReadInt32LittleEndian(buffer);
 		string typeName = Encoding.Unicode.GetString(buffer.Slice(4, typeNameLength));
@@ -137,26 +137,26 @@ public class DefaultEntitySerializer : IEntitySerializer {
 
 
 
-	private static int WritePropertyIndex(ISerializationContext context, Span<byte> buffer, NetworkProperty property) {
+	private static int WritePropertyIndex(Span<byte> buffer, NetworkProperty property) {
 		BinaryPrimitives.WriteInt32LittleEndian(buffer, property.Index);
 		return 4;
 	}
 
-	private int SelectPropertyByIndex(ISerializationContext context, ReadOnlySpan<byte> buffer, NetworkProperty[] properties, out NetworkProperty networkProperty) {
+	private int SelectPropertyByIndex(ReadOnlySpan<byte> buffer, NetworkProperty[] properties, out NetworkProperty networkProperty) {
 		int propertyIndex = BinaryPrimitives.ReadInt32LittleEndian(buffer);
 
 		networkProperty = properties[propertyIndex];
 		return 4;
 	}
 
-	private static int WritePropertyName(ISerializationContext context, Span<byte> buffer, NetworkProperty property) {
+	private static int WritePropertyName(Span<byte> buffer, NetworkProperty property) {
 		Span<byte> stringBuffer = buffer.Slice(4);
 		int stringByteLength = Encoding.Unicode.GetBytes(property.Name, stringBuffer);
 		BinaryPrimitives.WriteInt32LittleEndian(buffer, stringByteLength);
 		return stringByteLength + 4;
 	}
 
-	private int SelectPropertyByName(ISerializationContext context, ReadOnlySpan<byte> buffer, NetworkProperty[] properties, out NetworkProperty networkProperty) {
+	private int SelectPropertyByName(ReadOnlySpan<byte> buffer, NetworkProperty[] properties, out NetworkProperty networkProperty) {
 
 		int propertyNameLength = BinaryPrimitives.ReadInt32LittleEndian(buffer);
 		string propertyName = Encoding.Unicode.GetString(buffer.Slice(4, propertyNameLength));
@@ -173,15 +173,15 @@ public class DefaultEntitySerializer : IEntitySerializer {
 		return propertyNameLength + 4;
 	}
 
-	private int WritePropertyValue(ISerializationContext context, Span<byte> buffer, NetworkProperty property) {
-		int length = property.Write(context, MemberSerializationMode, buffer.Slice(4));
+	private int WritePropertyValue(Span<byte> buffer, NetworkProperty property) {
+		int length = property.Write(MemberSerializationMode, buffer.Slice(4));
 		BinaryPrimitives.WriteInt32LittleEndian(buffer, length);
 		return length + 4;
 	}
 
-	private int ReadPropertyValue(ISerializationContext context, ReadOnlySpan<byte> buffer, NetworkProperty property) {
+	private int ReadPropertyValue(ReadOnlySpan<byte> buffer, NetworkProperty property) {
 		int length = BinaryPrimitives.ReadInt32LittleEndian(buffer);
-		property.Read(context, MemberSerializationMode, buffer.Slice(4, length));
+		property.Read(MemberSerializationMode, buffer.Slice(4, length));
 		return length + 4;
 	}
 

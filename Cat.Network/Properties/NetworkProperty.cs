@@ -1,53 +1,87 @@
-﻿using Cat.Network.Serialization;
+﻿using Cat.Network.Entities;
+using Cat.Network.Generator;
+using Cat.Network.Serialization;
 using System;
 using System.Buffers.Binary;
+using System.Security.Principal;
 
 namespace Cat.Network.Properties {
 
-	public abstract class NetworkProperty : ISerializableProperty {
+	public abstract class NetworkProperty {
 
+		public NetworkEntity Entity { get; init; }
 		public int Index { get; init; }
 		public string Name { get; init; }
-		public bool Dirty { get; private set; }
+		internal bool Dirty { get; set; }
+
+		protected bool MarkDirtyOnDeserialize => ((INetworkEntity)Entity)?.SerializationContext?.DeserializeDirtiesProperty ?? true;
+		protected ISerializationContext SerializationContext => ((INetworkEntity)Entity)?.SerializationContext;
 
 		protected NetworkProperty() {
 
 		}
 
-		public abstract void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer);
-		public abstract int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer);
+		public abstract void Read(MemberSerializationMode mode, ReadOnlySpan<byte> buffer);
+		public abstract int Write(MemberSerializationMode mode, Span<byte> buffer);
 
 	}
 
 	public abstract class NetworkProperty<T> : NetworkProperty {
 
-		public T Value;
+		private T _Value;
+
+		public T Value {
+			get => _Value; 
+			set {
+				_Value = value;
+				MarkDirty();
+			}
+		
+		}
+
+		protected void SetValue(T value, bool markDirty) {
+			_Value = value;
+			if (markDirty) {
+				MarkDirty();
+			}
+		}
+
+		protected void MarkDirty() {
+			Entity.LastDirtyTick = SerializationContext?.Time ?? 0;
+			Dirty = true;
+		}
 
 	}
 
 	public class CustomNetworkProperty<T> : NetworkProperty<T> where T : ISerializableProperty {
-		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer) => Value.Read(context, mode, buffer);
+		public override void Read(MemberSerializationMode mode, ReadOnlySpan<byte> buffer) {
+			Value.Read(SerializationContext, mode, buffer);
 
-		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer) => Value.Write(context, mode, buffer);
+			if (MarkDirtyOnDeserialize) {
+				MarkDirty();
+			}
+		}
+		public override int Write(MemberSerializationMode mode, Span<byte> buffer) => Value.Write(SerializationContext, mode, buffer);
+
 	}
 
 	public class Int32NetworkProperty : NetworkProperty<int> {
-		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer) {
+		public override void Read(MemberSerializationMode mode, ReadOnlySpan<byte> buffer) {
 			Value = BinaryPrimitives.ReadInt32LittleEndian(buffer);
 		}
 
-		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer) {
+		public override int Write(MemberSerializationMode mode, Span<byte> buffer) {
 			BinaryPrimitives.WriteInt32LittleEndian(buffer, Value);
 			return 4;
 		}
 	}
 
 	public class BooleanNetworkProperty : NetworkProperty<bool> {
-		public override void Read(ISerializationContext context, MemberSerializationMode mode, ReadOnlySpan<byte> buffer) {
-			Value = buffer[0] != 0;
+		public override void Read(MemberSerializationMode mode, ReadOnlySpan<byte> buffer) {
+			SetValue(buffer[0] != 0, MarkDirtyOnDeserialize);
 		}
 
-		public override int Write(ISerializationContext context, MemberSerializationMode mode, Span<byte> buffer) {
+		public override int Write(MemberSerializationMode mode, Span<byte> buffer) {
 			buffer[0] = (byte)(Value ? 1 : 0);
 			return 1;
 		}

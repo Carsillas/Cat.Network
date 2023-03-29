@@ -35,14 +35,14 @@ public class DefaultPacketSerializer : IPacketSerializer {
 	public NetworkEntity ReadCreateEntity(Guid networkID, ReadOnlySpan<byte> content) {
 		NetworkEntity entity = null;
 
-		CreateEntitySerializer.ReadEntityContent(null, content, ref entity);
+		CreateEntitySerializer.ReadEntityContent(content, ref entity);
 		entity.NetworkID = networkID;
 
 		return entity;
 	}
 
 	public void ReadUpdateEntity(NetworkEntity targetEntity, ReadOnlySpan<byte> content) {
-		UpdateEntitySerializer.ReadEntityContent(null, content, ref targetEntity);
+		UpdateEntitySerializer.ReadEntityContent(content, ref targetEntity);
 	}
 
 
@@ -51,7 +51,7 @@ public class DefaultPacketSerializer : IPacketSerializer {
 		Span<byte> contentLength = content.Slice(0, 4);
 		Span<byte> contentData = content.Slice(4);
 
-		int length = CreateEntitySerializer.WriteEntityContent(null, contentData, targetEntity);
+		int length = CreateEntitySerializer.WriteEntityContent(contentData, targetEntity);
 		BinaryPrimitives.WriteInt32LittleEndian(contentLength, length);
 
 		return length + 4;
@@ -62,7 +62,7 @@ public class DefaultPacketSerializer : IPacketSerializer {
 		Span<byte> contentLength = content.Slice(0, 4);
 		Span<byte> contentData = content.Slice(4);
 
-		int length = UpdateEntitySerializer.WriteEntityContent(null, contentData, targetEntity);
+		int length = UpdateEntitySerializer.WriteEntityContent(contentData, targetEntity);
 		BinaryPrimitives.WriteInt32LittleEndian(contentLength, length);
 
 		return length + 4;

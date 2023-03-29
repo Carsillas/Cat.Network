@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 namespace Cat.Network.Serialization;
 internal interface IEntitySerializer {
 
-	int WriteEntityContent(ISerializationContext context, Span<byte> buffer, NetworkEntity entity);
+	int WriteEntityContent(Span<byte> buffer, NetworkEntity entity);
 
-	void ReadEntityContent(ISerializationContext context, ReadOnlySpan<byte> buffer, ref NetworkEntity entity);
+	void ReadEntityContent(ReadOnlySpan<byte> buffer, ref NetworkEntity entity);
 
 }

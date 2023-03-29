@@ -62,7 +62,8 @@ namespace Cat.Network.Test {
 				BGainedOwnership = true;
 			};
 
-			Assert.IsFalse(testEntityA.IsOwner);
+			Assert.IsTrue(testEntityA.IsOwner);
+
 			Assert.IsFalse(AGainedOwnership);
 			Assert.IsFalse(BGainedOwnership);
 

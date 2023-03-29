@@ -1,5 +1,6 @@
 ﻿using Cat.Network.Generator;
 using Cat.Network.Properties;
+using Cat.Network.Serialization;
 using System;
 
 namespace Cat.Network.Entities
@@ -11,15 +12,19 @@ namespace Cat.Network.Entities
 		public Guid NetworkID { get; internal set; }
 		public bool IsOwner { get; internal set; } = true;
 
-		
-		private NetworkProperty[] NetworkProperties;
-		NetworkProperty[] INetworkEntityInitializer.NetworkProperties { get => NetworkProperties; set => NetworkProperties = value; }
 
 		internal int LastDirtyTick;
 
 
+		ISerializationContext INetworkEntity.SerializationContext { get; set; }
+		
+		private NetworkProperty[] NetworkProperties;
+		NetworkProperty[] INetworkEntity.NetworkProperties { get => NetworkProperties; set => NetworkProperties = value; }
+
+
+
 		public NetworkEntity() {
-			((INetworkEntityInitializer)this).Initialize();
+			((INetworkEntity)this).Initialize();
 		}
 
 		public bool Equals(NetworkEntity other) {

@@ -31,15 +31,35 @@ internal class RemoteClient : IEntityProcessor {
 
 
 
-	public void CreateEntity(NetworkEntity entity) {
+	public void NotifyAssignedOwner(NetworkEntity entity) {
+		WritePacketHeader(OutgoingReliableDataBuffer, RequestType.AssignOwner, entity.NetworkID);
+		Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength);
+	}
+
+	public void CreateEntity(NetworkEntity entity, bool isOwner) {
 		RelevantEntities.Add(entity);
 
 		WritePacketHeader(OutgoingReliableDataBuffer, RequestType.CreateEntity, entity.NetworkID);
 		int contentLength = Serializer.WriteCreateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
 
 		Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
+
+		if (isOwner && OwnedEntities.Add(entity)) {
+			NotifyAssignedOwner(entity);
+		}
 	}
 
+	public void UpdateEntity(NetworkEntity entity, bool isOwner) {
+
+		WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
+		int contentLength = Serializer.WriteUpdateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
+
+		Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
+
+		if (isOwner && OwnedEntities.Add(entity)) {
+			NotifyAssignedOwner(entity);
+		}
+	}
 	public void DeleteEntity(NetworkEntity entity) {
 
 		OwnedEntities.Remove(entity);
@@ -48,17 +68,4 @@ internal class RemoteClient : IEntityProcessor {
 		WritePacketHeader(OutgoingReliableDataBuffer, RequestType.DeleteEntity, entity.NetworkID);
 		Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength);
 	}
-
-	public void UpdateEntity(NetworkEntity entity) {
-		WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
-		int contentLength = Serializer.WriteUpdateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
-
-		Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
-	}
-
-	public void NotifyAssignedOwner(NetworkEntity entity) {
-		WritePacketHeader(OutgoingReliableDataBuffer, RequestType.AssignOwner, entity.NetworkID);
-		Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength);
-	}
-
 }

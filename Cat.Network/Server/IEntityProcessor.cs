@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 namespace Cat.Network.Server;
 public interface IEntityProcessor
 {
-    void CreateEntity(NetworkEntity entity);
-    void UpdateEntity(NetworkEntity entity);
+    void CreateEntity(NetworkEntity entity, bool isOwner);
+    void UpdateEntity(NetworkEntity entity, bool isOwner);
     void DeleteEntity(NetworkEntity entity);
     void NotifyAssignedOwner(NetworkEntity entity);
 
