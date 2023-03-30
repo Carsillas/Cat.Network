@@ -68,12 +68,13 @@ public class CatServer : ISerializationContext {
 	protected void Spawn(NetworkEntity entity, NetworkEntity ownerProfileEntity = null) {
 
 		entity.NetworkID = Guid.NewGuid();
-
+		((INetworkEntity)entity).SerializationContext = this;
 		EntityStorage.RegisterEntity(entity, ownerProfileEntity);
 	}
 
 	protected void Despawn(NetworkEntity entity) {
 		EntityStorage.UnregisterEntity(entity.NetworkID);
+		((INetworkEntity)entity).SerializationContext = null;
 	}
 
 	protected virtual void Execute() {
@@ -121,6 +122,7 @@ public class CatServer : ISerializationContext {
 	private void HandleCreateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
 		NetworkEntity instance = Serializer.ReadCreateEntity(networkID, content);
 
+		((INetworkEntity)instance).SerializationContext = this;
 		EntityStorage.RegisterEntity(instance, remoteClient.ProfileEntity);
 	}
 
@@ -138,6 +140,7 @@ public class CatServer : ISerializationContext {
 			remoteClient.ProfileEntity == ownerProfile) {
 
 			EntityStorage.UnregisterEntity(networkID);
+			((INetworkEntity)entity).SerializationContext = null;
 		}
 	}
 

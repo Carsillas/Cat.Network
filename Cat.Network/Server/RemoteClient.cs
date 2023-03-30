@@ -1,4 +1,6 @@
 ﻿using Cat.Network.Entities;
+using Cat.Network.Generator;
+using Cat.Network.Properties;
 using Cat.Network.Serialization;
 using System;
 using System.Collections.Generic;
@@ -51,14 +53,25 @@ internal class RemoteClient : IEntityProcessor {
 
 	public void UpdateEntity(NetworkEntity entity, bool isOwner) {
 
-		WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
-		int contentLength = Serializer.WriteUpdateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
+		bool isDirty = ((INetworkEntity)entity).SerializationContext.Time == entity.LastDirtyTick;
 
-		Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
+		if (isDirty) {
+			WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
+			int contentLength = Serializer.WriteUpdateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
+
+			Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
+		} else if(entity.LastDirtyTick > -1) {
+			entity.LastDirtyTick = -1;
+
+			foreach(NetworkProperty prop in ((INetworkEntity)entity).NetworkProperties) {
+				prop.Dirty = false;
+			}
+		}
 
 		if (isOwner && OwnedEntities.Add(entity)) {
 			NotifyAssignedOwner(entity);
 		}
+
 	}
 	public void DeleteEntity(NetworkEntity entity) {
 

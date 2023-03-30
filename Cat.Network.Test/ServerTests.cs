@@ -127,9 +127,9 @@ namespace Cat.Network.Test {
 		[Test]
 		public void Test_SimultaneousCreationUpdateRequests() {
 
-			TestEntity testEntityA = new TestEntity();
-
-			testEntityA.TestInt = 123;
+			TestEntity testEntityA = new TestEntity {
+				TestInt = 123
+			};
 
 			ClientA.Spawn(testEntityA);
 
@@ -160,6 +160,34 @@ namespace Cat.Network.Test {
 			Assert.AreEqual(100, testEntityC.TestInt);
 
 		}
+
+		[Test]
+		public void Test_EntityDirtyReset() {
+
+			TestEntity testEntityA = new TestEntity {
+				TestInt = 123
+			};
+
+			ClientA.Spawn(testEntityA);
+
+			ClientA.Tick();
+			Assert.AreEqual(1, ClientATransport.Messages.Count);
+			Assert.AreEqual(0, ClientBTransport.Remote.Messages.Count);
+
+			Server.Tick();
+			Assert.AreEqual(0, ClientATransport.Messages.Count);
+			Assert.AreEqual(1, ClientBTransport.Remote.Messages.Count);
+
+			ClientA.Tick();
+			Assert.AreEqual(0, ClientATransport.Messages.Count);
+			Assert.AreEqual(1, ClientBTransport.Remote.Messages.Count);
+
+			Server.Tick();
+			Assert.AreEqual(0, ClientATransport.Messages.Count);
+			Assert.AreEqual(1, ClientBTransport.Remote.Messages.Count);
+
+		}
+
 
 	}
 }

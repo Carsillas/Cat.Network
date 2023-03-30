@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Cat.Network.Test {
 	public class TestTransport : ITransport {
-		private Queue<byte[]> Messages { get; } = new Queue<byte[]>();
+		public Queue<byte[]> Messages { get; } = new Queue<byte[]>();
 		public TestTransport Remote { get; set; }
 
 		public void SendPacket(byte[] bytes) {

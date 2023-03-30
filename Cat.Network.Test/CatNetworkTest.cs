@@ -29,6 +29,20 @@ public class CatNetworkTest {
 
 		(ClientA, ClientATransport, ProxyManagerA) = AddClient();
 		(ClientB, ClientBTransport, ProxyManagerB) = AddClient();
+
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
 	}
 
 	protected (CatClient, TestTransport, TestProxyManager) AddClient() {
