@@ -64,7 +64,7 @@ internal class RemoteClient : IEntityProcessor {
 			entity.LastDirtyTick = -1;
 
 			foreach(NetworkProperty prop in ((INetworkEntity)entity).NetworkProperties) {
-				prop.Dirty = false;
+				prop.Clean();
 			}
 		}
 

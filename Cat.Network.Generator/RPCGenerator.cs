@@ -10,12 +10,14 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
+using static Cat.Network.Generator.GeneratorUtils;
+
 namespace Cat.Network.Generator {
 
 	[Generator(LanguageNames.CSharp)]
 	public class RPCGenerator : IIncrementalGenerator {
 
-		public const string RPCAttributeMetadataName = "Cat.Network.Generator.RPCAttribute";
+		public const string RPCPrefix = "RPC";
 		public const string NetworkEntityMetadataName = "Cat.Network.Entities.NetworkEntity";
 
 		private SymbolDisplayFormat FullyQualifiedFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
@@ -25,15 +27,12 @@ namespace Cat.Network.Generator {
 
 		public void Initialize(IncrementalGeneratorInitializationContext context) {
 
-			IncrementalValuesProvider<RPCDeclaration> allClassesWithNetworkPropertyAttribute =
-				context.SyntaxProvider.ForAttributeWithMetadataName(RPCAttributeMetadataName,
-				(syntaxNode, cancellationToken) =>
-				syntaxNode is MethodDeclarationSyntax &&
-				syntaxNode.ChildNodes().Any(node => node is ExplicitInterfaceSpecifierSyntax),
-				(generatorAttributeSyntaxContext, cancellationToken) => {
+			IncrementalValuesProvider<RPCDeclaration> allMethodsWithRPCAttribute =
+				context.SyntaxProvider.CreateSyntaxProvider(And(PassNodesOfType<MethodDeclarationSyntax>(), PassNodesWithExplicitInterfaceSpecifier(RPCPrefix)),
+				(generatorSyntaxContext, cancellationToken) => {
 
-					IMethodSymbol symbol = (IMethodSymbol)generatorAttributeSyntaxContext.TargetSymbol;
-					var node = (MethodDeclarationSyntax)generatorAttributeSyntaxContext.TargetNode;
+					MethodDeclarationSyntax node = (MethodDeclarationSyntax)generatorSyntaxContext.Node;
+					IMethodSymbol symbol = generatorSyntaxContext.SemanticModel.GetDeclaredSymbol(node, cancellationToken);
 
 					bool symbolIsNetworkEntity = false;
 					INamedTypeSymbol containingTypeSymbol = symbol.ContainingType;
@@ -46,8 +45,6 @@ namespace Cat.Network.Generator {
 
 						currentClassSymbol = currentClassSymbol.BaseType;
 					}
-
-
 
 					return new RPCDeclaration {
 						Namespace = symbol.ContainingNamespace.ToDisplayString(FullyQualifiedFormat),
@@ -62,7 +59,7 @@ namespace Cat.Network.Generator {
 				});
 
 			IncrementalValuesProvider<RPCDeclaration> networkEntityRPCs =
-				allClassesWithNetworkPropertyAttribute.Where(data => data.IsNetworkEntity);
+				allMethodsWithRPCAttribute.Where(data => data.IsNetworkEntity);
 
 			var collected = networkEntityRPCs.Collect();
 
@@ -112,11 +109,11 @@ namespace Cat.Network.Generator {
 			public string GenerateSource() {
 
 				return $@"
+namespace {Namespace} {{
 
 {GenerateClass()}
-{GenerateInterface()}
 
-
+}}
 ";
 
 			}
@@ -124,34 +121,19 @@ namespace Cat.Network.Generator {
 
 			private string GenerateInterface() {
 				return $@"
-
-namespace {Namespace}.RPC {{
-
-	public interface {ClassName} {{
-	
+		private interface {RPCPrefix} {{
 {GenerateInterfaceMethods()}
-
-	}}
-
-}}
-
+		}}
 ";
 			}
 
 
 			private string GenerateClass() {
 				return $@"
-
-namespace {Namespace} {{
-
-	partial class {ClassName} : RPC.{ClassName} {{
-
+	partial class {ClassName} : {ClassName}.{RPCPrefix} {{
+{GenerateInterface()}
 {GenerateClassMethods()}
-
 	}}
-
-}}
-
 ";
 			}
 
@@ -160,7 +142,7 @@ namespace {Namespace} {{
 				StringBuilder stringBuilder = new StringBuilder();
 
 				foreach (MethodData method in MethodDatas) {
-					stringBuilder.AppendLine($"\t\t{method.InterfaceMethodDeclaration};");
+					stringBuilder.AppendLine($"\t\t\t{method.InterfaceMethodDeclaration};");
 				}
 
 				return stringBuilder.ToString();
@@ -171,12 +153,15 @@ namespace {Namespace} {{
 
 				StringBuilder stringBuilder = new StringBuilder();
 
-				// TODO DONT USE UNSAFE
-
 				foreach (MethodData method in MethodDatas) {
 					stringBuilder.AppendLine($@"
 		public {method.InterfaceMethodDeclaration} {{
-			System.Runtime.CompilerServices.Unsafe.As<RPC.{ClassName}>(this).{method.ClassMethodInvocation};
+
+			if (IsOwner) {{ 
+				(({RPCPrefix})this).{method.ClassMethodInvocation};
+			}} else {{
+				// serialize and send
+			}}
 		}}
 ");
 				}

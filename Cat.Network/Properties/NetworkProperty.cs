@@ -12,7 +12,7 @@ namespace Cat.Network.Properties {
 		public NetworkEntity Entity { get; init; }
 		public int Index { get; init; }
 		public string Name { get; init; }
-		internal bool Dirty { get; set; }
+		protected internal bool Dirty { get; private protected set; }
 
 		protected bool MarkDirtyOnDeserialize => ((INetworkEntity)Entity)?.SerializationContext?.DeserializeDirtiesProperty ?? true;
 		protected ISerializationContext SerializationContext => ((INetworkEntity)Entity)?.SerializationContext;
@@ -23,6 +23,8 @@ namespace Cat.Network.Properties {
 
 		public abstract void Read(MemberSerializationMode mode, ReadOnlySpan<byte> buffer);
 		public abstract int Write(MemberSerializationMode mode, Span<byte> buffer);
+
+		internal abstract void Clean();
 
 	}
 
@@ -51,6 +53,10 @@ namespace Cat.Network.Properties {
 			Dirty = true;
 		}
 
+		internal override void Clean() {
+			Dirty = false;
+		}
+
 	}
 
 	public class CustomNetworkProperty<T> : NetworkProperty<T> where T : ISerializableProperty {
@@ -62,6 +68,13 @@ namespace Cat.Network.Properties {
 			}
 		}
 		public override int Write(MemberSerializationMode mode, Span<byte> buffer) => Value.Write(SerializationContext, mode, buffer);
+
+
+		internal override void Clean() {
+			base.Clean();
+
+			Value.Clean();
+		}
 
 	}
 

@@ -7,14 +7,19 @@ using Cat.Network.Properties;
 
 namespace Cat.Network.Test {
 
-	public class TestProfileEntity : NetworkEntity {
 
+	public partial class TestProfileEntity : NetworkEntity {
+
+		int NetworkProp.Health { get; set; }
 
 	}
 
-	[NetworkProperty(AccessModifier.Public, typeof(int), "TestInt")]
 	public partial class TestEntity : NetworkEntity {
 
+		int NetworkProp.Health { get; set; }
+		void RPC.ModifyHealth(int amount) {
+			Health += amount;
+		}
 
 	}
 }

@@ -8,7 +8,7 @@ namespace Cat.Network.Test {
 		[Test]
 		public void Test_EntitySpawning() {
 			TestEntity testEntityA = new TestEntity {
-				TestInt = 123
+				Health = 123
 			};
 
 			ClientA.Spawn(testEntityA);
@@ -27,8 +27,8 @@ namespace Cat.Network.Test {
 			TestEntity testEntityServer = (TestEntity)entityServer;
 			TestEntity testEntityB = (TestEntity)entityB;
 
-			Assert.AreEqual(testEntityA.TestInt, testEntityServer.TestInt);
-			Assert.AreEqual(testEntityA.TestInt, testEntityB.TestInt);
+			Assert.AreEqual(testEntityA.Health, testEntityServer.Health);
+			Assert.AreEqual(testEntityA.Health, testEntityB.Health);
 
 			ClientA.Despawn(testEntityA);
 
@@ -128,7 +128,7 @@ namespace Cat.Network.Test {
 		public void Test_SimultaneousCreationUpdateRequests() {
 
 			TestEntity testEntityA = new TestEntity {
-				TestInt = 123
+				Health = 123
 			};
 
 			ClientA.Spawn(testEntityA);
@@ -141,9 +141,9 @@ namespace Cat.Network.Test {
 			TestEntity testEntityB = (TestEntity)entityB;
 
 
-			Assert.AreEqual(123, testEntityB.TestInt);
+			Assert.AreEqual(123, testEntityB.Health);
 
-			testEntityA.TestInt = 100;
+			testEntityA.Health = 100;
 
 			ClientA.Tick();
 
@@ -156,8 +156,8 @@ namespace Cat.Network.Test {
 			ClientC.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityC);
 			TestEntity testEntityC = (TestEntity)entityC;
 
-			Assert.AreEqual(100, testEntityB.TestInt);
-			Assert.AreEqual(100, testEntityC.TestInt);
+			Assert.AreEqual(100, testEntityB.Health);
+			Assert.AreEqual(100, testEntityC.Health);
 
 		}
 
@@ -165,7 +165,7 @@ namespace Cat.Network.Test {
 		public void Test_EntityDirtyReset() {
 
 			TestEntity testEntityA = new TestEntity {
-				TestInt = 123
+				Health = 123
 			};
 
 			ClientA.Spawn(testEntityA);
@@ -186,7 +186,7 @@ namespace Cat.Network.Test {
 			Assert.AreEqual(0, ClientATransport.Messages.Count);
 			Assert.AreEqual(1, ClientBTransport.Remote.Messages.Count);
 
-			testEntityA.TestInt = 124;
+			testEntityA.Health = 124;
 
 			ClientA.Tick();
 			Assert.AreEqual(1, ClientATransport.Messages.Count);

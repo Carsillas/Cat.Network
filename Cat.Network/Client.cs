@@ -97,7 +97,7 @@ namespace Cat.Network
 
 				INetworkEntity iEntity = entity;
 				foreach(Properties.NetworkProperty prop in iEntity.NetworkProperties) {
-					prop.Dirty = false;
+					prop.Clean();
 				}
 			}
 

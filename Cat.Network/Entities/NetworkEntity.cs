@@ -6,7 +6,6 @@ using System;
 namespace Cat.Network.Entities
 {
 
-	[NetworkProperty(AccessModifier.Public, typeof(bool), "DestroyWithOwner")]
 	public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 		
 		public Guid NetworkID { get; internal set; }
@@ -14,6 +13,9 @@ namespace Cat.Network.Entities
 
 
 		internal int LastDirtyTick;
+
+
+		bool NetworkProp.DestroyWithOwner { get; set; }
 
 
 		ISerializationContext INetworkEntity.SerializationContext { get; set; }
