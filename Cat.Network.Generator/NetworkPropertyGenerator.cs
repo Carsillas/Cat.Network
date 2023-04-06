@@ -29,7 +29,6 @@ namespace Cat.Network.Generator {
 
 		public void Initialize(IncrementalGeneratorInitializationContext context) {
 
-
 			IncrementalValuesProvider<NetworkEntityClassDefinition> allNetworkEntities = context.SyntaxProvider.CreateSyntaxProvider(
 				PassNodesOfType<ClassDeclarationSyntax>(),
 				(generatorSyntaxContext, cancellationToken) => {
@@ -53,13 +52,14 @@ namespace Cat.Network.Generator {
 						}
 						currentSymbol = currentSymbol.BaseType;
 					}
+					builder.Reverse();
 
 					return new NetworkEntityClassDefinition {
 						Name = symbol.ToDisplayString(TypeNameFormat),
 						IsNetworkEntity = isNetworkEntity,
 						Namespace = symbol.ContainingNamespace.ToDisplayString(FullyQualifiedFormat),
 						MetadataName = symbol.MetadataName,
-						NetworkProperties = builder.Reverse().ToImmutableArray(),
+						NetworkProperties = builder.ToImmutableArray(),
 						DeclaredNetworkProperties = GetPropertyDatasForSymbol(symbol).Reverse().ToImmutableArray()
 					};
 
