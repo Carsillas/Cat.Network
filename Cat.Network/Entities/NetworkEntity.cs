@@ -20,8 +20,7 @@ namespace Cat.Network.Entities
 
 		ISerializationContext INetworkEntity.SerializationContext { get; set; }
 		
-		private NetworkProperty[] NetworkProperties;
-		NetworkProperty[] INetworkEntity.NetworkProperties { get => NetworkProperties; set => NetworkProperties = value; }
+		NetworkProperty[] INetworkEntity.NetworkProperties { get; set; }
 
 		public NetworkEntity() {
 			((INetworkEntity)this).Initialize();
