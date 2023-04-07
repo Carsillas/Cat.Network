@@ -23,8 +23,6 @@ namespace Cat.Network.Entities
 		private NetworkProperty[] NetworkProperties;
 		NetworkProperty[] INetworkEntity.NetworkProperties { get => NetworkProperties; set => NetworkProperties = value; }
 
-
-
 		public NetworkEntity() {
 			((INetworkEntity)this).Initialize();
 		}
@@ -32,6 +30,13 @@ namespace Cat.Network.Entities
 		public bool Equals(NetworkEntity other) {
 			return NetworkID == other.NetworkID;
 		}
+
+	}
+
+
+	public partial class NetworkEntity2 : NetworkEntity {
+
+		int NetworkProp.Test { get; set; }
 
 	}
 

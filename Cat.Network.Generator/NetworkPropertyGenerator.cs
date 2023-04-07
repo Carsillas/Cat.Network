@@ -22,28 +22,28 @@ namespace Cat.Network.Generator {
 		public const string NetworkEntityMetadataName = "Cat.Network.Entities.NetworkEntity";
 
 		public const string NetworkPropertyPrefix = "NetworkProp";
+		public const string NetworkPropertyPrefixAndDot = NetworkPropertyPrefix + ".";
 
 		private static SymbolDisplayFormat FullyQualifiedFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
+		private static SymbolDisplayFormat SimplyQualifiedFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
 		private static SymbolDisplayFormat TypeNameFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
 
 
 		public void Initialize(IncrementalGeneratorInitializationContext context) {
 
-			IncrementalValuesProvider<NetworkEntityClassDefinition> allNetworkEntities = context.SyntaxProvider.CreateSyntaxProvider(
+			IncrementalValuesProvider<NetworkEntityClassDefinition> allClasses = context.SyntaxProvider.CreateSyntaxProvider(
 				PassNodesOfType<ClassDeclarationSyntax>(),
 				(generatorSyntaxContext, cancellationToken) => {
 
 					ClassDeclarationSyntax node = (ClassDeclarationSyntax)generatorSyntaxContext.Node;
 					INamedTypeSymbol symbol = generatorSyntaxContext.SemanticModel.GetDeclaredSymbol(node);
 
-					bool isNetworkEntity = false;
-					INamedTypeSymbol currentSymbol = symbol.BaseType;
-
 					var builder = ImmutableArray.CreateBuilder<PropertyData>();
-
-					builder.AddRange(GetPropertyDatasForSymbol(symbol));
+					bool isNetworkEntity = false;
+					INamedTypeSymbol currentSymbol = symbol;
 
 					while (currentSymbol != null) {
+
 						builder.AddRange(GetPropertyDatasForSymbol(currentSymbol));
 
 						if (currentSymbol.ToDisplayString(FullyQualifiedFormat) == NetworkEntityMetadataName) {
@@ -54,20 +54,31 @@ namespace Cat.Network.Generator {
 					}
 					builder.Reverse();
 
+					if (!isNetworkEntity) {
+						return new NetworkEntityClassDefinition { IsNetworkEntity = false };
+					}
+
 					return new NetworkEntityClassDefinition {
 						Name = symbol.ToDisplayString(TypeNameFormat),
-						IsNetworkEntity = isNetworkEntity,
+						IsNetworkEntity = true,
 						Namespace = symbol.ContainingNamespace.ToDisplayString(FullyQualifiedFormat),
 						MetadataName = symbol.MetadataName,
 						NetworkProperties = builder.ToImmutableArray(),
-						DeclaredNetworkProperties = GetPropertyDatasForSymbol(symbol).Reverse().ToImmutableArray()
+						DeclaredNetworkProperties = GetPropertyDatasForNode(generatorSyntaxContext, node).Reverse().ToImmutableArray()
 					};
 
 					static IEnumerable<PropertyData> GetPropertyDatasForSymbol(INamedTypeSymbol typeSymbol) {
-						return typeSymbol.GetMembers().OfType<IPropertySymbol>()
-						.Where(propertySymbol => propertySymbol.ExplicitInterfaceImplementations
-							.Any(explicitImplementation => SymbolEqualityComparer.Default.Equals(explicitImplementation.ContainingType.ContainingType, typeSymbol)
-								&& explicitImplementation.ContainingType.Name == NetworkPropertyPrefix))
+
+						return typeSymbol
+						.GetMembers()
+						.OfType<IPropertySymbol>()
+						.Where(s => {
+							int lastDot = s.Name.LastIndexOf('.');
+							if (lastDot > 0) {
+								return s.Name.Substring(0, lastDot).Split('.').LastOrDefault() == NetworkPropertyPrefix;
+							}
+							return false;
+						})
 						.OrderByDescending(propertySymbol => propertySymbol.Name)
 						.Select(propertySymbol => new PropertyData {
 							Name = propertySymbol.Name.Split('.').Last(),
@@ -75,77 +86,28 @@ namespace Cat.Network.Generator {
 							FullyQualifiedTypeName = propertySymbol.Type.ToDisplayString(FullyQualifiedFormat)
 						});
 					}
+
+					static IEnumerable<PropertyData> GetPropertyDatasForNode(GeneratorSyntaxContext generatorSyntaxContext, ClassDeclarationSyntax node) {
+						return node.ChildNodes()
+							.OfType<PropertyDeclarationSyntax>()
+							.Where(propertySyntax => propertySyntax.ChildNodes().Any(child => child is ExplicitInterfaceSpecifierSyntax explicitSpecifier &&
+								explicitSpecifier.DescendantNodes().OfType<IdentifierNameSyntax>().LastOrDefault()?.Identifier.Text == NetworkPropertyPrefix))
+						.OrderByDescending(propertySyntax => propertySyntax.Identifier.Text)
+						.Select(propertySyntax => new PropertyData {
+							Name = propertySyntax.Identifier.Text,
+							AccessModifier = 0,
+							FullyQualifiedTypeName = generatorSyntaxContext.SemanticModel.GetDeclaredSymbol(propertySyntax).Type.ToDisplayString(FullyQualifiedFormat)
+						});
+					}
 				}
 			);
 
-			IncrementalValuesProvider<PropertyDeclaration> allNetworkProperties =
-				context.SyntaxProvider.CreateSyntaxProvider(
-					And(PassNodesOfType<PropertyDeclarationSyntax>(), PassNodesWithExplicitInterfaceSpecifier(NetworkPropertyPrefix)),
-					(generatorSyntaxContext, cancellationToken) => {
 
-						PropertyDeclarationSyntax node = (PropertyDeclarationSyntax)generatorSyntaxContext.Node;
-						IPropertySymbol symbol = generatorSyntaxContext.SemanticModel.GetDeclaredSymbol(node);
-						INamedTypeSymbol typeSymbol = symbol.ContainingType;
-
-						bool typeSymbolIsNetworkEntity = false;
-						INamedTypeSymbol currentSymbol = typeSymbol;
-
-						var builder = ImmutableArray.CreateBuilder<string>();
-
-						while (currentSymbol != null) {
-							builder.Add(currentSymbol.MetadataName);
-							if (currentSymbol.ToDisplayString(FullyQualifiedFormat) == NetworkEntityMetadataName) {
-								typeSymbolIsNetworkEntity = true;
-								break;
-							}
-							currentSymbol = currentSymbol.BaseType;
-						}
-
-						return new PropertyDeclaration {
-							ClassNamespace = typeSymbol.ContainingNamespace.ToDisplayString(FullyQualifiedFormat),
-							ClassName = typeSymbol.ToDisplayString(TypeNameFormat),
-							ClassMetadataName = typeSymbol.MetadataName,
-							IsNetworkEntityProperty = typeSymbolIsNetworkEntity,
-							PropertyData = new PropertyData {
-								Name = symbol.Name.Split('.').Last(),
-								AccessModifier = 0,
-								FullyQualifiedTypeName = symbol.Type.ToDisplayString(FullyQualifiedFormat)
-							},
-							InheritanceChain = builder.ToImmutable()
-						};
-					}
-				);
-
-			IncrementalValuesProvider<PropertyDeclaration> allNetworkEntityNetworkProperties =
-				allNetworkProperties.Where(data => data.IsNetworkEntityProperty);
-
-			var collected = allNetworkEntityNetworkProperties.Collect();
-
-			var networkEntityClassDefinition = collected.SelectMany((collection, token) => {
-
-				var grouped = collection.GroupBy(propertyDeclaration => $"{propertyDeclaration.ClassNamespace}.{propertyDeclaration.ClassMetadataName}");
-
-				Dictionary<string, ImmutableArray<PropertyData>> declaredPropertiesLookup = grouped.ToDictionary(
-					grouping => grouping.First().ClassMetadataName,
-					grouping => grouping.Select(propertyDeclaration => propertyDeclaration.PropertyData).OrderBy(propertyData => propertyData.Name).ToImmutableArray());
-
-				return grouped.Select(grouping => new NetworkEntityClassDefinition {
-					Namespace = grouping.First().ClassNamespace,
-					Name = grouping.First().ClassName,
-					MetadataName = grouping.First().ClassMetadataName,
-					NetworkProperties = grouping.First().InheritanceChain.Reverse().SelectMany(metadataName => {
-						if (declaredPropertiesLookup.ContainsKey(metadataName)) {
-							return declaredPropertiesLookup[metadataName];
-						} else {
-							return new[] { new PropertyData { Name = metadataName + $"({string.Join(",", declaredPropertiesLookup.Keys)})", FullyQualifiedTypeName = "ahhh" } }.ToImmutableArray();
-						}
-					}).ToImmutableArray(),
-					DeclaredNetworkProperties = grouping.Select(propertyDeclaration => propertyDeclaration.PropertyData).ToImmutableArray()
-				});
-			});
+			IncrementalValuesProvider<NetworkEntityClassDefinition> allNetworkEntities =
+				allClasses.Where(data => data.IsNetworkEntity);
 
 
-			context.RegisterSourceOutput(networkEntityClassDefinition,
+			context.RegisterSourceOutput(allNetworkEntities,
 				(c, source) => c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkProperties", source.GenerateSource()));
 		}
 
@@ -171,6 +133,9 @@ namespace Cat.Network.Generator {
 			public string GenerateSource() {
 
 				return $@"
+
+// {NetworkProperties.Length}
+// {DeclaredNetworkProperties.Length}
 
 namespace {Namespace} {{
 
@@ -264,16 +229,6 @@ namespace {Namespace} {{
 
 		}
 
-		public struct PropertyDeclaration {
-			public string ClassNamespace { get; set; }
-			public string ClassName { get; set; }
-			public string ClassMetadataName { get; set; }
-			public bool IsNetworkEntityProperty { get; set; }
-			public PropertyData PropertyData { get; set; }
-
-			public ImmutableArray<string> InheritanceChain { get; set; }
-
-		}
 
 		public struct PropertyData {
 			public byte AccessModifier { get; set; }
