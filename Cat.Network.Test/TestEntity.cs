@@ -8,21 +8,12 @@ using Cat.Network.Properties;
 namespace Cat.Network.Test {
 
 
-	public partial class TestProfileEntity : NetworkEntity2 {
+	public partial class TestProfileEntity : NetworkEntity { }
+
+	public partial class TestEntity : NetworkEntity {
 
 		int NetworkProp.Health { get; set; }
 
-		int NetworkProp.MyNewProperty { get; set; }
-
-		void a() { 
-			
-		}
-
-	}
-
-	public partial class TestEntity : TestProfileEntity {
-
-		int NetworkProp.Health { get; set; }
 		void RPC.ModifyHealth(int amount) {
 			Health += amount;
 		}

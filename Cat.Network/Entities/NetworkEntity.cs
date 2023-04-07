@@ -33,11 +33,4 @@ namespace Cat.Network.Entities
 
 	}
 
-
-	public partial class NetworkEntity2 : NetworkEntity {
-
-		int NetworkProp.Test { get; set; }
-
-	}
-
 }
