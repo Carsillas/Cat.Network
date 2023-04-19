@@ -6,11 +6,21 @@ using System.Text;
 
 namespace Cat.Network.Generator
 {
-    public interface INetworkEntity
-    {
-        void Initialize();
+    public interface INetworkEntity {
 
-        NetworkProperty[] NetworkProperties { get; set; }
+		Guid NetworkID { get; }
+
+		void Initialize();
+
+        int Serialize(SerializationOptions serializationOptions, Span<byte> buffer);
+        int Deserialize(SerializationOptions serializationOptions, ReadOnlySpan<byte> buffer);
+
+		void Clean();
+
+        NetworkPropertyInfo[] NetworkProperties { get; set; }
 		ISerializationContext SerializationContext { get; set; }
+
+		int LastDirtyTick { get; set; }
+
 	}
 }

@@ -25,7 +25,7 @@ public class CatNetworkTest {
 	[SetUp]
 	public void Setup() {
 		ServerEntityStorage = new TestEntityStorage();
-		Server = new TestServer(ServerEntityStorage, new DefaultPacketSerializer());
+		Server = new TestServer(ServerEntityStorage);
 
 		(ClientA, ClientATransport, ProxyManagerA) = AddClient();
 		(ClientB, ClientBTransport, ProxyManagerB) = AddClient();
@@ -47,7 +47,7 @@ public class CatNetworkTest {
 
 	protected (CatClient, TestTransport, TestProxyManager) AddClient() {
 		TestProxyManager proxyManager = new TestProxyManager();
-		CatClient client = new CatClient(proxyManager, new DefaultPacketSerializer());
+		CatClient client = new CatClient(proxyManager);
 		TestTransport clientTransport = new TestTransport();
 		TestTransport serverTransport = new TestTransport();
 

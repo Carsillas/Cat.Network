@@ -20,13 +20,11 @@ internal class RemoteClient : IEntityProcessor {
 	private byte[] OutgoingReliableDataBuffer = new byte[1_000_000];
 
 
-	public IPacketSerializer Serializer { get; }
 	public ITransport Transport { get; }
 	public NetworkEntity ProfileEntity { get; }
 
 
-	public RemoteClient(IPacketSerializer serializer, ITransport transport, NetworkEntity profileEntity) {
-		Serializer = serializer;
+	public RemoteClient(ITransport transport, NetworkEntity profileEntity) {
 		Transport = transport;
 		ProfileEntity = profileEntity;
 	}
@@ -40,9 +38,9 @@ internal class RemoteClient : IEntityProcessor {
 
 	public void CreateEntity(NetworkEntity entity, bool isOwner) {
 		RelevantEntities.Add(entity);
-
+		INetworkEntity iEntity = entity;
 		WritePacketHeader(OutgoingReliableDataBuffer, RequestType.CreateEntity, entity.NetworkID);
-		int contentLength = Serializer.WriteCreateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
+		int contentLength = iEntity.Serialize(CreateOptions, GetContentSpan(OutgoingReliableDataBuffer));
 
 		Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
 
@@ -55,17 +53,16 @@ internal class RemoteClient : IEntityProcessor {
 
 		bool isDirty = ((INetworkEntity)entity).SerializationContext.Time == entity.LastDirtyTick;
 
+		INetworkEntity iEntity = entity;
+
 		if (isDirty) {
 			WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
-			int contentLength = Serializer.WriteUpdateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
+			int contentLength = iEntity.Serialize(UpdateOptions, GetContentSpan(OutgoingReliableDataBuffer));
 
 			Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
 		} else if(entity.LastDirtyTick > -1) {
 			entity.LastDirtyTick = -1;
-
-			foreach(NetworkProperty prop in ((INetworkEntity)entity).NetworkProperties) {
-				prop.Clean();
-			}
+			iEntity.Clean();
 		}
 
 		if (isOwner && OwnedEntities.Add(entity)) {

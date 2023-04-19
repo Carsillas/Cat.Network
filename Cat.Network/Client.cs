@@ -17,7 +17,6 @@ namespace Cat.Network
 		private ITransport Transport { get; set; }
 		
 		public IProxyManager ProxyManager { get; }
-		private IPacketSerializer Serializer { get; }
 
 		bool ISerializationContext.DeserializeDirtiesProperty => false;
 		public int Time { get; private set; }
@@ -32,11 +31,10 @@ namespace Cat.Network
 		private HashSet<NetworkEntity> EntitiesToSpawn { get; } = new HashSet<NetworkEntity>();
 		private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new HashSet<NetworkEntity>();
 
-		public CatClient(IProxyManager proxyManager, IPacketSerializer serializer) {
+		public CatClient(IProxyManager proxyManager) {
 			InitializeNetworkRequestParsers();
 
 			ProxyManager = proxyManager;
-			Serializer = serializer;
 		}
 
 		public void Connect(ITransport serverTransport) {
@@ -89,21 +87,22 @@ namespace Cat.Network
 				if (!entity.IsOwner || entity.LastDirtyTick < Time || EntitiesToSpawn.Contains(entity) || EntitiesToDespawn.Contains(entity)) {
 					continue;
 				}
-				 
+				INetworkEntity iEntity = entity;
+
 				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
-				int contentLength = Serializer.WriteUpdateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
+				int contentLength = iEntity.Serialize(UpdateOptions, GetContentSpan(OutgoingReliableDataBuffer));
 
 				Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
 
-				INetworkEntity iEntity = entity;
-				foreach(Properties.NetworkProperty prop in iEntity.NetworkProperties) {
-					prop.Clean();
+				foreach(ref Properties.NetworkPropertyInfo prop in iEntity.NetworkProperties.AsSpan()) {
+					prop.Dirty = false;
 				}
 			}
 
 			foreach (NetworkEntity entity in EntitiesToSpawn) {
+				INetworkEntity iEntity = entity;
 				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.CreateEntity, entity.NetworkID);
-				int contentLength = Serializer.WriteCreateEntity(entity, GetContentSpan(OutgoingReliableDataBuffer));
+				int contentLength = iEntity.Serialize(CreateOptions, GetContentSpan(OutgoingReliableDataBuffer));
 
 				Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
 			}
@@ -149,14 +148,21 @@ namespace Cat.Network
 		private void HandleCreateEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
 			if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {
 				if (!existingEntity.IsOwner) {
-					Serializer.ReadUpdateEntity(existingEntity, content);
+					INetworkEntity existingIEntity = existingEntity;
+					existingIEntity.Deserialize(UpdateOptions, content);
 				}
 				return;
 			}
 
-			NetworkEntity entity = Serializer.ReadCreateEntity(networkID, content);
-			entity.IsOwner = false;
+			int typeNameLength = ReadTypeFullName(content, out Type type);
+
+			NetworkEntity entity = (NetworkEntity) Activator.CreateInstance(type);
 			INetworkEntity iEntity = entity;
+
+			entity.NetworkID = networkID;
+			entity.IsOwner = false;
+
+			iEntity.Deserialize(CreateOptions, content.Slice(typeNameLength));
 			iEntity.SerializationContext = this;
 
 			Entities[networkID] = entity;
@@ -167,7 +173,8 @@ namespace Cat.Network
 				if (entity.IsOwner) {
 					return;
 				}
-				Serializer.ReadUpdateEntity(entity, content);
+				INetworkEntity iEntity = entity;
+				iEntity.Deserialize(UpdateOptions, content);
 			}
 		}
 

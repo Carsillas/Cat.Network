@@ -13,7 +13,6 @@ public class CatServer : ISerializationContext {
 
 
 	public IEntityStorage EntityStorage { get; }
-	public IPacketSerializer Serializer { get; }
 	bool ISerializationContext.DeserializeDirtiesProperty => true;
 	public int Time { get; private set; }
 
@@ -23,18 +22,17 @@ public class CatServer : ISerializationContext {
 
 
 
-	public CatServer(IEntityStorage entityStorage, IPacketSerializer serializer) {
+	public CatServer(IEntityStorage entityStorage) {
 		InitializeNetworkRequestParsers();
 
 		EntityStorage = entityStorage;
-		Serializer = serializer;
 	}
 
 	public void AddTransport(ITransport transport, NetworkEntity profileEntity) {
 
 		profileEntity.DestroyWithOwner = true;
 
-		RemoteClient remoteClient = new RemoteClient(Serializer, transport, profileEntity);
+		RemoteClient remoteClient = new RemoteClient(transport, profileEntity);
 
 		Spawn(profileEntity, profileEntity);
 
@@ -120,16 +118,24 @@ public class CatServer : ISerializationContext {
 
 
 	private void HandleCreateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
-		NetworkEntity instance = Serializer.ReadCreateEntity(networkID, content);
+		int typeNameLength = ReadTypeFullName(content, out Type type);
 
-		((INetworkEntity)instance).SerializationContext = this;
-		EntityStorage.RegisterEntity(instance, remoteClient.ProfileEntity);
+		NetworkEntity entity = (NetworkEntity) Activator.CreateInstance(type);
+		INetworkEntity iEntity = entity;
+
+		entity.NetworkID = networkID;
+
+		iEntity.Deserialize(CreateOptions, content.Slice(typeNameLength));
+		iEntity.SerializationContext = this;
+
+		EntityStorage.RegisterEntity(entity, remoteClient.ProfileEntity);
 	}
 
 
 	private void HandleUpdateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
 		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity) && remoteClient.OwnedEntities.Contains(entity)) {
-			Serializer.ReadUpdateEntity(entity, content);
+			INetworkEntity iEntity = entity;
+			iEntity.Deserialize(UpdateOptions, content);
 		}
 	}
 

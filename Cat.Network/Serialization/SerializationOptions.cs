@@ -7,12 +7,9 @@ using System.Threading.Tasks;
 namespace Cat.Network.Serialization;
 
 public struct SerializationOptions {
-
-	public TypeIdentifierMode TypeIdentifierMode { get; init; } 
 	public MemberIdentifierMode MemberIdentifierMode { get; init; }
 	public MemberSelectionMode MemberSelectionMode { get; init; }
 	public MemberSerializationMode MemberSerializationMode { get; init; }
-
 }
 
 public enum TypeIdentifierMode : byte {

@@ -8,7 +8,6 @@ using Cat.Network.Properties;
 
 namespace Cat.Network.Test {
 
-
 	public partial class TestProfileEntity : NetworkEntity { }
 
 	public partial class TestEntity : NetworkEntity {

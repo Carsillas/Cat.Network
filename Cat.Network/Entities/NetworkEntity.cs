@@ -11,16 +11,11 @@ namespace Cat.Network.Entities
 		public Guid NetworkID { get; internal set; }
 		public bool IsOwner { get; internal set; } = true;
 
-
-		internal int LastDirtyTick;
-
-
 		bool NetworkProp.DestroyWithOwner { get; set; }
 
-
 		ISerializationContext INetworkEntity.SerializationContext { get; set; }
-		
-		NetworkProperty[] INetworkEntity.NetworkProperties { get; set; }
+		NetworkPropertyInfo[] INetworkEntity.NetworkProperties { get; set; }
+		int INetworkEntity.LastDirtyTick { get; set; }
 
 		public NetworkEntity() {
 			((INetworkEntity)this).Initialize();

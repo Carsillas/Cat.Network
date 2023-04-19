@@ -126,7 +126,10 @@ namespace Cat.Network.Generator {
 
 
 			private const string NetworkEntityInterfaceFQN = "Cat.Network.Generator.INetworkEntity";
-			private const string NetworkPropertyFQN = "Cat.Network.Properties.NetworkProperty";
+			private const string NetworkPropertyInfoFQN = "Cat.Network.Properties.NetworkPropertyInfo";
+			private const string SerializationOptionsFQN = "Cat.Network.Serialization.SerializationOptions";
+			private const string SpanFQN = "System.Span<byte>";
+			private const string ReadOnlySpanFQN = "System.ReadOnlySpan<byte>";
 			public const string UnsafeFQN = "System.Runtime.CompilerServices.Unsafe";
 
 
@@ -144,6 +147,9 @@ namespace {Namespace} {{
 {GenerateInterface()}
 {GenerateProperties()}
 {GenerateInitializer()}
+{GenerateSerialize()}
+{GenerateDeserialize()}
+{GenerateClean()}
 
 	}}
 
@@ -189,8 +195,15 @@ namespace {Namespace} {{
 
 					return
 			$@" {{ 
-			get => {UnsafeFQN}.As<{NetworkPropertyFQN}<{data.FullyQualifiedTypeName}>>({UnsafeFQN}.As<{NetworkEntityInterfaceFQN}>(this).NetworkProperties[{propertyIndex}]).Value; 
-			set => {UnsafeFQN}.As<{NetworkPropertyFQN}<{data.FullyQualifiedTypeName}>>({UnsafeFQN}.As<{NetworkEntityInterfaceFQN}>(this).NetworkProperties[{propertyIndex}]).Value = value; 
+			get => {data.Name};
+			set {{ 
+				{NetworkEntityInterfaceFQN} iEntity = this;
+				ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
+
+				iEntity.LastDirtyTick = iEntity.SerializationContext?.Time ?? -1;
+				networkPropertyInfo.Dirty = true;
+				{data.Name} = value; 
+			}}
 		}}";
 
 				}
@@ -203,13 +216,13 @@ namespace {Namespace} {{
 
 				stringBuilder.AppendLine($"\t\tvoid {NetworkEntityInterfaceFQN}.Initialize() {{");
 
-				stringBuilder.AppendLine($"\t\t\t{NetworkPropertyFQN}[] networkProperties = new {NetworkPropertyFQN}[{NetworkProperties.Length}];");
+				stringBuilder.AppendLine($"\t\t\t{NetworkPropertyInfoFQN}[] networkProperties = new {NetworkPropertyInfoFQN}[{NetworkProperties.Length}];");
 
 				stringBuilder.AppendLine($"\t\t\t{NetworkEntityInterfaceFQN} iEntity = this;");
 				stringBuilder.AppendLine($"\t\t\tiEntity.NetworkProperties = networkProperties;");
 				for (int i = 0; i < NetworkProperties.Length; i++) {
 					PropertyData data = NetworkProperties[i];
-					stringBuilder.AppendLine($"\t\t\tnetworkProperties[{i}] = new {GetNetworkPropertyClass(data)} {{ Entity = this, Index = {i}, Name = \"{data.Name}\" }};");
+					stringBuilder.AppendLine($"\t\t\tnetworkProperties[{i}] = new {NetworkPropertyInfoFQN} {{ Index = {i}, Name = \"{data.Name}\" }};");
 				}
 
 				stringBuilder.AppendLine($"\t\t}}");
@@ -217,14 +230,39 @@ namespace {Namespace} {{
 				return stringBuilder.ToString();
 			}
 
-			private string GetNetworkPropertyClass(PropertyData data) {
-				string PropertyNamespace = "Cat.Network.Properties";
-				string PropertyType = data.FullyQualifiedTypeName switch {
-					"System.Int32" => "Int32NetworkProperty",
-					"System.Boolean" => "BooleanNetworkProperty",
-					_ => "Error!"
-				};
-				return $"{PropertyNamespace}.{PropertyType}";
+			private string GenerateSerialize() {
+				StringBuilder stringBuilder = new StringBuilder();
+
+				stringBuilder.AppendLine($"\t\tint {NetworkEntityInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer) {{");
+
+
+				stringBuilder.AppendLine($"\t\t\treturn 0;");
+				stringBuilder.AppendLine($"\t\t}}");
+
+				return stringBuilder.ToString();
+			}
+
+			private string GenerateDeserialize() {
+				StringBuilder stringBuilder = new StringBuilder();
+
+				stringBuilder.AppendLine($"\t\tint {NetworkEntityInterfaceFQN}.Deserialize({SerializationOptionsFQN} serializationOptions, {ReadOnlySpanFQN} buffer) {{");
+
+
+				stringBuilder.AppendLine($"\t\t\treturn 0;");
+				stringBuilder.AppendLine($"\t\t}}");
+
+				return stringBuilder.ToString();
+			}
+
+			private string GenerateClean() {
+				StringBuilder stringBuilder = new StringBuilder();
+
+				stringBuilder.AppendLine($"\t\tvoid {NetworkEntityInterfaceFQN}.Clean() {{");
+
+
+				stringBuilder.AppendLine($"\t\t}}");
+
+				return stringBuilder.ToString();
 			}
 
 		}

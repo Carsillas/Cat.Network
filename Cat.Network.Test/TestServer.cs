@@ -8,10 +8,7 @@ using System.Threading.Tasks;
 
 namespace Cat.Network.Test;
 public class TestServer : CatServer {
-	public TestServer(IEntityStorage entityStorage, IPacketSerializer serializer) : base(entityStorage, serializer) {
-
-
-	}
+	public TestServer(IEntityStorage entityStorage) : base(entityStorage) {	}
 
 	public new void RemoveTransport(ITransport transport) {
 		base.RemoveTransport(transport);
