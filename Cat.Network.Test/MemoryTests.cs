@@ -56,6 +56,7 @@ internal class MemoryTests {
 		byte[] bytes = new byte[s.Length * 2];
 
 		using (new MemoryTracker()) {
+			Encoding.Unicode.GetBytes(s, new Span<byte>(bytes));
 			Encoding.Unicode.GetBytes(s, 0, s.Length, bytes, 0);
 		}
 	}

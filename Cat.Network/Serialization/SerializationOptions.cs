@@ -18,10 +18,8 @@ public enum TypeIdentifierMode : byte {
 }
 
 public enum MemberIdentifierMode : byte {
-	None,
 	Index,
-	Name,
-	HashedName
+	Name
 }
 
 public enum MemberSelectionMode : byte {

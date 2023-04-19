@@ -84,10 +84,11 @@ namespace Cat.Network
 		private void ProcessOutgoingPackets() {
 
 			foreach (NetworkEntity entity in Entities.Values) {
-				if (!entity.IsOwner || entity.LastDirtyTick < Time || EntitiesToSpawn.Contains(entity) || EntitiesToDespawn.Contains(entity)) {
+				INetworkEntity iEntity = entity;
+
+				if (!entity.IsOwner || iEntity.LastDirtyTick < Time || EntitiesToSpawn.Contains(entity) || EntitiesToDespawn.Contains(entity)) {
 					continue;
 				}
-				INetworkEntity iEntity = entity;
 
 				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
 				int contentLength = iEntity.Serialize(UpdateOptions, GetContentSpan(OutgoingReliableDataBuffer));

@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -128,6 +129,8 @@ namespace Cat.Network.Generator {
 			private const string NetworkEntityInterfaceFQN = "Cat.Network.Generator.INetworkEntity";
 			private const string NetworkPropertyInfoFQN = "Cat.Network.Properties.NetworkPropertyInfo";
 			private const string SerializationOptionsFQN = "Cat.Network.Serialization.SerializationOptions";
+			private const string MemberIdentifierModeFQN = "Cat.Network.Serialization.MemberIdentifierMode";
+			private const string BinaryPrimitivesFQN = "System.Buffers.Binary.BinaryPrimitives";
 			private const string SpanFQN = "System.Span<byte>";
 			private const string ReadOnlySpanFQN = "System.ReadOnlySpan<byte>";
 			public const string UnsafeFQN = "System.Runtime.CompilerServices.Unsafe";
@@ -199,8 +202,7 @@ namespace {Namespace} {{
 			set {{ 
 				{NetworkEntityInterfaceFQN} iEntity = this;
 				ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
-
-				iEntity.LastDirtyTick = iEntity.SerializationContext?.Time ?? -1;
+				iEntity.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
 				networkPropertyInfo.Dirty = true;
 				{data.Name} = value; 
 			}}
@@ -236,7 +238,31 @@ namespace {Namespace} {{
 				stringBuilder.AppendLine($"\t\tint {NetworkEntityInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer) {{");
 
 
-				stringBuilder.AppendLine($"\t\t\treturn 0;");
+				stringBuilder.AppendLine($"\t\t\t{SpanFQN} bufferCopy = buffer;");
+				stringBuilder.AppendLine($"\t\t\tSystem.Int32 lengthStorage = 0;");
+				stringBuilder.AppendLine($"\t\t\t{NetworkEntityInterfaceFQN} iEntity = this;");
+
+				for (int i = 0; i < NetworkProperties.Length; i++) {
+					PropertyData data = NetworkProperties[i];
+
+
+					stringBuilder.AppendLine($"\t\t\tif (iEntity.NetworkProperties[{i}].Dirty) {{");
+					// TODO fix extra branching
+					stringBuilder.AppendLine($"\t\t\t\tif (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{");
+					// TODO dont encode every time? might not matter since this is mainly for saving to disk
+					stringBuilder.AppendLine($"\t\t\t\t\t lengthStorage = System.Text.Encoding.Unicode.GetBytes(iEntity.NetworkProperties[{i}].Name, bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);");
+					stringBuilder.AppendLine($"\t\t\t\t}}");
+					stringBuilder.AppendLine($"\t\t\t\tif (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{");
+					stringBuilder.AppendLine($"\t\t\t\t\t{BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, {i}); bufferCopy = bufferCopy.Slice(4);");
+					stringBuilder.AppendLine($"\t\t\t\t}}");
+
+					stringBuilder.AppendLine($"\t\t\t\t{Utils.GenerateSerialization(data.Name, data.FullyQualifiedTypeName, "bufferCopy")}");
+
+					stringBuilder.AppendLine($"\t\t\t}}");
+
+				}
+
+				stringBuilder.AppendLine($"\t\t\treturn buffer.Length - bufferCopy.Length;");
 				stringBuilder.AppendLine($"\t\t}}");
 
 				return stringBuilder.ToString();
@@ -247,6 +273,13 @@ namespace {Namespace} {{
 
 				stringBuilder.AppendLine($"\t\tint {NetworkEntityInterfaceFQN}.Deserialize({SerializationOptionsFQN} serializationOptions, {ReadOnlySpanFQN} buffer) {{");
 
+				stringBuilder.AppendLine($"\t\t\t{ReadOnlySpanFQN} bufferCopy = buffer;");
+				stringBuilder.AppendLine($"\t\t\t{NetworkEntityInterfaceFQN} iEntity = this;");
+
+				for (int i = 0; i < NetworkProperties.Length; i++) {
+					PropertyData data = NetworkProperties[i];
+					stringBuilder.AppendLine($"\t\t\t{Utils.GenerateDeserialization(data.Name, data.FullyQualifiedTypeName, "bufferCopy")}");
+				}
 
 				stringBuilder.AppendLine($"\t\t\treturn 0;");
 				stringBuilder.AppendLine($"\t\t}}");

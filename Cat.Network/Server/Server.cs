@@ -14,6 +14,7 @@ public class CatServer : ISerializationContext {
 
 	public IEntityStorage EntityStorage { get; }
 	bool ISerializationContext.DeserializeDirtiesProperty => true;
+
 	public int Time { get; private set; }
 
 

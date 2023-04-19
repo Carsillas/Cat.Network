@@ -50,18 +50,17 @@ internal class RemoteClient : IEntityProcessor {
 	}
 
 	public void UpdateEntity(NetworkEntity entity, bool isOwner) {
-
-		bool isDirty = ((INetworkEntity)entity).SerializationContext.Time == entity.LastDirtyTick;
-
 		INetworkEntity iEntity = entity;
+
+		bool isDirty = ((INetworkEntity)entity).SerializationContext.Time == iEntity.LastDirtyTick;
 
 		if (isDirty) {
 			WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
 			int contentLength = iEntity.Serialize(UpdateOptions, GetContentSpan(OutgoingReliableDataBuffer));
 
 			Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
-		} else if(entity.LastDirtyTick > -1) {
-			entity.LastDirtyTick = -1;
+		} else if(iEntity.LastDirtyTick > -1) {
+			iEntity.LastDirtyTick = -1;
 			iEntity.Clean();
 		}
 
