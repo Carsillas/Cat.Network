@@ -12,11 +12,6 @@ public struct SerializationOptions {
 	public MemberSerializationMode MemberSerializationMode { get; init; }
 }
 
-public enum TypeIdentifierMode : byte {
-	None,
-	AssemblyQualifiedName
-}
-
 public enum MemberIdentifierMode : byte {
 	Index,
 	Name

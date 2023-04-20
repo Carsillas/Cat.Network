@@ -23,17 +23,12 @@ namespace Cat.Network
 
 
 		private byte[] OutgoingReliableDataBuffer = new byte[1_000_000];
-		
-
-		private Dictionary<RequestType, ClientRequestProcessor> RequestProcessors { get; } = new Dictionary<RequestType, ClientRequestProcessor>();
 
 		private Dictionary<Guid, NetworkEntity> Entities { get; } = new Dictionary<Guid, NetworkEntity>();
 		private HashSet<NetworkEntity> EntitiesToSpawn { get; } = new HashSet<NetworkEntity>();
 		private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new HashSet<NetworkEntity>();
 
 		public CatClient(IProxyManager proxyManager) {
-			InitializeNetworkRequestParsers();
-
 			ProxyManager = proxyManager;
 		}
 
@@ -89,11 +84,11 @@ namespace Cat.Network
 				if (!entity.IsOwner || iEntity.LastDirtyTick < Time || EntitiesToSpawn.Contains(entity) || EntitiesToDespawn.Contains(entity)) {
 					continue;
 				}
+				
+				int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity, out Span<byte> contentBuffer);
+				int contentLength = iEntity.Serialize(UpdateOptions, contentBuffer);
 
-				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity.NetworkID);
-				int contentLength = iEntity.Serialize(UpdateOptions, GetContentSpan(OutgoingReliableDataBuffer));
-
-				Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
+				Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
 
 				foreach(ref Properties.NetworkPropertyInfo prop in iEntity.NetworkProperties.AsSpan()) {
 					prop.Dirty = false;
@@ -102,18 +97,19 @@ namespace Cat.Network
 
 			foreach (NetworkEntity entity in EntitiesToSpawn) {
 				INetworkEntity iEntity = entity;
-				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.CreateEntity, entity.NetworkID);
-				int contentLength = iEntity.Serialize(CreateOptions, GetContentSpan(OutgoingReliableDataBuffer));
 
-				Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength + contentLength);
+				int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.CreateEntity, entity, out Span<byte> contentBuffer);
+				int contentLength = iEntity.Serialize(CreateOptions, contentBuffer);
+
+				Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
 			}
 
 			EntitiesToSpawn.Clear();
 
 			foreach (NetworkEntity entity in EntitiesToDespawn) {
-				WritePacketHeader(OutgoingReliableDataBuffer, RequestType.DeleteEntity, entity.NetworkID);
+				int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.DeleteEntity, entity, out Span<byte> contentBuffer);
 
-				Transport.SendPacket(OutgoingReliableDataBuffer, HeaderLength);
+				Transport.SendPacket(OutgoingReliableDataBuffer, headerLength);
 			}
 
 			EntitiesToDespawn.Clear();
@@ -125,11 +121,24 @@ namespace Cat.Network
 
 			void Processor(ReadOnlySpan<byte> bytes) {
 				try {
-					ExtractPacketHeader(bytes, out RequestType requestType, out Guid networkID, out ReadOnlySpan<byte> content);
-					if (RequestProcessors.TryGetValue(requestType, out ClientRequestProcessor handler)) {
-						handler.Invoke(networkID, content);
-					} else {
-						Console.WriteLine($"Unknown network request type: {requestType}");
+					ExtractPacketHeader(bytes, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
+
+					switch (requestType) {
+						case RequestType.AssignOwner:
+							HandleAssignOwnerRequest(networkID);
+							break;
+						case RequestType.CreateEntity:
+							HandleCreateEntityRequest(networkID, type, content);
+							break;
+						case RequestType.UpdateEntity:
+							HandleUpdateEntityRequest(networkID, content);
+							break;
+						case RequestType.DeleteEntity:
+							HandleDeleteEntityRequest(networkID);
+							break;
+						default:
+							Console.WriteLine($"Unknown network request type: {requestType}");
+							break;
 					}
 				} catch (Exception e) {
 					Console.Error.WriteLine(e.Message);
@@ -139,14 +148,7 @@ namespace Cat.Network
 
 		}
 
-		private void InitializeNetworkRequestParsers() {
-			RequestProcessors.Add(RequestType.AssignOwner, HandleAssignOwnerRequest);
-			RequestProcessors.Add(RequestType.CreateEntity, HandleCreateEntityRequest);
-			RequestProcessors.Add(RequestType.UpdateEntity, HandleUpdateEntityRequest);
-			RequestProcessors.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
-		}
-
-		private void HandleCreateEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
+		private void HandleCreateEntityRequest(Guid networkID, Type type, ReadOnlySpan<byte> content) {
 			if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {
 				if (!existingEntity.IsOwner) {
 					INetworkEntity existingIEntity = existingEntity;
@@ -155,16 +157,14 @@ namespace Cat.Network
 				return;
 			}
 
-			int typeNameLength = ReadTypeFullName(content, out Type type);
-
 			NetworkEntity entity = (NetworkEntity) Activator.CreateInstance(type);
 			INetworkEntity iEntity = entity;
 
+			iEntity.SerializationContext = this;
 			entity.NetworkID = networkID;
 			entity.IsOwner = false;
 
-			iEntity.Deserialize(CreateOptions, content.Slice(typeNameLength));
-			iEntity.SerializationContext = this;
+			iEntity.Deserialize(CreateOptions, content);
 
 			Entities[networkID] = entity;
 		}
@@ -179,7 +179,7 @@ namespace Cat.Network
 			}
 		}
 
-		private void HandleDeleteEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
+		private void HandleDeleteEntityRequest(Guid networkID) {
 			if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
 				INetworkEntity iEntity = entity;
 				iEntity.SerializationContext = null;
@@ -189,7 +189,7 @@ namespace Cat.Network
 			Entities.Remove(networkID);
 		}
 
-		private void HandleAssignOwnerRequest(Guid networkID, ReadOnlySpan<byte> content) {
+		private void HandleAssignOwnerRequest(Guid networkID) {
 			if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
 				entity.IsOwner = true;
 				ProxyManager.OnGainedOwnership(entity);

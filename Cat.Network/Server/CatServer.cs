@@ -17,14 +17,9 @@ public class CatServer : ISerializationContext {
 
 	public int Time { get; private set; }
 
-
-	private Dictionary<RequestType, ServerRequestProcessor> RequestProcessors { get; } = new Dictionary<RequestType, ServerRequestProcessor>();
 	private List<RemoteClient> Clients { get; } = new List<RemoteClient>();
 
-
-
 	public CatServer(IEntityStorage entityStorage) {
-		InitializeNetworkRequestParsers();
 
 		EntityStorage = entityStorage;
 	}
@@ -54,13 +49,6 @@ public class CatServer : ISerializationContext {
 				Despawn(entity);
 			}
 		}
-	}
-
-
-	private void InitializeNetworkRequestParsers() {
-		RequestProcessors.Add(RequestType.CreateEntity, HandleCreateEntityRequest);
-		RequestProcessors.Add(RequestType.UpdateEntity, HandleUpdateEntityRequest);
-		RequestProcessors.Add(RequestType.DeleteEntity, HandleDeleteEntityRequest);
 	}
 
 
@@ -103,12 +91,26 @@ public class CatServer : ISerializationContext {
 
 			void Processor(ReadOnlySpan<byte> bytes) {
 				try {
-					ExtractPacketHeader(bytes, out RequestType requestType, out Guid networkID, out ReadOnlySpan<byte> content);
-					if (RequestProcessors.TryGetValue(requestType, out ServerRequestProcessor processor)) {
-						processor.Invoke(client, networkID, content);
-					} else {
-						Console.WriteLine($"Unknown network request type: {requestType}");
+					ExtractPacketHeader(bytes, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
+
+					switch (requestType) {
+						case RequestType.AssignOwner:
+							Console.WriteLine($"Invalid network request type: {requestType}");
+							break;
+						case RequestType.CreateEntity:
+							HandleCreateEntityRequest(client, networkID, type, content);
+							break;
+						case RequestType.UpdateEntity:
+							HandleUpdateEntityRequest(client, networkID, content);
+							break;
+						case RequestType.DeleteEntity:
+							HandleDeleteEntityRequest(client, networkID);
+							break;
+						default:
+							Console.WriteLine($"Unknown network request type: {requestType}");
+							break;
 					}
+
 				} catch (Exception e) {
 					Console.Error.WriteLine(e.Message);
 					Console.Error.WriteLine(e.StackTrace);
@@ -118,16 +120,14 @@ public class CatServer : ISerializationContext {
 	}
 
 
-	private void HandleCreateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
-		int typeNameLength = ReadTypeFullName(content, out Type type);
-
+	private void HandleCreateEntityRequest(RemoteClient remoteClient, Guid networkID, Type type, ReadOnlySpan<byte> content) {
 		NetworkEntity entity = (NetworkEntity) Activator.CreateInstance(type);
 		INetworkEntity iEntity = entity;
 
+		iEntity.SerializationContext = this;
 		entity.NetworkID = networkID;
 
-		iEntity.Deserialize(CreateOptions, content.Slice(typeNameLength));
-		iEntity.SerializationContext = this;
+		iEntity.Deserialize(CreateOptions, content);
 
 		EntityStorage.RegisterEntity(entity, remoteClient.ProfileEntity);
 	}
@@ -140,7 +140,7 @@ public class CatServer : ISerializationContext {
 		}
 	}
 
-	private void HandleDeleteEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
+	private void HandleDeleteEntityRequest(RemoteClient remoteClient, Guid networkID) {
 		
 		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity) && 
 			EntityStorage.TryGetOwner(entity, out NetworkEntity ownerProfile) && 
@@ -149,11 +149,6 @@ public class CatServer : ISerializationContext {
 			EntityStorage.UnregisterEntity(networkID);
 			((INetworkEntity)entity).SerializationContext = null;
 		}
-	}
-
-	private bool TryGetClientFromProfile(NetworkEntity profileEntity, out RemoteClient remoteClient) {
-		remoteClient = Clients.FirstOrDefault(client => client.ProfileEntity == profileEntity);
-		return remoteClient != null;
 	}
 
 }

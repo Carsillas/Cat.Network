@@ -13,7 +13,7 @@ namespace Cat.Network.Generator
 		void Initialize();
 
         int Serialize(SerializationOptions serializationOptions, Span<byte> buffer);
-        int Deserialize(SerializationOptions serializationOptions, ReadOnlySpan<byte> buffer);
+        void Deserialize(SerializationOptions serializationOptions, ReadOnlySpan<byte> buffer);
 
 		void Clean();
 

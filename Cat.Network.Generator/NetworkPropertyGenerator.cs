@@ -22,11 +22,10 @@ namespace Cat.Network.Generator {
 		public const string ConditionalAttributeMetadataName = "Cat.Network.RPCs";
 		public const string NetworkEntityMetadataName = "Cat.Network.Entities.NetworkEntity";
 
-		public const string NetworkPropertyPrefix = "NetworkProp";
+		public const string NetworkPropertyPrefix = "NetworkProperty";
 		public const string NetworkPropertyPrefixAndDot = NetworkPropertyPrefix + ".";
 
 		private static SymbolDisplayFormat FullyQualifiedFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
-		private static SymbolDisplayFormat SimplyQualifiedFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypes, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
 		private static SymbolDisplayFormat TypeNameFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
 
 
@@ -62,6 +61,7 @@ namespace Cat.Network.Generator {
 					return new NetworkEntityClassDefinition {
 						Name = symbol.ToDisplayString(TypeNameFormat),
 						IsNetworkEntity = true,
+						BaseTypeFQN = symbol.BaseType?.ToDisplayString(FullyQualifiedFormat),
 						Namespace = symbol.ContainingNamespace.ToDisplayString(FullyQualifiedFormat),
 						MetadataName = symbol.MetadataName,
 						NetworkProperties = builder.ToImmutableArray(),
@@ -115,7 +115,7 @@ namespace Cat.Network.Generator {
 
 
 		public struct NetworkEntityClassDefinition {
-
+			public string BaseTypeFQN { get; set; }
 			public string Namespace { get; set; }
 			public string Name { get; set; }
 			public string MetadataName { get; set; }
@@ -164,8 +164,11 @@ namespace {Namespace} {{
 
 
 			private string GenerateInterface() {
+				bool isNetworkEntity = $"{Namespace}.{Name}" == "Cat.Network.Entities.NetworkEntity";
+				string superInterface = isNetworkEntity ? "" : $": {BaseTypeFQN}.{NetworkPropertyPrefix}";
+				string interfaceKeywords = isNetworkEntity ? "protected interface" : "protected new interface";
 				return $@"
-		private interface {NetworkPropertyPrefix} {{
+		protected interface {NetworkPropertyPrefix} {superInterface}{{
 {GenerateInterfaceProperties()}
 		}}
 ";
@@ -198,13 +201,13 @@ namespace {Namespace} {{
 
 					return
 			$@" {{ 
-			get => {data.Name};
+			get => (({NetworkPropertyPrefix})this).{data.Name};
 			set {{ 
 				{NetworkEntityInterfaceFQN} iEntity = this;
 				ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
 				iEntity.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
 				networkPropertyInfo.Dirty = true;
-				{data.Name} = value; 
+				(({NetworkPropertyPrefix})this).{data.Name} = value; 
 			}}
 		}}";
 
@@ -235,10 +238,10 @@ namespace {Namespace} {{
 			private string GenerateSerialize() {
 				StringBuilder stringBuilder = new StringBuilder();
 
-				stringBuilder.AppendLine($"\t\tint {NetworkEntityInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer) {{");
+				stringBuilder.AppendLine($"\t\tSystem.Int32 {NetworkEntityInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer) {{");
 
 
-				stringBuilder.AppendLine($"\t\t\t{SpanFQN} bufferCopy = buffer;");
+				stringBuilder.AppendLine($"\t\t\t{SpanFQN} bufferCopy = buffer.Slice(4);");
 				stringBuilder.AppendLine($"\t\t\tSystem.Int32 lengthStorage = 0;");
 				stringBuilder.AppendLine($"\t\t\t{NetworkEntityInterfaceFQN} iEntity = this;");
 
@@ -259,10 +262,11 @@ namespace {Namespace} {{
 					stringBuilder.AppendLine($"\t\t\t\t{Utils.GenerateSerialization(data.Name, data.FullyQualifiedTypeName, "bufferCopy")}");
 
 					stringBuilder.AppendLine($"\t\t\t}}");
-
 				}
 
-				stringBuilder.AppendLine($"\t\t\treturn buffer.Length - bufferCopy.Length;");
+				stringBuilder.AppendLine($"\t\t\tSystem.Int32 contentLength = buffer.Length - bufferCopy.Length;");
+				stringBuilder.AppendLine($"\t\t\t{BinaryPrimitivesFQN}.WriteInt32LittleEndian(buffer, contentLength - 4);");
+				stringBuilder.AppendLine($"\t\t\treturn contentLength;");
 				stringBuilder.AppendLine($"\t\t}}");
 
 				return stringBuilder.ToString();
@@ -271,17 +275,42 @@ namespace {Namespace} {{
 			private string GenerateDeserialize() {
 				StringBuilder stringBuilder = new StringBuilder();
 
-				stringBuilder.AppendLine($"\t\tint {NetworkEntityInterfaceFQN}.Deserialize({SerializationOptionsFQN} serializationOptions, {ReadOnlySpanFQN} buffer) {{");
+				stringBuilder.AppendLine($"\t\tvoid {NetworkEntityInterfaceFQN}.Deserialize({SerializationOptionsFQN} serializationOptions, {ReadOnlySpanFQN} buffer) {{");
 
 				stringBuilder.AppendLine($"\t\t\t{ReadOnlySpanFQN} bufferCopy = buffer;");
 				stringBuilder.AppendLine($"\t\t\t{NetworkEntityInterfaceFQN} iEntity = this;");
 
+
+				stringBuilder.AppendLine($"\t\t\tif (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{");
+
+
+				stringBuilder.AppendLine($"\t\t\t}}");
+				stringBuilder.AppendLine($"\t\t\tif (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{");
+
+				stringBuilder.AppendLine($"\t\t\t\twhile (bufferCopy.Length > 0) {{");
+				stringBuilder.AppendLine($"\t\t\t\t\tSystem.Int32 propertyIndex = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy); bufferCopy = bufferCopy.Slice(4);");
+				stringBuilder.AppendLine($"\t\t\t\t\tSystem.Int32 propertyLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy); bufferCopy = bufferCopy.Slice(4);");
+				stringBuilder.AppendLine($"\t\t\t\t\tReadIndexedProperty(propertyIndex, bufferCopy.Slice(0, propertyLength));");
+				stringBuilder.AppendLine($"\t\t\t\t\tiEntity.NetworkProperties[propertyIndex].Dirty = iEntity.SerializationContext.DeserializeDirtiesProperty;");
+				stringBuilder.AppendLine($"\t\t\t\t\tbufferCopy = bufferCopy.Slice(propertyLength);");
+				stringBuilder.AppendLine($"\t\t\t\t}}");
+
+				stringBuilder.AppendLine($"\t\t\t\tvoid ReadIndexedProperty(System.Int32 index, {ReadOnlySpanFQN} propertyBuffer) {{");
+
+				stringBuilder.AppendLine($"\t\t\t\t\tswitch (index) {{");
+
 				for (int i = 0; i < NetworkProperties.Length; i++) {
 					PropertyData data = NetworkProperties[i];
-					stringBuilder.AppendLine($"\t\t\t{Utils.GenerateDeserialization(data.Name, data.FullyQualifiedTypeName, "bufferCopy")}");
+					stringBuilder.AppendLine($"\t\t\t\t\t\tcase {i}:");
+					stringBuilder.AppendLine($"\t\t\t\t\t\t\t{Utils.GenerateDeserialization(data.Name, data.FullyQualifiedTypeName, "propertyBuffer")}");
+					stringBuilder.AppendLine($"\t\t\t\t\t\t\tbreak;");
 				}
 
-				stringBuilder.AppendLine($"\t\t\treturn 0;");
+				stringBuilder.AppendLine($"\t\t\t\t\t}}");
+				stringBuilder.AppendLine($"\t\t\t\t}}");
+
+				stringBuilder.AppendLine($"\t\t\t}}");
+
 				stringBuilder.AppendLine($"\t\t}}");
 
 				return stringBuilder.ToString();
@@ -291,7 +320,6 @@ namespace {Namespace} {{
 				StringBuilder stringBuilder = new StringBuilder();
 
 				stringBuilder.AppendLine($"\t\tvoid {NetworkEntityInterfaceFQN}.Clean() {{");
-
 
 				stringBuilder.AppendLine($"\t\t}}");
 

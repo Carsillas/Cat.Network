@@ -12,7 +12,7 @@ namespace Cat.Network.Test {
 
 	public partial class TestEntity : NetworkEntity {
 
-		int NetworkProp.Health { get; set; }
+		int NetworkProperty.Health { get; set; }
 
 		void RPC.ModifyHealth(int amount) {
 			Health += amount;

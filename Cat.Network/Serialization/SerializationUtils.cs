@@ -21,36 +21,55 @@ internal static class SerializationUtils {
 		MemberSerializationMode = MemberSerializationMode.Complete
 	};
 
-	public static void ExtractPacketHeader(ReadOnlySpan<byte> bytes, out RequestType requestType, out Guid networkID, out ReadOnlySpan<byte> content) {
-		requestType = (RequestType) bytes[0];
-		networkID = new Guid(bytes.Slice(1, 16));
+	public static void ExtractPacketHeader(ReadOnlySpan<byte> buffer, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> contentBuffer) {
+		contentBuffer = Span<byte>.Empty;
+		ReadOnlySpan<byte> bufferCopy = buffer;
 
-		if(bytes.Length < 21 ) {
-			content = ReadOnlySpan<byte>.Empty;
-			return;
+		requestType = (RequestType)bufferCopy[0];
+		bufferCopy = bufferCopy.Slice(1);
+		networkID = new Guid(bufferCopy.Slice(0, 16));
+		bufferCopy = bufferCopy.Slice(16);
+		type = null;
+
+		if(requestType == RequestType.CreateEntity) {
+			int typeNameLength = ReadTypeFullName(bufferCopy, out type);
+			bufferCopy = bufferCopy.Slice(typeNameLength);
 		}
 
-		int length = BinaryPrimitives.ReadInt32LittleEndian(bytes.Slice(17, 4));
-		content = bytes.Slice(21, length);
+		if(requestType == RequestType.CreateEntity || requestType == RequestType.UpdateEntity) {
+			int contentLength = BinaryPrimitives.ReadInt32LittleEndian(bufferCopy.Slice(0, 4));
+			bufferCopy = bufferCopy.Slice(4);
+			contentBuffer = bufferCopy.Slice(0, contentLength);
+		}
 	}
 
-	public static void WritePacketHeader(Span<byte> bytes, RequestType type, Guid networkID) {
-		bytes[0] = (byte) type;
-		networkID.TryWriteBytes(bytes.Slice(1, 16));
+	public static int WritePacketHeader(Span<byte> buffer, RequestType requestType, NetworkEntity entity, out Span<byte> contentBuffer) {
+
+		Span<byte> bufferCopy = buffer;
+
+		bufferCopy[0] = (byte) requestType;
+		bufferCopy = bufferCopy.Slice(1);
+		entity.NetworkID.TryWriteBytes(bufferCopy.Slice(0, 16));
+		bufferCopy = bufferCopy.Slice(16);
+		
+		if (requestType == RequestType.CreateEntity) {
+			int typeNameLength = WriteTypeAssemblyQualifiedName(bufferCopy, entity);
+			bufferCopy = bufferCopy.Slice(typeNameLength);
+		}
+		
+		contentBuffer = bufferCopy;
+
+		return buffer.Length - bufferCopy.Length;
 	}
 
-	public static Span<byte> GetContentSpan(byte[] buffer) {
-		return new Span<byte>(buffer, 17, buffer.Length - 17);
-	}
-
-	public static int WriteTypeAssemblyQualifiedName(Span<byte> buffer, NetworkEntity entity) {
+	private static int WriteTypeAssemblyQualifiedName(Span<byte> buffer, NetworkEntity entity) {
 		Span<byte> stringBuffer = buffer.Slice(4);
 		int stringByteLength = Encoding.Unicode.GetBytes(entity.GetType().AssemblyQualifiedName, stringBuffer);
 		BinaryPrimitives.WriteInt32LittleEndian(buffer, stringByteLength);
 		return stringByteLength + 4;
 	}
 
-	public static int ReadTypeFullName(ReadOnlySpan<byte> buffer, out Type type) {
+	private static int ReadTypeFullName(ReadOnlySpan<byte> buffer, out Type type) {
 
 		int typeNameLength = BinaryPrimitives.ReadInt32LittleEndian(buffer);
 		string typeName = Encoding.Unicode.GetString(buffer.Slice(4, typeNameLength));
@@ -66,12 +85,5 @@ internal static class SerializationUtils {
 
 		return typeNameLength + 4;
 	}
-
-	public static int HeaderLength = 17;
-
-
-
-	public delegate void ClientRequestProcessor(Guid networkID, ReadOnlySpan<byte> content);
-	public delegate void ServerRequestProcessor(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content);
 
 }

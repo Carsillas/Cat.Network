@@ -18,11 +18,11 @@ namespace Cat.Network.Generator {
 		};
 		
 		private static Dictionary<string, string> DeserializationTemplates { get; } = new Dictionary<string, string>() {
-			{ "System.Byte", ""},
-			{ "System.Int16", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt16LittleEndian({{1}}); {{1}} = {{1}}.Slice(2);"},
-			{ "System.Int32", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({{1}}); {{1}} = {{1}}.Slice(4);"},
-			{ "System.Int64", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt64LittleEndian({{1}}); {{1}} = {{1}}.Slice(8);"},
-			{ "System.Boolean", "{0} = {1}[0] == 1; {1} = {1}.Slice(1);" }
+			{ "System.Byte", "{0} = {1}[0];"},
+			{ "System.Int16", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt16LittleEndian({{1}});"},
+			{ "System.Int32", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({{1}});"},
+			{ "System.Int64", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt64LittleEndian({{1}});"},
+			{ "System.Boolean", "{0} = {1}[0] == 1;" }
 		};
 
 

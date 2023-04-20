@@ -123,7 +123,6 @@ namespace Cat.Network.Test {
 			Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
 		}
 
-
 		[Test]
 		public void Test_SimultaneousCreationUpdateRequests() {
 

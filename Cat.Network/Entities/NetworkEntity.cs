@@ -11,7 +11,7 @@ namespace Cat.Network.Entities
 		public Guid NetworkID { get; internal set; }
 		public bool IsOwner { get; internal set; } = true;
 
-		bool NetworkProp.DestroyWithOwner { get; set; }
+		bool NetworkProperty.DestroyWithOwner { get; set; }
 
 		ISerializationContext INetworkEntity.SerializationContext { get; set; }
 		NetworkPropertyInfo[] INetworkEntity.NetworkProperties { get; set; }
