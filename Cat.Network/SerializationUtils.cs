@@ -1,13 +1,8 @@
-﻿using Cat.Network.Entities;
-using Cat.Network.Server;
-using System;
+﻿using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace Cat.Network.Serialization;
+namespace Cat.Network;
 internal static class SerializationUtils {
 
 	public static SerializationOptions UpdateOptions { get; } = new SerializationOptions {

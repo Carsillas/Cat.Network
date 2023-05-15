@@ -2,8 +2,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Cat.Network.Entities;
-using Cat.Network.Server;
 
 namespace Cat.Network.Test
 {

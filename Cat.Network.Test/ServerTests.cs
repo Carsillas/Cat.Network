@@ -1,4 +1,3 @@
-using Cat.Network.Entities;
 using NUnit.Framework;
 using System;
 

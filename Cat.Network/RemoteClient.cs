@@ -1,15 +1,8 @@
-﻿using Cat.Network.Entities;
-using Cat.Network.Generator;
-using Cat.Network.Properties;
-using Cat.Network.Serialization;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Cat.Network.Serialization.SerializationUtils;
+using static Cat.Network.SerializationUtils;
 
-namespace Cat.Network.Server;
+namespace Cat.Network;
 internal class RemoteClient : IEntityProcessor {
 
 	public HashSet<NetworkEntity> OwnedEntities { get; } = new HashSet<NetworkEntity>();

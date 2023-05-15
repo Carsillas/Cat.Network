@@ -9,13 +9,11 @@ using System.Threading;
 namespace Cat.Network.Generator {
 	internal static class GeneratorUtils {
 
-		public static Func<SyntaxNode, CancellationToken, bool> PassNodesOfType<T>() {
-			return (syntaxNode, cancellationToken) => {
-				if (syntaxNode is T) {
-					return true;
-				}
-				return false;
-			};
+		public static bool PassNodesOfType<T>(SyntaxNode syntaxNode, CancellationToken cancellationToken) {
+			if (syntaxNode is T) {
+				return true;
+			}
+			return false;
 		}
 
 		public static Func<SyntaxNode, CancellationToken, bool> PassNodesWithExplicitInterfaceSpecifier(string simpleName) {

@@ -1,11 +1,6 @@
-﻿using Cat.Network.Entities;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 
-namespace Cat.Network.Server;
+namespace Cat.Network;
 public interface IEntityProcessor
 {
     void CreateEntity(NetworkEntity entity, bool isOwner);

@@ -6,7 +6,18 @@ using System.Text;
 namespace Cat.Network.Generator {
 	internal static class Utils {
 
-		private const string BinaryPrimitivesFQN = "System.Buffers.Binary.BinaryPrimitives";
+		public const string BinaryPrimitivesFQN = "System.Buffers.Binary.BinaryPrimitives";
+		public const string NetworkEntityInterfaceFQN = "Cat.Network.INetworkEntity";
+		public const string NetworkPropertyInfoFQN = "Cat.Network.NetworkPropertyInfo";
+		public const string SerializationOptionsFQN = "Cat.Network.SerializationOptions";
+		public const string MemberIdentifierModeFQN = "Cat.Network.MemberIdentifierMode";
+		public const string SpanFQN = "System.Span<byte>";
+		public const string ReadOnlySpanFQN = "System.ReadOnlySpan<byte>";
+		public const string NetworkEntityFQN = "Cat.Network.NetworkEntity";
+		public const string NetworkPropertyPrefix = "NetworkProperty";
+		public const string NetworkPropertyPrefixAndDot = NetworkPropertyPrefix + ".";
+		public const string RPCPrefix = "RPC";
+		public const string RPCPrefixAndDot = RPCPrefix + ".";
 
 
 		private static Dictionary<string, string> SerializationTemplates { get; } = new Dictionary<string, string>() {

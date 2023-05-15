@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Cat.Network.Entities;
-using Cat.Network.Properties;
 
 namespace Cat.Network.Steam
 {

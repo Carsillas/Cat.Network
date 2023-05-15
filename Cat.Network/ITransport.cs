@@ -2,14 +2,13 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Cat.Network {
+namespace Cat.Network; 
 
-	public interface ITransport {
+public interface ITransport {
 
-		delegate void PacketProcessor(ReadOnlySpan<byte> packet);
+	delegate void PacketProcessor(ReadOnlySpan<byte> packet);
 
-		void SendPacket(byte[] buffer, int count);
-		void ProcessPackets(PacketProcessor processor);
-			
-	}
+	void SendPacket(byte[] buffer, int count);
+	void ProcessPackets(PacketProcessor processor);
+		
 }

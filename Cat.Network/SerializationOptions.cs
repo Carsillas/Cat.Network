@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cat.Network.Serialization;
+namespace Cat.Network;
 
 public struct SerializationOptions {
 	public MemberIdentifierMode MemberIdentifierMode { get; init; }
