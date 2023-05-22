@@ -1,4 +1,6 @@
-﻿using System.Collections.Immutable;
+﻿using System.Buffers.Binary;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 using static Cat.Network.Generator.Utils;
 
@@ -130,7 +132,7 @@ namespace {Namespace} {{
 				// TODO fix extra branching
 				stringBuilder.AppendLine($"\t\t\t\tif (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{");
 				// TODO dont encode every time? might not matter since this is mainly for saving to disk
-				stringBuilder.AppendLine($"\t\t\t\t\t lengthStorage = System.Text.Encoding.Unicode.GetBytes(iEntity.NetworkProperties[{i}].Name, bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);");
+				stringBuilder.AppendLine($"\t\t\t\t\t lengthStorage = {UnicodeFQN}.GetBytes(iEntity.NetworkProperties[{i}].Name, bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);");
 				stringBuilder.AppendLine($"\t\t\t\t}}");
 				stringBuilder.AppendLine($"\t\t\t\tif (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{");
 				stringBuilder.AppendLine($"\t\t\t\t\t{BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, {i}); bufferCopy = bufferCopy.Slice(4);");
@@ -218,6 +220,7 @@ namespace {Namespace} {{
 
 {GenerateRPCInterface()}
 {GenerateClassRPCs()}
+{GenerateRPCHandler()}
 
 	}}
 }}
@@ -245,6 +248,45 @@ namespace {Namespace} {{
 			return stringBuilder.ToString();
 		}
 
+		private string GenerateRPCHandler() {
+			StringBuilder stringBuilder = new StringBuilder();
+
+			stringBuilder.AppendLine($@"
+		void {NetworkEntityInterfaceFQN}.HandleRPCInvocation({NetworkEntityFQN} instigator, {ReadOnlySpanFQN} buffer) {{
+			
+			{ReadOnlySpanFQN} bufferCopy = buffer;
+			
+			int lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
+			bufferCopy = bufferCopy.Slice(4);
+
+			string methodName = {UnicodeFQN}.GetString(bufferCopy.Slice(0, lengthStorage));
+			bufferCopy = bufferCopy.Slice(lengthStorage);
+			switch (methodName) {{
+{string.Join("\n", DeclaredRPCs.Select(rpc => GenerateCase(rpc)))}
+			}}
+
+		}}");
+			
+			return stringBuilder.ToString();
+
+			string GenerateCase(RPCMethodData method) {
+
+				return $@"
+				case ""{method.InterfaceMethodDeclaration}"":
+{string.Join("\n", method.Parameters.Select(parameter => $@"
+					lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
+					bufferCopy = bufferCopy.Slice(4);
+					{parameter.FullyQualifiedTypeName} {GenerateDeserialization(parameter.ParameterName, parameter.FullyQualifiedTypeName, "bufferCopy.Slice(0, lengthStorage)")}
+					bufferCopy = bufferCopy.Slice(lengthStorage);
+"))}
+					{method.ClassMethodInvocation};
+					break;
+";
+
+			}
+
+		}
+
 		private string GenerateClassRPCs() {
 
 			StringBuilder rpcStringBuilder = new StringBuilder();
@@ -258,11 +300,10 @@ namespace {Namespace} {{
 			}} else {{
 
 				var serializationContext = (({NetworkEntityInterfaceFQN})this).SerializationContext;
-				var buffer = serializationContext.RentRPCBuffer(this);
+				{SpanFQN} buffer = serializationContext.RentRPCBuffer(this);
+				{SpanFQN} bufferCopy = buffer.Slice(4);
 
 {GenerateSerialization()}
-
-
 
 			}}
 		}}
@@ -271,12 +312,18 @@ namespace {Namespace} {{
 
 				string GenerateSerialization() {
 					StringBuilder serializationStringBuilder = new StringBuilder();
-					
+
+					serializationStringBuilder.AppendLine($"\t\t\t\tint lengthStorage;");
+					serializationStringBuilder.AppendLine($"\t\t\t\tlengthStorage = {UnicodeFQN}.GetBytes(\"{method.InterfaceMethodDeclaration}\", bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);");
+
 					foreach (RPCParameterData rpcParameterData in method.Parameters) {
-						string serialization = Utils.GenerateSerialization(rpcParameterData.ParameterName, rpcParameterData.FullyQualifiedTypeName, "buffer");
+						string serialization = Utils.GenerateSerialization(rpcParameterData.ParameterName, rpcParameterData.FullyQualifiedTypeName, "bufferCopy");
 
 						serializationStringBuilder.AppendLine($"\t\t\t\t{serialization}");
 					}
+
+					serializationStringBuilder.AppendLine($"\t\t\t\tSystem.Int32 contentLength = buffer.Length - bufferCopy.Length;");
+					serializationStringBuilder.AppendLine($"\t\t\t\t{BinaryPrimitivesFQN}.WriteInt32LittleEndian(buffer, contentLength - 4);");
 
 					return serializationStringBuilder.ToString();
 				}

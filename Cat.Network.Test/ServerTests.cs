@@ -16,8 +16,7 @@ namespace Cat.Network.Test {
 			Server.Tick();
 			ClientB.Tick();
 
-			bool serverHasEntity = ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
-			Assert.IsTrue(serverHasEntity);
+			Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
 			Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
 
 			Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
@@ -193,6 +192,52 @@ namespace Cat.Network.Test {
 			Server.Tick();
 			Assert.AreEqual(0, ClientATransport.Messages.Count);
 			Assert.AreEqual(2, ClientBTransport.Remote.Messages.Count);
+
+		}
+
+
+		[Test]
+		public void Test_EntityRPC() {
+			TestEntity testEntityA = new TestEntity {
+				Health = 123
+			};
+
+			ClientA.Spawn(testEntityA);
+
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+
+			Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+			Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
+
+			Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+			Assert.AreEqual(testEntityA.GetType(), entityB.GetType());
+
+			TestEntity testEntityServer = (TestEntity)entityServer;
+			TestEntity testEntityB = (TestEntity)entityB;
+
+			Assert.AreEqual(testEntityA.Health, testEntityServer.Health);
+			Assert.AreEqual(testEntityA.Health, testEntityB.Health);
+
+			testEntityB.ModifyHealth(10);
+
+			ClientB.Tick();
+
+			Assert.AreEqual(123, testEntityB.Health);
+			Assert.AreEqual(123, testEntityA.Health);
+
+			Server.Tick();
+			ClientA.Tick();
+
+			Assert.AreEqual(123, testEntityB.Health);
+			Assert.AreEqual(133, testEntityA.Health);
+
+			Server.Tick();
+			ClientB.Tick();
+
+			Assert.AreEqual(133, testEntityB.Health);
+			Assert.AreEqual(133, testEntityA.Health);
 
 		}
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Cat.Network;
 public interface ISerializationContext {
@@ -6,5 +7,7 @@ public interface ISerializationContext {
 	internal int Time { get; }
 
 	Span<byte> RentRPCBuffer(NetworkEntity entity);
+
+	internal IEnumerable<byte[]> GetOutgoingRpcs(NetworkEntity entity);
 
 }

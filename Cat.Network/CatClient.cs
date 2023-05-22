@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.Linq;
 using static Cat.Network.SerializationUtils;
 
 namespace Cat.Network;
@@ -64,11 +66,11 @@ public class CatClient : ISerializationContext, IDisposable {
 	}
 
 	public void Tick() {
-		OutgoingRPCBuffers.Clear();
 		ProcessIncomingPackets();
 		Execute();
 		ProcessOutgoingPackets();
 		Time++;
+		OutgoingRPCBuffers.Clear();
 	}
 
 	private void ProcessOutgoingPackets() {
@@ -76,17 +78,24 @@ public class CatClient : ISerializationContext, IDisposable {
 		foreach (NetworkEntity entity in Entities.Values) {
 			INetworkEntity iEntity = entity;
 
-			if (!entity.IsOwner || iEntity.LastDirtyTick < Time || EntitiesToSpawn.Contains(entity) || EntitiesToDespawn.Contains(entity)) {
+			if (EntitiesToSpawn.Contains(entity) || EntitiesToDespawn.Contains(entity)) {
 				continue;
 			}
 
-			int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity, out Span<byte> contentBuffer);
-			int contentLength = iEntity.Serialize(UpdateOptions, contentBuffer);
+			if(entity.IsOwner) {
+				if(iEntity.LastDirtyTick >= Time) {
+					int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity, out Span<byte> contentBuffer);
+					int contentLength = iEntity.Serialize(UpdateOptions, contentBuffer);
 
-			Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
+					Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
 
-			foreach (ref NetworkPropertyInfo prop in iEntity.NetworkProperties.AsSpan()) {
-				prop.Dirty = false;
+					foreach (ref NetworkPropertyInfo prop in iEntity.NetworkProperties.AsSpan()) {
+						prop.Dirty = false;
+					}
+				}
+
+			} else {
+				SendOutgoingRpcs(entity);
 			}
 		}
 
@@ -97,6 +106,7 @@ public class CatClient : ISerializationContext, IDisposable {
 			int contentLength = iEntity.Serialize(CreateOptions, contentBuffer);
 
 			Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
+			SendOutgoingRpcs(entity);
 		}
 
 		EntitiesToSpawn.Clear();
@@ -108,6 +118,17 @@ public class CatClient : ISerializationContext, IDisposable {
 		}
 
 		EntitiesToDespawn.Clear();
+	}
+
+	private void SendOutgoingRpcs(NetworkEntity entity) {
+		var outgoingRpcs = ((ISerializationContext)this).GetOutgoingRpcs(entity);
+
+		foreach (byte[] rpc in outgoingRpcs) {
+			const int ClientRpcHeaderLength = 17;
+			const int ClientRpcContentLengthSlot = 4;
+			int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, ClientRpcHeaderLength, 4));
+			Transport.SendPacket(rpc, length + ClientRpcHeaderLength + ClientRpcContentLengthSlot);
+		}
 	}
 
 	private void ProcessIncomingPackets() {
@@ -130,6 +151,9 @@ public class CatClient : ISerializationContext, IDisposable {
 						break;
 					case RequestType.DeleteEntity:
 						HandleDeleteEntityRequest(networkID);
+						break;
+					case RequestType.RPC:
+						HandleRPCEntityRequest(networkID, content);
 						break;
 					default:
 						Console.WriteLine($"Unknown network request type: {requestType}");
@@ -184,6 +208,19 @@ public class CatClient : ISerializationContext, IDisposable {
 		Entities.Remove(networkID);
 	}
 
+	private void HandleRPCEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
+		if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
+			INetworkEntity iEntity = entity;
+
+			Guid instigatorId = new Guid(content.Slice(0, 16));
+			content = content.Slice(16);
+
+			Entities.TryGetValue(instigatorId, out NetworkEntity instigator);
+
+			iEntity.HandleRPCInvocation(instigator, content);
+		}
+	}
+
 	private void HandleAssignOwnerRequest(Guid networkID) {
 		if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
 			entity.IsOwner = true;
@@ -195,8 +232,10 @@ public class CatClient : ISerializationContext, IDisposable {
 		ProxyManager?.Dispose();
 	}
 
-	public Span<byte> RentRPCBuffer(NetworkEntity entity) {
+	Span<byte> ISerializationContext.RentRPCBuffer(NetworkEntity entity) {
 		byte[] buffer = BufferPool.RentBuffer();
+
+		WritePacketHeader(buffer, RequestType.RPC, entity, out Span<byte> contentBuffer);
 
 		if(!OutgoingRPCBuffers.TryGetValue(entity, out List<byte[]> rpcs)) {
 			rpcs = new List<byte[]> { };
@@ -205,6 +244,13 @@ public class CatClient : ISerializationContext, IDisposable {
 
 		rpcs.Add(buffer);
 	
-		return buffer;
+		return contentBuffer;
+	}
+
+	IEnumerable<byte[]> ISerializationContext.GetOutgoingRpcs(NetworkEntity entity) {
+		if (OutgoingRPCBuffers.TryGetValue(entity, out List<byte[]> buffers)) {
+			return buffers;
+		}
+		return Enumerable.Empty<byte[]>();
 	}
 }

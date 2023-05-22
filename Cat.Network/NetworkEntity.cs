@@ -11,6 +11,9 @@ public interface INetworkEntity {
 	int Serialize(SerializationOptions serializationOptions, Span<byte> buffer);
 	void Deserialize(SerializationOptions serializationOptions, ReadOnlySpan<byte> buffer);
 
+	void HandleRPCInvocation(NetworkEntity instigator, ReadOnlySpan<byte> buffer);
+
+
 	void Clean();
 
 	NetworkPropertyInfo[] NetworkProperties { get; set; }

@@ -26,12 +26,12 @@ internal static class SerializationUtils {
 		bufferCopy = bufferCopy.Slice(16);
 		type = null;
 
-		if(requestType == RequestType.CreateEntity) {
+		if (requestType == RequestType.CreateEntity) {
 			int typeNameLength = ReadTypeFullName(bufferCopy, out type);
 			bufferCopy = bufferCopy.Slice(typeNameLength);
 		}
 
-		if(requestType == RequestType.CreateEntity || requestType == RequestType.UpdateEntity) {
+		if (requestType == RequestType.CreateEntity || requestType == RequestType.UpdateEntity || requestType == RequestType.RPC) {
 			int contentLength = BinaryPrimitives.ReadInt32LittleEndian(bufferCopy.Slice(0, 4));
 			bufferCopy = bufferCopy.Slice(4);
 			contentBuffer = bufferCopy.Slice(0, contentLength);
