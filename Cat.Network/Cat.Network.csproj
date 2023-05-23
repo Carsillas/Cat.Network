@@ -17,8 +17,4 @@
     <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)Cat.Network.UnityPackage\Plugins\$(ProjectName).dll&quot;" />
-  </Target>
-
 </Project>
