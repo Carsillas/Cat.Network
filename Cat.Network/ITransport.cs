@@ -6,9 +6,6 @@ namespace Cat.Network;
 
 public interface ITransport {
 
-	delegate void PacketProcessor(ReadOnlySpan<byte> packet);
-
 	void SendPacket(byte[] buffer, int count);
-	void ProcessPackets(PacketProcessor processor);
 		
 }

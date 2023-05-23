@@ -61,13 +61,20 @@ public class CatClient : ISerializationContext, IDisposable {
 		return Entities.TryGetValue(NetworkID, out entity);
 	}
 
+	protected virtual void PreExecute() {
+
+	}
 	protected virtual void Execute() {
+
+	}
+	protected virtual void PostExecute() {
 
 	}
 
 	public void Tick() {
-		ProcessIncomingPackets();
+		PreExecute();
 		Execute();
+		PostExecute();
 		ProcessOutgoingPackets();
 		Time++;
 		OutgoingRPCBuffers.Clear();
@@ -131,41 +138,36 @@ public class CatClient : ISerializationContext, IDisposable {
 		}
 	}
 
-	private void ProcessIncomingPackets() {
+	protected void DeliverPacket(ReadOnlySpan<byte> packet) {
+		try {
+			ExtractPacketHeader(packet, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
 
-		Transport.ProcessPackets(Processor);
-
-		void Processor(ReadOnlySpan<byte> bytes) {
-			try {
-				ExtractPacketHeader(bytes, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
-
-				switch (requestType) {
-					case RequestType.AssignOwner:
-						HandleAssignOwnerRequest(networkID);
-						break;
-					case RequestType.CreateEntity:
-						HandleCreateEntityRequest(networkID, type, content);
-						break;
-					case RequestType.UpdateEntity:
-						HandleUpdateEntityRequest(networkID, content);
-						break;
-					case RequestType.DeleteEntity:
-						HandleDeleteEntityRequest(networkID);
-						break;
-					case RequestType.RPC:
-						HandleRPCEntityRequest(networkID, content);
-						break;
-					default:
-						Console.WriteLine($"Unknown network request type: {requestType}");
-						break;
-				}
-			} catch (Exception e) {
-				Console.Error.WriteLine(e.Message);
-				Console.Error.WriteLine(e.StackTrace);
+			switch (requestType) {
+				case RequestType.AssignOwner:
+					HandleAssignOwnerRequest(networkID);
+					break;
+				case RequestType.CreateEntity:
+					HandleCreateEntityRequest(networkID, type, content);
+					break;
+				case RequestType.UpdateEntity:
+					HandleUpdateEntityRequest(networkID, content);
+					break;
+				case RequestType.DeleteEntity:
+					HandleDeleteEntityRequest(networkID);
+					break;
+				case RequestType.RPC:
+					HandleRPCEntityRequest(networkID, content);
+					break;
+				default:
+					Console.WriteLine($"Unknown network request type: {requestType}");
+					break;
 			}
+		} catch (Exception e) {
+			Console.Error.WriteLine(e.Message);
+			Console.Error.WriteLine(e.StackTrace);
 		}
-
 	}
+
 
 	private void HandleCreateEntityRequest(Guid networkID, Type type, ReadOnlySpan<byte> content) {
 		if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {

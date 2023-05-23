@@ -6,8 +6,8 @@ public class CatNetworkTest {
 	protected TestServer Server { get; set; }
 	protected TestEntityStorage ServerEntityStorage { get; set; }
 
-	protected CatClient ClientA { get; set; }
-	protected CatClient ClientB { get; set; }
+	protected TestClient ClientA { get; set; }
+	protected TestClient ClientB { get; set; }
 
 	protected TestTransport ClientATransport { get; set; }
 	protected TestTransport ClientBTransport { get; set; }
@@ -39,15 +39,15 @@ public class CatNetworkTest {
 
 	}
 
-	protected (CatClient, TestTransport, TestProxyManager) AddClient() {
+	protected (TestClient, TestTransport, TestProxyManager) AddClient() {
 		TestProxyManager proxyManager = new TestProxyManager();
-		CatClient client = new CatClient(proxyManager);
+		TestClient client = new TestClient(proxyManager);
 		TestTransport clientTransport = new TestTransport();
 		TestTransport serverTransport = new TestTransport();
 
 		clientTransport.Remote = serverTransport;
 		serverTransport.Remote = clientTransport;
-		Server.AddTransport(clientTransport, new TestProfileEntity());
+		Server.AddTransport(clientTransport);
 		client.Connect(serverTransport);
 
 		return new(client, clientTransport, proxyManager);

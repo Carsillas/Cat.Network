@@ -14,8 +14,19 @@
       <HintPath>lib\Facepunch.Steamworks.Win64.dll</HintPath>
     </Reference>
   </ItemGroup>
+	
+	<ItemGroup>
+		<ProjectReference Include="..\Cat.Network.Generator\Cat.Network.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+	<PropertyGroup>
+		<EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>
+		<CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	</PropertyGroup>
+
+
+	<Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)Cat.Network.UnityPackage\Plugins\$(ProjectName).dll&quot;" />
   </Target>
 

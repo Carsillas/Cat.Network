@@ -17,11 +17,8 @@ namespace Cat.Network.Steam {
 		}
 
 		public void SendPacket(byte[] buffer, int count) {
-			throw new NotImplementedException();
+
 		}
 
-		public void ProcessPackets(ITransport.PacketProcessor processor) {
-			throw new NotImplementedException();
-		}
 	}
 }

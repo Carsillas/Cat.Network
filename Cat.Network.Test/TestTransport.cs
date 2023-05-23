@@ -7,9 +7,6 @@ namespace Cat.Network.Test {
 		public Queue<byte[]> Messages { get; } = new Queue<byte[]>();
 		public TestTransport Remote { get; set; }
 
-		public void SendPacket(byte[] bytes) {
-			Remote.Messages.Enqueue(bytes);
-		}
 
 		public void SendPacket(byte[] buffer, int count) {
 			byte[] copy = new byte[count];
@@ -17,12 +14,5 @@ namespace Cat.Network.Test {
 			Remote.Messages.Enqueue(copy);
 		}
 
-		public void ProcessPackets(ITransport.PacketProcessor processor) {
-			foreach (byte[] packet in Messages) {
-				processor(new ReadOnlySpan<byte>(packet));
-			}
-
-			Messages.Clear();
-		}
 	}
 }
