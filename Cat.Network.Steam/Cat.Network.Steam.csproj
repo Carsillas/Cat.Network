@@ -5,6 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Cat.Network.Generator" Version="0.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Cat.Async\Cat.Async.csproj" />
     <ProjectReference Include="..\Cat.Network\Cat.Network.csproj" />
   </ItemGroup>
@@ -14,14 +18,8 @@
       <HintPath>lib\Facepunch.Steamworks.Win64.dll</HintPath>
     </Reference>
   </ItemGroup>
-	
-	<ItemGroup>
-		<ProjectReference Include="..\Cat.Network.Generator\Cat.Network.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-	</ItemGroup>
 
 	<PropertyGroup>
-		<EmitCompilerGeneratedFiles>false</EmitCompilerGeneratedFiles>
-		<CompilerGeneratedFilesOutputPath>Generated</CompilerGeneratedFilesOutputPath>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
