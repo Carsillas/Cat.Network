@@ -8,17 +8,21 @@ namespace Cat.Network.Steam {
 		private ConcurrentQueue<byte[]> Messages { get; } = new ConcurrentQueue<byte[]>();
 		public HostTransport Remote { get; set; }
 
-		public void SendPacket(byte[] bytes) {
-			Remote.Messages.Enqueue(bytes);
-		}
-
-		public bool TryReadPacket(out byte[] bytes) {
+		private bool TryReadPacket(out byte[] bytes) {
 			return Messages.TryDequeue(out bytes);
 		}
 
 		public void SendPacket(byte[] buffer, int count) {
-
+			byte[] copy = new byte[count];
+			Buffer.BlockCopy(buffer, 0, copy, 0, count);
+			Remote.Messages.Enqueue(copy);
 		}
 
+		public void ReadIncomingPackets(PacketProcessor packetProcessor) {
+			while(TryReadPacket(out byte[] bytes)) {
+				packetProcessor?.Invoke(bytes);
+			}
+
+		}
 	}
 }

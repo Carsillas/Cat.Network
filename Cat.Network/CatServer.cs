@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using static Cat.Network.SerializationUtils;
 
 namespace Cat.Network;
@@ -35,7 +36,7 @@ public class CatServer : ISerializationContext {
 		Clients.Add(remoteClient);
 	}
 
-	protected void RemoveTransport(ITransport transport) {
+	public void RemoveTransport(ITransport transport) {
 
 		RemoteClient client = Clients.FirstOrDefault(c => c.Transport == transport);
 		if (client == null) {
@@ -78,6 +79,8 @@ public class CatServer : ISerializationContext {
 
 	public void Tick() {
 		Time++;
+
+		ProcessIncomingPackets();
 		PreExecute();
 		Execute();
 		PostExecute();
@@ -85,44 +88,48 @@ public class CatServer : ISerializationContext {
 		OutgoingRPCBuffers.Clear();
 	}
 
+	private void ProcessIncomingPackets() {
+		foreach (RemoteClient client in Clients) {
+
+			client.Transport.ReadIncomingPackets(ProcessPacket);
+
+			void ProcessPacket(ReadOnlySpan<byte> packet) {
+				try {
+					ExtractPacketHeader(packet, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
+
+					switch (requestType) {
+						case RequestType.AssignOwner:
+							Console.WriteLine($"Invalid network request type: {requestType}");
+							break;
+						case RequestType.CreateEntity:
+							HandleCreateEntityRequest(client, networkID, type, content);
+							break;
+						case RequestType.UpdateEntity:
+							HandleUpdateEntityRequest(client, networkID, content);
+							break;
+						case RequestType.DeleteEntity:
+							HandleDeleteEntityRequest(client, networkID);
+							break;
+						case RequestType.RPC:
+							HandleRPCEntityRequest(client, networkID, content);
+							break;
+						default:
+							Console.WriteLine($"Unknown network request type: {requestType}");
+							break;
+					}
+				} catch (Exception e) {
+					Console.Error.WriteLine(e.Message);
+					Console.Error.WriteLine(e.StackTrace);
+				}
+			}
+
+		}
+	}
 
 	private void ProcessOutgoingPackets() {
 
 		foreach (RemoteClient client in Clients) {
 			EntityStorage.ProcessRelevantEntities(client.ProfileEntity, client);
-		}
-	}
-
-	protected void DeliverPacket(ITransport transport, ReadOnlySpan<byte> packet) {
-		try {
-
-			RemoteClient client = Clients.First(c => c.Transport == transport);
-
-			ExtractPacketHeader(packet, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
-
-			switch (requestType) {
-				case RequestType.AssignOwner:
-					Console.WriteLine($"Invalid network request type: {requestType}");
-					break;
-				case RequestType.CreateEntity:
-					HandleCreateEntityRequest(client, networkID, type, content);
-					break;
-				case RequestType.UpdateEntity:
-					HandleUpdateEntityRequest(client, networkID, content);
-					break;
-				case RequestType.DeleteEntity:
-					HandleDeleteEntityRequest(client, networkID);
-					break;
-				case RequestType.RPC:
-					HandleRPCEntityRequest(client, networkID, content);
-					break;
-				default:
-					Console.WriteLine($"Unknown network request type: {requestType}");
-					break;
-			}
-		} catch (Exception e) {
-			Console.Error.WriteLine(e.Message);
-			Console.Error.WriteLine(e.StackTrace);
 		}
 	}
 

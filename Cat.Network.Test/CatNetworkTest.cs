@@ -47,7 +47,7 @@ public class CatNetworkTest {
 
 		clientTransport.Remote = serverTransport;
 		serverTransport.Remote = clientTransport;
-		Server.AddTransport(clientTransport);
+		Server.AddTransport(clientTransport, new TestProfileEntity());
 		client.Connect(serverTransport);
 
 		return new(client, clientTransport, proxyManager);

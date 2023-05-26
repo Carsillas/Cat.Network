@@ -67,7 +67,7 @@ namespace Cat.Network.Steam {
 		void ISocketManager.OnMessage(Connection connection, NetIdentity identity, IntPtr data, int size, long messageNum, long recvTime, int channel) {
 			if (ConnectedClients.TryGetValue(connection.Id, out Client client)) {
 				unsafe {
-					DeliverPacket(client.Transport, new ReadOnlySpan<byte>((byte*)data, size));
+					//DeliverPacket(client.Transport, new ReadOnlySpan<byte>((byte*)data, size));
 				}
 			}
 		}

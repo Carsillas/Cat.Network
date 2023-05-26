@@ -72,12 +72,18 @@ public class CatClient : ISerializationContext, IDisposable {
 	}
 
 	public void Tick() {
+		ProcessIncomingPackets();
 		PreExecute();
 		Execute();
 		PostExecute();
 		ProcessOutgoingPackets();
 		Time++;
 		OutgoingRPCBuffers.Clear();
+	}
+
+	private void ProcessIncomingPackets() {
+		Transport.ReadIncomingPackets(ProcessPacket);
+	
 	}
 
 	private void ProcessOutgoingPackets() {
@@ -138,7 +144,7 @@ public class CatClient : ISerializationContext, IDisposable {
 		}
 	}
 
-	protected void DeliverPacket(ReadOnlySpan<byte> packet) {
+	private void ProcessPacket(ReadOnlySpan<byte> packet) {
 		try {
 			ExtractPacketHeader(packet, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
 

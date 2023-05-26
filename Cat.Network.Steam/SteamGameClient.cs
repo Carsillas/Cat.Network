@@ -68,7 +68,7 @@ namespace Cat.Network.Steam {
 
 		void IConnectionManager.OnMessage(IntPtr data, int size, long messageNum, long recvTime, int channel) {
 			unsafe {
-				DeliverPacket(new ReadOnlySpan<byte>((byte*)data, size));
+				//DeliverPacket(new ReadOnlySpan<byte>((byte*)data, size));
 			}
 		}
 
