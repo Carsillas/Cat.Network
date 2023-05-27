@@ -29,7 +29,8 @@ namespace Cat.Network.Generator {
 			{ "System.UInt16", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 2); {BinaryPrimitivesFQN}.WriteUInt16LittleEndian({{1}}.Slice(4), {{0}}); {{1}} = {{1}}.Slice(4 + 2);"},
 			{ "System.UInt32", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 4); {BinaryPrimitivesFQN}.WriteUInt32LittleEndian({{1}}.Slice(4), {{0}}); {{1}} = {{1}}.Slice(4 + 4);"},
 			{ "System.UInt64", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 8); {BinaryPrimitivesFQN}.WriteUInt64LittleEndian({{1}}.Slice(4), {{0}}); {{1}} = {{1}}.Slice(4 + 8);"},
-			{ "System.Boolean", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 1); {{1}}.Slice(4)[0] = {{0}} ? (byte) 1 : (byte) 0; {{1}} = {{1}}.Slice(4 + 1);" }
+			{ "System.Boolean", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 1); {{1}}.Slice(4)[0] = {{0}} ? (byte) 1 : (byte) 0; {{1}} = {{1}}.Slice(4 + 1);" },
+			{ "System.String", $"{{2}} = {UnicodeFQN}.GetBytes({{0}}, {{1}}.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, {{2}}); {{1}} = {{1}}.Slice(4 + {{2}});" }
 		};
 		
 		private static Dictionary<string, string> DeserializationTemplates { get; } = new Dictionary<string, string>() {
@@ -40,27 +41,28 @@ namespace Cat.Network.Generator {
 			{ "System.UInt16", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt16LittleEndian({{1}});"},
 			{ "System.UInt32", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt32LittleEndian({{1}});"},
 			{ "System.UInt64", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt64LittleEndian({{1}});"},
-			{ "System.Boolean", "{0} = {1}[0] == 1;" }
+			{ "System.Boolean", "{0} = {1}[0] == 1;" },
+			{ "System.String", $"{{2}} = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({{1}}); {{0}} = {UnicodeFQN}.GetString({{1}}.Slice(4, {{2}});" },
 		};
 
 
-		public static string GenerateSerialization(string propertyName, string propertyTypeFQN, string bufferName) {
-
+		public static string GenerateSerialization(string propertyName, string propertyTypeFQN, string bufferName, string lengthStorageName) {
+			
 			string serializationExpression = "";
 
 			if (SerializationTemplates.TryGetValue(propertyTypeFQN, out string template)) {
-				serializationExpression = string.Format(template, propertyName, bufferName);
+				serializationExpression = string.Format(template, propertyName, bufferName, lengthStorageName);
 			}
 
 			return serializationExpression;
 		}
 
-		public static string GenerateDeserialization(string propertyName, string propertyTypeFQN, string bufferName) {
+		public static string GenerateDeserialization(string propertyName, string propertyTypeFQN, string bufferName, string lengthStorageName) {
 
 			string deserializationExpression = "";
 
 			if (DeserializationTemplates.TryGetValue(propertyTypeFQN, out string template)) {
-				deserializationExpression = string.Format(template, propertyName, bufferName);
+				deserializationExpression = string.Format(template, propertyName, bufferName, lengthStorageName);
 			}
 
 			return deserializationExpression;

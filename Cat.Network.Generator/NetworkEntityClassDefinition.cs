@@ -128,25 +128,26 @@ namespace {Namespace} {{
 				NetworkPropertyData data = NetworkProperties[i];
 
 
-				stringBuilder.AppendLine($"\t\t\tif (iEntity.NetworkProperties[{i}].Dirty) {{");
-				// TODO fix extra branching
-				stringBuilder.AppendLine($"\t\t\t\tif (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{");
+				stringBuilder.AppendLine(@$"
+			if (iEntity.NetworkProperties[{i}].Dirty) {{
+				if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
 				// TODO dont encode every time? might not matter since this is mainly for saving to disk
-				stringBuilder.AppendLine($"\t\t\t\t\t lengthStorage = {UnicodeFQN}.GetBytes(iEntity.NetworkProperties[{i}].Name, bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);");
-				stringBuilder.AppendLine($"\t\t\t\t}}");
-				stringBuilder.AppendLine($"\t\t\t\tif (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{");
-				stringBuilder.AppendLine($"\t\t\t\t\t{BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, {i}); bufferCopy = bufferCopy.Slice(4);");
-				stringBuilder.AppendLine($"\t\t\t\t}}");
+					 lengthStorage = {UnicodeFQN}.GetBytes(iEntity.NetworkProperties[{i}].Name, bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);
+				}}
+				if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{
+					{BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, {i}); bufferCopy = bufferCopy.Slice(4);
+				}}
 
-				stringBuilder.AppendLine($"\t\t\t\t{GenerateSerialization(data.Name, data.FullyQualifiedTypeName, "bufferCopy")}");
+				{GenerateSerialization(data.Name, data.FullyQualifiedTypeName, "bufferCopy", "lengthStorage")}
 
-				stringBuilder.AppendLine($"\t\t\t}}");
+			}}");
 			}
 
-			stringBuilder.AppendLine($"\t\t\tSystem.Int32 contentLength = buffer.Length - bufferCopy.Length;");
-			stringBuilder.AppendLine($"\t\t\t{BinaryPrimitivesFQN}.WriteInt32LittleEndian(buffer, contentLength - 4);");
-			stringBuilder.AppendLine($"\t\t\treturn contentLength;");
-			stringBuilder.AppendLine($"\t\t}}");
+			stringBuilder.AppendLine(@$"
+			System.Int32 contentLength = buffer.Length - bufferCopy.Length;
+			{BinaryPrimitivesFQN}.WriteInt32LittleEndian(buffer, contentLength - 4);
+			return contentLength;
+		}}");
 
 			return stringBuilder.ToString();
 		}
@@ -257,6 +258,7 @@ namespace {Namespace} {{
 			{ReadOnlySpanFQN} bufferCopy = buffer;
 			
 			int lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
+			int lengthStorage2 = 0;
 			bufferCopy = bufferCopy.Slice(4);
 
 			string methodName = {UnicodeFQN}.GetString(bufferCopy.Slice(0, lengthStorage));
@@ -276,7 +278,7 @@ namespace {Namespace} {{
 {string.Join("\n", method.Parameters.Select(parameter => $@"
 					lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
 					bufferCopy = bufferCopy.Slice(4);
-					{parameter.FullyQualifiedTypeName} {GenerateDeserialization(parameter.ParameterName, parameter.FullyQualifiedTypeName, "bufferCopy.Slice(0, lengthStorage)")}
+					{parameter.FullyQualifiedTypeName} {GenerateDeserialization(parameter.ParameterName, parameter.FullyQualifiedTypeName, "bufferCopy.Slice(0, lengthStorage)", "lengthStorage2")}
 					bufferCopy = bufferCopy.Slice(lengthStorage);
 "))}
 					{method.ClassMethodInvocation};
@@ -317,7 +319,7 @@ namespace {Namespace} {{
 					serializationStringBuilder.AppendLine($"\t\t\t\tlengthStorage = {UnicodeFQN}.GetBytes(\"{method.InterfaceMethodDeclaration}\", bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);");
 
 					foreach (RPCParameterData rpcParameterData in method.Parameters) {
-						string serialization = Utils.GenerateSerialization(rpcParameterData.ParameterName, rpcParameterData.FullyQualifiedTypeName, "bufferCopy");
+						string serialization = Utils.GenerateSerialization(rpcParameterData.ParameterName, rpcParameterData.FullyQualifiedTypeName, "bufferCopy", "lengthStorage");
 
 						serializationStringBuilder.AppendLine($"\t\t\t\t{serialization}");
 					}

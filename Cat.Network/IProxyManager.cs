@@ -2,7 +2,7 @@
 
 namespace Cat.Network;
 
-public interface IProxyManager : IDisposable {
+public interface IProxyManager {
 	void OnEntityCreated(NetworkEntity entity);
 	void OnEntityDeleted(NetworkEntity entity);
 

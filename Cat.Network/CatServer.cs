@@ -169,7 +169,7 @@ public class CatServer : ISerializationContext {
 			EntityStorage.TryGetOwner(entity, out NetworkEntity ownerProfile) &&
 			remoteClient.ProfileEntity != ownerProfile) {
 
-			Span<byte> copy = RentRPCBuffer(entity);
+			Span<byte> copy = ((ISerializationContext)this).RentRPCBuffer(entity);
 
 			BinaryPrimitives.WriteInt32LittleEndian(copy, contentBuffer.Length + 16);
 			copy = copy.Slice(4);
@@ -179,7 +179,7 @@ public class CatServer : ISerializationContext {
 		}
 	}
 
-	public Span<byte> RentRPCBuffer(NetworkEntity entity) {
+	Span<byte> ISerializationContext.RentRPCBuffer(NetworkEntity entity) {
 		byte[] buffer = BufferPool.RentBuffer();
 
 		WritePacketHeader(buffer, RequestType.RPC, entity, out Span<byte> contentBuffer);

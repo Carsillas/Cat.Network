@@ -2,11 +2,12 @@
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using static Cat.Network.SerializationUtils;
 
 namespace Cat.Network;
 
-public class CatClient : ISerializationContext, IDisposable {
+public class CatClient : ISerializationContext {
 
 	private ITransport Transport { get; set; }
 	public IProxyManager ProxyManager { get; }
@@ -33,7 +34,15 @@ public class CatClient : ISerializationContext, IDisposable {
 	}
 
 	public void Spawn(NetworkEntity entity) {
+
+		if (entity.IsSpawned) {
+			throw new Exception("Cannot spawn an already spawned entity!");
+		}
+
 		entity.NetworkID = Guid.NewGuid();
+		entity.IsOwner = true;
+		entity.IsSpawned = true;
+
 		INetworkEntity iEntity = entity;
 		iEntity.SerializationContext = this;
 
@@ -46,8 +55,19 @@ public class CatClient : ISerializationContext, IDisposable {
 	}
 
 	public void Despawn(NetworkEntity entity) {
+
+		if (!entity.IsOwner) {
+			throw new Exception("Cannot despawn an entity not owned by this client!");
+		}
+
+		if (!entity.IsSpawned) {
+			throw new Exception("Cannot despawn an entity that is not currently spawned!");
+		}
+
 		ProxyManager.OnEntityDeleted(entity);
 		Entities.Remove(entity.NetworkID);
+
+		entity.IsSpawned = false;
 
 		INetworkEntity iEntity = entity;
 		iEntity.SerializationContext = null;
@@ -178,8 +198,7 @@ public class CatClient : ISerializationContext, IDisposable {
 	private void HandleCreateEntityRequest(Guid networkID, Type type, ReadOnlySpan<byte> content) {
 		if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {
 			if (!existingEntity.IsOwner) {
-				INetworkEntity existingIEntity = existingEntity;
-				existingIEntity.Deserialize(UpdateOptions, content);
+				throw new Exception("Received create entity request for an entity that already exists!");
 			}
 			return;
 		}
@@ -190,10 +209,12 @@ public class CatClient : ISerializationContext, IDisposable {
 		iEntity.SerializationContext = this;
 		entity.NetworkID = networkID;
 		entity.IsOwner = false;
+		entity.IsSpawned = true;
 
 		iEntity.Deserialize(CreateOptions, content);
 
 		Entities[networkID] = entity;
+		ProxyManager.OnEntityCreated(entity);
 	}
 
 	private void HandleUpdateEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
@@ -208,6 +229,14 @@ public class CatClient : ISerializationContext, IDisposable {
 
 	private void HandleDeleteEntityRequest(Guid networkID) {
 		if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
+
+			if (entity.IsOwner) {
+				// ignoring despawn of owned entity
+				return;
+			}
+
+			entity.IsSpawned = false;
+
 			INetworkEntity iEntity = entity;
 			iEntity.SerializationContext = null;
 			ProxyManager.OnEntityDeleted(entity);
@@ -234,10 +263,6 @@ public class CatClient : ISerializationContext, IDisposable {
 			entity.IsOwner = true;
 			ProxyManager.OnGainedOwnership(entity);
 		}
-	}
-
-	public virtual void Dispose() {
-		ProxyManager?.Dispose();
 	}
 
 	Span<byte> ISerializationContext.RentRPCBuffer(NetworkEntity entity) {

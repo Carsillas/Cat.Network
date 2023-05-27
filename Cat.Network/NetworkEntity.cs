@@ -27,6 +27,7 @@ public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 		
 	public Guid NetworkID { get; internal set; }
 	public bool IsOwner { get; internal set; } = true;
+	public bool IsSpawned { get; internal set; }
 
 	bool NetworkProperty.DestroyWithOwner { get; set; }
 
