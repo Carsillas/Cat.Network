@@ -22,7 +22,7 @@ namespace Cat.Network.Generator {
 
 
 		private static Dictionary<string, string> SerializationTemplates { get; } = new Dictionary<string, string>() {
-			{ "System.Byte", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 1); {{1}}.Slice(4)[0] = {{0}}"},
+			{ "System.Byte", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 1); {{1}}.Slice(4)[0] = {{0}}; {{1}} = {{1}}.Slice(4 + 1);"},
 			{ "System.Int16", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 2); {BinaryPrimitivesFQN}.WriteInt16LittleEndian({{1}}.Slice(4), {{0}}); {{1}} = {{1}}.Slice(4 + 2);"},
 			{ "System.Int32", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 4); {BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}.Slice(4), {{0}}); {{1}} = {{1}}.Slice(4 + 4);"},
 			{ "System.Int64", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({{1}}, 8); {BinaryPrimitivesFQN}.WriteInt64LittleEndian({{1}}.Slice(4), {{0}}); {{1}} = {{1}}.Slice(4 + 8);"},
@@ -42,7 +42,7 @@ namespace Cat.Network.Generator {
 			{ "System.UInt32", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt32LittleEndian({{1}});"},
 			{ "System.UInt64", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt64LittleEndian({{1}});"},
 			{ "System.Boolean", "{0} = {1}[0] == 1;" },
-			{ "System.String", $"{{2}} = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({{1}}); {{0}} = {UnicodeFQN}.GetString({{1}}.Slice(4, {{2}});" },
+			{ "System.String", $"{{0}} = {UnicodeFQN}.GetString({{1}});" },
 		};
 
 
@@ -57,12 +57,12 @@ namespace Cat.Network.Generator {
 			return serializationExpression;
 		}
 
-		public static string GenerateDeserialization(string propertyName, string propertyTypeFQN, string bufferName, string lengthStorageName) {
+		public static string GenerateDeserialization(string propertyName, string propertyTypeFQN, string bufferName) {
 
 			string deserializationExpression = "";
 
 			if (DeserializationTemplates.TryGetValue(propertyTypeFQN, out string template)) {
-				deserializationExpression = string.Format(template, propertyName, bufferName, lengthStorageName);
+				deserializationExpression = string.Format(template, propertyName, bufferName);
 			}
 
 			return deserializationExpression;

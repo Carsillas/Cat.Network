@@ -160,6 +160,8 @@ namespace {Namespace} {{
 			{ReadOnlySpanFQN} bufferCopy = buffer;
 			{NetworkEntityInterfaceFQN} iEntity = this;
 
+			System.Int32 lengthStorage = 0;
+
 			if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
 
 			}}
@@ -258,7 +260,6 @@ namespace {Namespace} {{
 			{ReadOnlySpanFQN} bufferCopy = buffer;
 			
 			int lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
-			int lengthStorage2 = 0;
 			bufferCopy = bufferCopy.Slice(4);
 
 			string methodName = {UnicodeFQN}.GetString(bufferCopy.Slice(0, lengthStorage));
@@ -278,7 +279,7 @@ namespace {Namespace} {{
 {string.Join("\n", method.Parameters.Select(parameter => $@"
 					lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
 					bufferCopy = bufferCopy.Slice(4);
-					{parameter.FullyQualifiedTypeName} {GenerateDeserialization(parameter.ParameterName, parameter.FullyQualifiedTypeName, "bufferCopy.Slice(0, lengthStorage)", "lengthStorage2")}
+					{parameter.FullyQualifiedTypeName} {parameter.ParameterName}; {GenerateDeserialization(parameter.ParameterName, parameter.FullyQualifiedTypeName, "bufferCopy.Slice(0, lengthStorage)")}
 					bufferCopy = bufferCopy.Slice(lengthStorage);
 "))}
 					{method.ClassMethodInvocation};
