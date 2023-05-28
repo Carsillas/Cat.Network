@@ -1,3 +1,4 @@
+using Cat.Network.Test.Server;
 using NUnit.Framework;
 
 namespace Cat.Network.Test.Serialization;
@@ -39,6 +40,60 @@ public class SerializationTests : CatNetworkTest {
 		Assert.AreEqual(testEntityA.ULongProperty, testEntityB.ULongProperty);
 		Assert.AreEqual(testEntityA.StringProperty, testEntityB.StringProperty);
 
+	}
+
+	[Test]
+	public void Test_NetworkPropertySetCount() {
+		SerializationTestEntity testEntityA = new SerializationTestEntity {
+			StringProperty = WowString
+		};
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
+
+		Assert.AreEqual(testEntityA.StringProperty, testEntityB.StringProperty);
+		Assert.AreEqual(1, testEntityB.StringSetCount);
+
+
+		for (int i = 0; i < 10; i++) {
+			testEntityB.TestMemoryRPC(
+				testEntityB.BooleanProperty,
+				testEntityB.ByteProperty,
+				testEntityB.ShortProperty,
+				testEntityB.IntProperty,
+				testEntityB.LongProperty,
+				testEntityB.UShortProperty,
+				testEntityB.UIntProperty,
+				testEntityB.ULongProperty);
+			ClientB.Tick();
+			Server.Tick();
+			ClientA.Tick();
+		}
+		for (int i = 0; i < 10; i++) {
+			ClientB.Tick();
+			Server.Tick();
+			ClientA.Tick();
+		}
+
+		Assert.AreEqual(1, testEntityB.StringSetCount);
+		Assert.AreEqual("Wow!", testEntityB.StringProperty);
+
+		testEntityA.StringProperty = "Wow!!!";
+
+		for (int i = 0; i < 10; i++) {
+			ClientB.Tick();
+			Server.Tick();
+			ClientA.Tick();
+		}
+
+		Assert.AreEqual(2, testEntityB.StringSetCount);
+		Assert.AreEqual("Wow!!!", testEntityB.StringProperty);
 	}
 
 

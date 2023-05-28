@@ -16,6 +16,7 @@ internal class RemoteClient : IEntityProcessor {
 	private ISerializationContext SerializationContext { get; }
 	public ITransport Transport { get; }
 	public NetworkEntity ProfileEntity { get; }
+	public PacketProcessor CachedPacketProcessor { get; set; }
 
 	public RemoteClient(ISerializationContext serializationContext, ITransport transport, NetworkEntity profileEntity) {
 		SerializationContext = serializationContext;

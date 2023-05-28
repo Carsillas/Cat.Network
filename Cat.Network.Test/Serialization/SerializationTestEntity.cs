@@ -25,7 +25,16 @@ public partial class SerializationTestEntity : NetworkEntity {
 	ushort NetworkProperty.UShortProperty { get; set; }
 	uint NetworkProperty.UIntProperty { get; set; }
 	ulong NetworkProperty.ULongProperty { get; set; }
-	string NetworkProperty.StringProperty { get; set; }
+
+	public int StringSetCount { get; private set; }
+	private string BackingString { get; set; }
+	string NetworkProperty.StringProperty {
+		get => BackingString;
+		set {
+			BackingString = value;
+			StringSetCount++;
+		}
+	}
 
 	public bool RPCInvoked { get; private set; }
 

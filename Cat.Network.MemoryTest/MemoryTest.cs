@@ -43,24 +43,23 @@ public class MemoryTest {
 
 
 	[Benchmark]
-	[IterationCount(250)]
+	[IterationCount(15)]
 	public void ExecuteRPCAndTick() {
+		for(int i = 0; i < 100; i++) {
+			TestEntity.TestMemoryRPC(
+				TestEntity.BooleanProperty,
+				TestEntity.ByteProperty,
+				TestEntity.ShortProperty,
+				TestEntity.IntProperty,
+				TestEntity.LongProperty,
+				TestEntity.UShortProperty,
+				TestEntity.UIntProperty,
+				TestEntity.ULongProperty);
 
-		TestEntity.TestMemoryRPC(
-			TestEntity.BooleanProperty,
-			TestEntity.ByteProperty,
-			TestEntity.ShortProperty,
-			TestEntity.IntProperty,
-			TestEntity.LongProperty,
-			TestEntity.UShortProperty,
-			TestEntity.UIntProperty,
-			TestEntity.ULongProperty);
-
-		Test.ClientB.Tick();
-		Test.Server.Tick();
-		Test.ClientA.Tick();
-		Test.Server.Tick();
-		Test.ClientB.Tick();
-
+			Test.ClientB.Tick();
+			Test.Server.Tick();
+			Test.ClientA.Tick();
+		}
 	}
+
 }

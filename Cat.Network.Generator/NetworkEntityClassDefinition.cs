@@ -86,7 +86,7 @@ namespace {Namespace} {{
 				{NetworkEntityInterfaceFQN} iEntity = this;
 				ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
 				iEntity.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
-				networkPropertyInfo.Dirty = true;
+				networkPropertyInfo.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
 				(({NetworkPropertyPrefix})this).{data.Name} = value; 
 			}}
 		}}";
@@ -131,7 +131,7 @@ namespace {Namespace} {{
 
 
 				stringBuilder.AppendLine(@$"
-			if (iEntity.NetworkProperties[{i}].Dirty) {{
+			if (iEntity.NetworkProperties[{i}].LastDirtyTick >= (iEntity.SerializationContext?.Time ?? 0)) {{
 				if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
 				// TODO dont encode every time? might not matter since this is mainly for saving to disk
 					 lengthStorage = {UnicodeFQN}.GetBytes(iEntity.NetworkProperties[{i}].Name, bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);
@@ -172,7 +172,7 @@ namespace {Namespace} {{
 					System.Int32 propertyIndex = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy); bufferCopy = bufferCopy.Slice(4);
 					System.Int32 propertyLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy); bufferCopy = bufferCopy.Slice(4);
 					ReadIndexedProperty(propertyIndex, bufferCopy.Slice(0, propertyLength));
-					iEntity.NetworkProperties[propertyIndex].Dirty = iEntity.SerializationContext.DeserializeDirtiesProperty;
+					iEntity.NetworkProperties[propertyIndex].LastDirtyTick = iEntity.SerializationContext.DeserializeDirtiesProperty ? iEntity.SerializationContext?.Time ?? 0 : 0;
 					bufferCopy = bufferCopy.Slice(propertyLength);
 				}}
 

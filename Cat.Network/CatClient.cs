@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using static Cat.Network.CatServer;
 using static Cat.Network.SerializationUtils;
 
@@ -28,6 +29,7 @@ public class CatClient : ISerializationContext {
 
 	public CatClient(IProxyManager proxyManager) {
 		ProxyManager = proxyManager;
+		CachedPacketProcessor = ProcessPacket;
 	}
 
 	public void Connect(ITransport serverTransport) {
@@ -43,6 +45,11 @@ public class CatClient : ISerializationContext {
 		entity.NetworkID = Guid.NewGuid();
 		entity.IsOwner = true;
 		entity.IsSpawned = true;
+
+
+		foreach (ref NetworkPropertyInfo prop in ((INetworkEntity)entity).NetworkProperties.AsSpan()) {
+			prop.LastDirtyTick = Time;
+		}
 
 		INetworkEntity iEntity = entity;
 		iEntity.SerializationContext = this;
@@ -102,8 +109,7 @@ public class CatClient : ISerializationContext {
 	}
 
 	private void ProcessIncomingPackets() {
-		Transport.ReadIncomingPackets(ProcessPacket);
-	
+		Transport.ReadIncomingPackets(CachedPacketProcessor);
 	}
 
 	private void ProcessOutgoingPackets() {
@@ -121,10 +127,6 @@ public class CatClient : ISerializationContext {
 					int contentLength = iEntity.Serialize(UpdateOptions, contentBuffer);
 
 					Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
-
-					foreach (ref NetworkPropertyInfo prop in iEntity.NetworkProperties.AsSpan()) {
-						prop.Dirty = false;
-					}
 				}
 
 			} else {
@@ -175,6 +177,8 @@ public class CatClient : ISerializationContext {
 		}
 	}
 
+	private PacketProcessor CachedPacketProcessor { get; }
+
 	private void ProcessPacket(ReadOnlySpan<byte> packet) {
 		try {
 			ExtractPacketHeader(packet, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
@@ -203,9 +207,7 @@ public class CatClient : ISerializationContext {
 			Console.Error.WriteLine(e.Message);
 			Console.Error.WriteLine(e.StackTrace);
 		}
-
 	}
-
 
 	private void HandleCreateEntityRequest(Guid networkID, Type type, ReadOnlySpan<byte> content) {
 		if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {
