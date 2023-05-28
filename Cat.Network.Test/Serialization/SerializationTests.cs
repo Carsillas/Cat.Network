@@ -126,7 +126,6 @@ public class SerializationTests : CatNetworkTest {
 
 	private void ExecuteRPCAndVerifyParameters(SerializationTestEntity testEntityA, SerializationTestEntity testEntityB) {
 
-		MemoryTracker memory = new MemoryTracker();
 		testEntityB.TestMemoryRPC(
 			testEntityB.BooleanProperty,
 			testEntityB.ByteProperty,
@@ -137,12 +136,13 @@ public class SerializationTests : CatNetworkTest {
 			testEntityB.UIntProperty,
 			testEntityB.ULongProperty);
 
+		MemoryTracker memory = new MemoryTracker();
 		ClientB.Tick();
 		Server.Tick();
 		ClientA.Tick();
-		memory.Dispose();
 		Server.Tick();
 		ClientB.Tick();
+		memory.Dispose();
 
 		Assert.IsTrue(testEntityA.RPCInvoked);
 		Assert.IsFalse(testEntityB.RPCInvoked);

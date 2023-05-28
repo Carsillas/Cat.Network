@@ -2,31 +2,18 @@
 
 namespace Cat.Network.Test;
 public class CatNetworkTest {
+	public TestServer Server { get; set; }
+	public TestEntityStorage ServerEntityStorage { get; set; }
 
-	protected MemoryTracker? MemoryTracker { get; set; }
+	public TestClient ClientA { get; set; }
+	public TestClient ClientB { get; set; }
 
-	protected TestServer Server { get; set; }
-	protected TestEntityStorage ServerEntityStorage { get; set; }
+	public TestTransport ClientATransport { get; set; }
+	public TestTransport ClientBTransport { get; set; }
 
-	protected TestClient ClientA { get; set; }
-	protected TestClient ClientB { get; set; }
+	public TestProxyManager ProxyManagerA { get; set; }
+	public TestProxyManager ProxyManagerB { get; set; }
 
-	protected TestTransport ClientATransport { get; set; }
-	protected TestTransport ClientBTransport { get; set; }
-
-	protected TestProxyManager ProxyManagerA { get; set; }
-	protected TestProxyManager ProxyManagerB { get; set; }
-
-
-	[OneTimeSetUp]
-	public void OneTimeSetUp() {
-		using MemoryTracker tracker = new MemoryTracker(true);
-	}
-
-	[TearDown]
-	public void TearDown() {
-		MemoryTracker?.Dispose();
-	}
 
 	[SetUp]
 	public void Setup() {

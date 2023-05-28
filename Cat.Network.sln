@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cat.Network.Test", "Cat.Net
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cat.Network.Steam", "Cat.Network.Steam\Cat.Network.Steam.csproj", "{1489054E-CE27-47BC-B8AB-106F447ECF80}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Cat.Network.MemoryTest", "Cat.Network.MemoryTest\Cat.Network.MemoryTest.csproj", "{CAA0826A-13DB-45FD-B4F2-DA190E70B90E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{1489054E-CE27-47BC-B8AB-106F447ECF80}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1489054E-CE27-47BC-B8AB-106F447ECF80}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1489054E-CE27-47BC-B8AB-106F447ECF80}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAA0826A-13DB-45FD-B4F2-DA190E70B90E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAA0826A-13DB-45FD-B4F2-DA190E70B90E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAA0826A-13DB-45FD-B4F2-DA190E70B90E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAA0826A-13DB-45FD-B4F2-DA190E70B90E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

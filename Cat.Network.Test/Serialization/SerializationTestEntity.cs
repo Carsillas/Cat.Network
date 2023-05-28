@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Cat.Network.Test.Serialization;
-internal partial class SerializationTestEntity : NetworkEntity {
+public partial class SerializationTestEntity : NetworkEntity {
 
 	bool NetworkProperty.BooleanProperty { get; set; }
 	byte NetworkProperty.ByteProperty { get; set; }
@@ -36,16 +36,7 @@ internal partial class SerializationTestEntity : NetworkEntity {
 
 
 	void RPC.TestMemoryRPC(bool BooleanParam, byte ByteParam, short ShortParam, int IntParam, long LongParam, ushort UShortParam, uint UIntParam, ulong ULongParam) {
-		Assert.AreEqual(BooleanProperty, BooleanParam);
-		Assert.AreEqual(ByteProperty, ByteParam);
-		Assert.AreEqual(ShortProperty, ShortParam);
-		Assert.AreEqual(IntProperty, IntParam);
-		Assert.AreEqual(LongProperty, LongParam);
-		Assert.AreEqual(UShortProperty, UShortParam);
-		Assert.AreEqual(UIntProperty, UIntParam);
-		Assert.AreEqual(ULongProperty, ULongParam);
-
-		RPCInvoked = true;
+		(ByteProperty, ShortProperty) = ((byte)ShortParam, ByteParam);
 	}
 
 

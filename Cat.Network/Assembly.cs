@@ -5,3 +5,4 @@ using System.Text;
 
 
 [assembly: InternalsVisibleTo("Cat.Network.Test")]
+[assembly: InternalsVisibleTo("Cat.Network.MemoryTest")]
