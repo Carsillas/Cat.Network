@@ -6,6 +6,15 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Cat.Network.Test.Serialization;
+
+public partial class Hello : SerializationTestEntity {
+
+	void RPC.TestRPC() {
+
+	}
+
+}
+
 public partial class SerializationTestEntity : NetworkEntity {
 
 	bool NetworkProperty.BooleanProperty { get; set; }

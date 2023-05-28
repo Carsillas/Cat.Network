@@ -34,6 +34,7 @@ namespace Cat.Network.Generator {
 					INamedTypeSymbol symbol = generatorSyntaxContext.SemanticModel.GetDeclaredSymbol(node);
 
 					var networkPropertiesCollection = ImmutableArray.CreateBuilder<NetworkPropertyData>();
+					var rpcsCollection = ImmutableArray.CreateBuilder<RPCMethodData>();
 
 					bool isNetworkEntity = false;
 					INamedTypeSymbol currentSymbol = symbol;
@@ -41,6 +42,7 @@ namespace Cat.Network.Generator {
 					while (currentSymbol != null) {
 
 						networkPropertiesCollection.AddRange(GetNetworkPropertiesForSymbol(currentSymbol));
+						rpcsCollection.AddRange(GetRPCsForSymbol(currentSymbol));
 
 						if (currentSymbol.ToDisplayString(FullyQualifiedFormat) == NetworkEntityFQN) {
 							isNetworkEntity = true;
@@ -62,7 +64,7 @@ namespace Cat.Network.Generator {
 						MetadataName = symbol.MetadataName,
 						NetworkProperties = networkPropertiesCollection.ToImmutableArray(),
 						DeclaredNetworkProperties = GetPropertyDatasForNode(generatorSyntaxContext, node).Reverse().ToImmutableArray(),
-						RPCs = GetRPCsForSymbol(symbol).ToImmutableArray(),
+						RPCs = rpcsCollection.ToImmutableArray(),
 						DeclaredRPCs = GetRPCsForSymbol(symbol).ToImmutableArray(),
 					};
 

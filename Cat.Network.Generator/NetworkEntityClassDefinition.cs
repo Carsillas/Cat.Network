@@ -265,7 +265,7 @@ namespace {Namespace} {{
 			System.Int64 methodNameHash = {BinaryPrimitivesFQN}.ReadInt64LittleEndian(bufferCopy.Slice(0, 8));
 			bufferCopy = bufferCopy.Slice(8);
 			switch (methodNameHash) {{
-{string.Join("\n", DeclaredRPCs.Select(rpc => GenerateCase(rpc)))}
+{string.Join("\n", RPCs.Select(rpc => GenerateCase(rpc)))}
 			}}
 
 		}}");
