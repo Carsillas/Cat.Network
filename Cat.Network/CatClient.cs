@@ -176,7 +176,6 @@ public class CatClient : ISerializationContext {
 	}
 
 	private void ProcessPacket(ReadOnlySpan<byte> packet) {
-
 		try {
 			ExtractPacketHeader(packet, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
 

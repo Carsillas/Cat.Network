@@ -280,15 +280,16 @@ namespace {Namespace} {{
 				long methodNameHashTruncated = BinaryPrimitives.ReadInt64LittleEndian(new ReadOnlySpan<byte>(hashBytes, 0, 8));
 
 				return $@"
-				case {methodNameHashTruncated}L: // {method.InterfaceMethodDeclaration}
+				case {methodNameHashTruncated}L: {{ // {method.InterfaceMethodDeclaration}
 {string.Join("\n", method.Parameters.Select(parameter => $@"
-					lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
-					bufferCopy = bufferCopy.Slice(4);
-					{parameter.FullyQualifiedTypeName} {parameter.ParameterName}; {GenerateDeserialization(parameter.ParameterName, parameter.FullyQualifiedTypeName, "bufferCopy.Slice(0, lengthStorage)")}
-					bufferCopy = bufferCopy.Slice(lengthStorage);
+						lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
+						bufferCopy = bufferCopy.Slice(4);
+						{parameter.FullyQualifiedTypeName} {parameter.ParameterName}; {GenerateDeserialization(parameter.ParameterName, parameter.FullyQualifiedTypeName, "bufferCopy.Slice(0, lengthStorage)")}
+						bufferCopy = bufferCopy.Slice(lengthStorage);
 "))}
-					{method.ClassMethodInvocation};
-					break;
+						{method.ClassMethodInvocation};
+						break;
+					}}
 ";
 
 			}
@@ -320,7 +321,6 @@ namespace {Namespace} {{
 
 				string GenerateSerialization() {
 					StringBuilder serializationStringBuilder = new StringBuilder();
-
 
 					using MD5 md5 = MD5.Create(); 
 					
