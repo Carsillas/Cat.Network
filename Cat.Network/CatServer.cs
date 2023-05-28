@@ -77,15 +77,53 @@ public class CatServer : ISerializationContext {
 
 	}
 
+
+	public struct MemoryTracker : IDisposable {
+		private long MemoryBefore { get; }
+		private long MemoryAfter { get; set; }
+		private long MemoryAfterCollect { get; set; }
+		public long Difference => MemoryAfter - MemoryBefore;
+		public long Garbage => MemoryAfter - MemoryAfterCollect;
+
+		public bool SuppressOutput { get; }
+
+		public MemoryTracker(bool SuppressOutput = false) {
+			GC.Collect();
+			MemoryBefore = GC.GetTotalMemory(true);
+			MemoryAfter = MemoryBefore;
+			MemoryAfterCollect = MemoryBefore;
+			this.SuppressOutput = SuppressOutput;
+		}
+		public MemoryTracker() {
+			GC.Collect();
+			MemoryBefore = GC.GetTotalMemory(true);
+			MemoryAfter = MemoryBefore;
+			MemoryAfterCollect = MemoryBefore;
+			SuppressOutput = false;
+		}
+
+		public void Dispose() {
+			MemoryAfter = GC.GetTotalMemory(false);
+			GC.Collect();
+			MemoryAfterCollect = GC.GetTotalMemory(true);
+			if (!SuppressOutput) {
+				Console.WriteLine($"Difference: {Difference}\nGarbage:{Garbage}");
+			}
+		}
+	}
+
 	public void Tick() {
 		Time++;
 
 		ProcessIncomingPackets();
+
 		PreExecute();
 		Execute();
+
 		PostExecute();
+
 		ProcessOutgoingPackets();
-		OutgoingRPCBuffers.Clear();
+
 	}
 
 	private void ProcessIncomingPackets() {
@@ -131,6 +169,10 @@ public class CatServer : ISerializationContext {
 		foreach (RemoteClient client in Clients) {
 			EntityStorage.ProcessRelevantEntities(client.ProfileEntity, client);
 		}
+
+		BufferPool.FreeAllBuffers();
+		BufferPool.FreeAllPools();
+		OutgoingRPCBuffers.Clear();
 	}
 
 	private void HandleCreateEntityRequest(RemoteClient remoteClient, Guid networkID, Type type, ReadOnlySpan<byte> content) {
@@ -175,6 +217,7 @@ public class CatServer : ISerializationContext {
 			copy = copy.Slice(4);
 			entity.NetworkID.TryWriteBytes(copy.Slice(0, 16));
 			copy = copy.Slice(16);
+
 			contentBuffer.CopyTo(copy);
 		}
 	}
@@ -185,7 +228,7 @@ public class CatServer : ISerializationContext {
 		WritePacketHeader(buffer, RequestType.RPC, entity, out Span<byte> contentBuffer);
 
 		if (!OutgoingRPCBuffers.TryGetValue(entity, out List<byte[]> rpcs)) {
-			rpcs = new List<byte[]> { };
+			rpcs = BufferPool.RentPool();
 			OutgoingRPCBuffers.Add(entity, rpcs);
 		}
 
@@ -194,10 +237,10 @@ public class CatServer : ISerializationContext {
 		return contentBuffer;
 	}
 
-	IEnumerable<byte[]> ISerializationContext.GetOutgoingRpcs(NetworkEntity entity) {
+	List<byte[]> ISerializationContext.GetOutgoingRpcs(NetworkEntity entity) {
 		if (OutgoingRPCBuffers.TryGetValue(entity, out List<byte[]> buffers)) {
 			return buffers;
 		}
-		return Enumerable.Empty<byte[]>();
+		return null;
 	}
 }

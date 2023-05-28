@@ -12,9 +12,12 @@ internal class BufferPool {
 	private List<byte[]> FreeBuffers { get; } = new List<byte[]>();
 	private List<byte[]> HeldBuffers { get; } = new List<byte[]>();
 
+	private List<List<byte[]>> FreePools { get; } = new List<List<byte[]>>();
+	private List<List<byte[]>> HeldPools { get; } = new List<List<byte[]>>();
+
 	public byte[] RentBuffer() {
 		byte[] buffer = null;
-		if(FreeBuffers.Count == 0) {
+		if (FreeBuffers.Count == 0) {
 			buffer = CreateBuffer();
 			HeldBuffers.Add(buffer);
 		} else {
@@ -32,8 +35,32 @@ internal class BufferPool {
 		HeldBuffers.Clear();
 	}
 
+	public List<byte[]> RentPool() {
+		List<byte[]> pool = null;
+		if (FreePools.Count == 0) {
+			pool = CreatePool();
+			HeldPools.Add(pool);
+		} else {
+			pool = FreePools[FreePools.Count - 1];
+			FreePools.RemoveAt(FreePools.Count - 1);
+			HeldPools.Add(pool);
+		}
+		return pool;
+	}
+
+	public void FreeAllPools() {
+		foreach (List<byte[]> pool in HeldPools) {
+			pool.Clear();
+			FreePools.Add(pool);
+		}
+		HeldPools.Clear();
+	}
+
 	private byte[] CreateBuffer() {
 		return new byte[BufferSize];
+	}
+	private List<byte[]> CreatePool() {
+		return new List<byte[]>();
 	}
 
 }

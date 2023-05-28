@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Cat.Network.Test {
 	public class TestTransport : ITransport {
+
+		BufferPool BufferPool { get; } = new BufferPool();
 		public Queue<byte[]> Messages { get; } = new Queue<byte[]>();
 		public TestTransport Remote { get; set; }
 
@@ -12,10 +13,11 @@ namespace Cat.Network.Test {
 				packetProcessor?.Invoke(packet);
 			}
 			Messages.Clear();
+			BufferPool.FreeAllBuffers();
 		}
 
 		public void SendPacket(byte[] buffer, int count) {
-			byte[] copy = new byte[count];
+			byte[] copy = Remote.BufferPool.RentBuffer();
 			Buffer.BlockCopy(buffer, 0, copy, 0, count);
 			Remote.Messages.Enqueue(copy);
 		}

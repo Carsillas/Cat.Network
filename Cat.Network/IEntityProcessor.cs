@@ -8,8 +8,7 @@ public interface IEntityProcessor
     void DeleteEntity(NetworkEntity entity);
     void NotifyAssignedOwner(NetworkEntity entity);
 
-
-    IReadOnlySet<NetworkEntity> RelevantEntities { get; }
+    HashSet<NetworkEntity> RelevantEntities { get; }
 
 }
 

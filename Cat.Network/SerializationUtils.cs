@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Text;
+using static Cat.Network.CatServer;
 
 namespace Cat.Network;
 internal static class SerializationUtils {
+
+	private static Dictionary<Type, string> AssemblyQualifiedTypeNames { get; } = new Dictionary<Type, string>();
 
 	public static SerializationOptions UpdateOptions { get; } = new SerializationOptions {
 		MemberIdentifierMode = MemberIdentifierMode.Index,
@@ -54,12 +58,14 @@ internal static class SerializationUtils {
 		
 		contentBuffer = bufferCopy;
 
+
 		return buffer.Length - bufferCopy.Length;
 	}
 
 	private static int WriteTypeAssemblyQualifiedName(Span<byte> buffer, NetworkEntity entity) {
 		Span<byte> stringBuffer = buffer.Slice(4);
-		int stringByteLength = Encoding.Unicode.GetBytes(entity.GetType().AssemblyQualifiedName, stringBuffer);
+		string assemblyQualifiedName = GetAssemblyQualifiedTypeName(entity.GetType());
+		int stringByteLength = Encoding.Unicode.GetBytes(assemblyQualifiedName, stringBuffer);
 		BinaryPrimitives.WriteInt32LittleEndian(buffer, stringByteLength);
 		return stringByteLength + 4;
 	}
@@ -79,6 +85,15 @@ internal static class SerializationUtils {
 		}
 
 		return typeNameLength + 4;
+	}
+
+	private static string GetAssemblyQualifiedTypeName(Type type) {
+		if(!AssemblyQualifiedTypeNames.TryGetValue(type, out string assemblyQualifiedTypeName)) {
+			assemblyQualifiedTypeName = type.AssemblyQualifiedName;
+			AssemblyQualifiedTypeNames[type] = assemblyQualifiedTypeName;
+		}
+
+		return assemblyQualifiedTypeName;
 	}
 
 }

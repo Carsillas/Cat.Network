@@ -3,6 +3,8 @@
 namespace Cat.Network.Test;
 public class CatNetworkTest {
 
+	protected MemoryTracker? MemoryTracker { get; set; }
+
 	protected TestServer Server { get; set; }
 	protected TestEntityStorage ServerEntityStorage { get; set; }
 
@@ -15,6 +17,16 @@ public class CatNetworkTest {
 	protected TestProxyManager ProxyManagerA { get; set; }
 	protected TestProxyManager ProxyManagerB { get; set; }
 
+
+	[OneTimeSetUp]
+	public void OneTimeSetUp() {
+		using MemoryTracker tracker = new MemoryTracker(true);
+	}
+
+	[TearDown]
+	public void TearDown() {
+		MemoryTracker?.Dispose();
+	}
 
 	[SetUp]
 	public void Setup() {
@@ -36,7 +48,6 @@ public class CatNetworkTest {
 		ClientA.Tick();
 		Server.Tick();
 		ClientB.Tick();
-
 	}
 
 	protected (TestClient, TestTransport, TestProxyManager) AddClient() {

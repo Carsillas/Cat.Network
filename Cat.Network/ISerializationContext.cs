@@ -8,6 +8,6 @@ public interface ISerializationContext {
 
 	Span<byte> RentRPCBuffer(NetworkEntity entity);
 
-	internal IEnumerable<byte[]> GetOutgoingRpcs(NetworkEntity entity);
+	internal List<byte[]> GetOutgoingRpcs(NetworkEntity entity);
 
 }

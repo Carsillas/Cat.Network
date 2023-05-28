@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using static Cat.Network.CatServer;
 using static Cat.Network.SerializationUtils;
 
 namespace Cat.Network;
@@ -98,7 +99,6 @@ public class CatClient : ISerializationContext {
 		PostExecute();
 		ProcessOutgoingPackets();
 		Time++;
-		OutgoingRPCBuffers.Clear();
 	}
 
 	private void ProcessIncomingPackets() {
@@ -115,7 +115,7 @@ public class CatClient : ISerializationContext {
 				continue;
 			}
 
-			if(entity.IsOwner) {
+			if (entity.IsOwner) {
 				if(iEntity.LastDirtyTick >= Time) {
 					int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.UpdateEntity, entity, out Span<byte> contentBuffer);
 					int contentLength = iEntity.Serialize(UpdateOptions, contentBuffer);
@@ -131,6 +131,8 @@ public class CatClient : ISerializationContext {
 				SendOutgoingRpcs(entity);
 			}
 		}
+
+
 
 		foreach (NetworkEntity entity in EntitiesToSpawn) {
 			INetworkEntity iEntity = entity;
@@ -151,20 +153,30 @@ public class CatClient : ISerializationContext {
 		}
 
 		EntitiesToDespawn.Clear();
+
+
+		OutgoingRPCBuffers.Clear();
+		BufferPool.FreeAllBuffers();
+		BufferPool.FreeAllPools();
+
 	}
 
 	private void SendOutgoingRpcs(NetworkEntity entity) {
-		var outgoingRpcs = ((ISerializationContext)this).GetOutgoingRpcs(entity);
+		List<byte[]> outgoingRpcs = ((ISerializationContext)this).GetOutgoingRpcs(entity);
 
-		foreach (byte[] rpc in outgoingRpcs) {
-			const int ClientRpcHeaderLength = 17;
-			const int ClientRpcContentLengthSlot = 4;
-			int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, ClientRpcHeaderLength, 4));
-			Transport.SendPacket(rpc, length + ClientRpcHeaderLength + ClientRpcContentLengthSlot);
+		if(outgoingRpcs != null) {
+			foreach (byte[] rpc in outgoingRpcs) {
+
+				const int ClientRpcHeaderLength = 17;
+				const int ClientRpcContentLengthSlot = 4;
+				int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, ClientRpcHeaderLength, 4));
+				Transport.SendPacket(rpc, length + ClientRpcHeaderLength + ClientRpcContentLengthSlot);
+			}
 		}
 	}
 
 	private void ProcessPacket(ReadOnlySpan<byte> packet) {
+
 		try {
 			ExtractPacketHeader(packet, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
 
@@ -192,6 +204,7 @@ public class CatClient : ISerializationContext {
 			Console.Error.WriteLine(e.Message);
 			Console.Error.WriteLine(e.StackTrace);
 		}
+
 	}
 
 
@@ -271,7 +284,7 @@ public class CatClient : ISerializationContext {
 		WritePacketHeader(buffer, RequestType.RPC, entity, out Span<byte> contentBuffer);
 
 		if(!OutgoingRPCBuffers.TryGetValue(entity, out List<byte[]> rpcs)) {
-			rpcs = new List<byte[]> { };
+			rpcs = BufferPool.RentPool();
 			OutgoingRPCBuffers.Add(entity, rpcs);
 		}
 
@@ -280,10 +293,10 @@ public class CatClient : ISerializationContext {
 		return contentBuffer;
 	}
 
-	IEnumerable<byte[]> ISerializationContext.GetOutgoingRpcs(NetworkEntity entity) {
+	List<byte[]> ISerializationContext.GetOutgoingRpcs(NetworkEntity entity) {
 		if (OutgoingRPCBuffers.TryGetValue(entity, out List<byte[]> buffers)) {
 			return buffers;
 		}
-		return Enumerable.Empty<byte[]>();
+		return null;
 	}
 }

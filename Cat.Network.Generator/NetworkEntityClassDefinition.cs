@@ -1,6 +1,8 @@
-﻿using System.Buffers.Binary;
+﻿using System;
+using System.Buffers.Binary;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using static Cat.Network.Generator.Utils;
 
@@ -258,13 +260,11 @@ namespace {Namespace} {{
 		void {NetworkEntityInterfaceFQN}.HandleRPCInvocation({NetworkEntityFQN} instigator, {ReadOnlySpanFQN} buffer) {{
 			
 			{ReadOnlySpanFQN} bufferCopy = buffer;
-			
-			int lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
-			bufferCopy = bufferCopy.Slice(4);
-
-			string methodName = {UnicodeFQN}.GetString(bufferCopy.Slice(0, lengthStorage));
-			bufferCopy = bufferCopy.Slice(lengthStorage);
-			switch (methodName) {{
+	
+			System.Int32 lengthStorage;
+			System.Int64 methodNameHash = {BinaryPrimitivesFQN}.ReadInt64LittleEndian(bufferCopy.Slice(0, 8));
+			bufferCopy = bufferCopy.Slice(8);
+			switch (methodNameHash) {{
 {string.Join("\n", DeclaredRPCs.Select(rpc => GenerateCase(rpc)))}
 			}}
 
@@ -274,8 +274,13 @@ namespace {Namespace} {{
 
 			string GenerateCase(RPCMethodData method) {
 
+				using MD5 md5 = MD5.Create();
+
+				byte[] hashBytes = md5.ComputeHash(Encoding.Unicode.GetBytes(method.InterfaceMethodDeclaration));
+				long methodNameHashTruncated = BinaryPrimitives.ReadInt64LittleEndian(new ReadOnlySpan<byte>(hashBytes, 0, 8));
+
 				return $@"
-				case ""{method.InterfaceMethodDeclaration}"":
+				case {methodNameHashTruncated}L: // {method.InterfaceMethodDeclaration}
 {string.Join("\n", method.Parameters.Select(parameter => $@"
 					lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
 					bufferCopy = bufferCopy.Slice(4);
@@ -316,8 +321,14 @@ namespace {Namespace} {{
 				string GenerateSerialization() {
 					StringBuilder serializationStringBuilder = new StringBuilder();
 
+
+					using MD5 md5 = MD5.Create(); 
+					
+					byte[] hashBytes = md5.ComputeHash(Encoding.Unicode.GetBytes(method.InterfaceMethodDeclaration));
+					long methodNameHashTruncated = BinaryPrimitives.ReadInt64LittleEndian(new ReadOnlySpan<byte>(hashBytes, 0, 8));
+					
 					serializationStringBuilder.AppendLine($"\t\t\t\tint lengthStorage;");
-					serializationStringBuilder.AppendLine($"\t\t\t\tlengthStorage = {UnicodeFQN}.GetBytes(\"{method.InterfaceMethodDeclaration}\", bufferCopy.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(bufferCopy, lengthStorage); bufferCopy = bufferCopy.Slice(4 + lengthStorage);");
+					serializationStringBuilder.AppendLine($"\t\t\t\t{BinaryPrimitivesFQN}.WriteInt64LittleEndian(bufferCopy, {methodNameHashTruncated}L); bufferCopy = bufferCopy.Slice(8);");
 
 					foreach (RPCParameterData rpcParameterData in method.Parameters) {
 						string serialization = Utils.GenerateSerialization(rpcParameterData.ParameterName, rpcParameterData.FullyQualifiedTypeName, "bufferCopy", "lengthStorage");

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using static Cat.Network.CatServer;
 using static Cat.Network.SerializationUtils;
 
 namespace Cat.Network;
@@ -8,7 +9,6 @@ internal class RemoteClient : IEntityProcessor {
 
 	public HashSet<NetworkEntity> OwnedEntities { get; } = new HashSet<NetworkEntity>();
 	public HashSet<NetworkEntity> RelevantEntities { get; } = new HashSet<NetworkEntity>();
-	IReadOnlySet<NetworkEntity> IEntityProcessor.RelevantEntities => RelevantEntities;
 
 
 	private byte[] OutgoingReliableDataBuffer = new byte[1_000_000];
@@ -17,14 +17,11 @@ internal class RemoteClient : IEntityProcessor {
 	public ITransport Transport { get; }
 	public NetworkEntity ProfileEntity { get; }
 
-
 	public RemoteClient(ISerializationContext serializationContext, ITransport transport, NetworkEntity profileEntity) {
 		SerializationContext = serializationContext;
 		Transport = transport;
 		ProfileEntity = profileEntity;
 	}
-
-
 
 	public void NotifyAssignedOwner(NetworkEntity entity) {
 		int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.AssignOwner, entity, out Span<byte> contentBuffer);
@@ -32,6 +29,7 @@ internal class RemoteClient : IEntityProcessor {
 	}
 
 	public void CreateEntity(NetworkEntity entity, bool isOwner) {
+
 		RelevantEntities.Add(entity);
 		INetworkEntity iEntity = entity;
 		int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.CreateEntity, entity, out Span<byte> contentBuffer);
@@ -39,12 +37,13 @@ internal class RemoteClient : IEntityProcessor {
 
 		Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
 
-		if (isOwner ) {
-			if(OwnedEntities.Add(entity)) {
+		if (isOwner) {
+			if (OwnedEntities.Add(entity)) {
 				NotifyAssignedOwner(entity);
 			}
 			SendOutgoingRpcs(entity);
 		}
+
 	}
 
 	public void UpdateEntity(NetworkEntity entity, bool isOwner) {
@@ -83,13 +82,14 @@ internal class RemoteClient : IEntityProcessor {
 
 		var outgoingRpcs = SerializationContext.GetOutgoingRpcs(entity);
 
-		foreach (byte[] rpc in outgoingRpcs) {
-			const int ServerRpcHeaderLength = 17;
-			const int ServertRpcContentLengthSlot = 4;
-			int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, ServerRpcHeaderLength, 4));
-			Transport.SendPacket(rpc, length + ServerRpcHeaderLength + ServertRpcContentLengthSlot);
+		if(outgoingRpcs != null) {
+			foreach (byte[] rpc in outgoingRpcs) {
+				const int ServerRpcHeaderLength = 17;
+				const int ServertRpcContentLengthSlot = 4;
+				int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, ServerRpcHeaderLength, 4));
+				Transport.SendPacket(rpc, length + ServerRpcHeaderLength + ServertRpcContentLengthSlot);
+			}
 		}
-
 	}
 
 }

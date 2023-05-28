@@ -3,21 +3,23 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Cat.Network.Test
-{
-    public class TestEntityStorage : IEntityStorage {
+namespace Cat.Network.Test {
+	public class TestEntityStorage : IEntityStorage {
 		private Dictionary<Guid, NetworkEntity> Entities { get; } = new Dictionary<Guid, NetworkEntity>();
 		private Dictionary<NetworkEntity, NetworkEntity> Owners { get; } = new Dictionary<NetworkEntity, NetworkEntity>();
 
+
+		private HashSet<NetworkEntity> SetOperationBuffer { get; } = new HashSet<NetworkEntity>();
+
 		public void RegisterEntity(NetworkEntity entity, NetworkEntity ownerProfileEntity) {
 			Entities.Add(entity.NetworkID, entity);
-			if(ownerProfileEntity != null) {
+			if (ownerProfileEntity != null) {
 				Owners.Add(entity, ownerProfileEntity);
 			}
 		}
 
 		public void UnregisterEntity(Guid entityNetworkID) {
-			if(Entities.Remove(entityNetworkID, out NetworkEntity entity)) {
+			if (Entities.Remove(entityNetworkID, out NetworkEntity entity)) {
 				Owners.Remove(entity);
 			}
 		}
@@ -28,40 +30,40 @@ namespace Cat.Network.Test
 
 		public void ProcessRelevantEntities(NetworkEntity profileEntity, IEntityProcessor processor) {
 
-			Dictionary<Guid, NetworkEntity>.ValueCollection newRelevantEntities = Entities.Values;
+			SetOperationBuffer.Clear();
 
-			List<NetworkEntity> create = newRelevantEntities.Except(processor.RelevantEntities).ToList();
-			List<NetworkEntity> delete = processor.RelevantEntities.Except(newRelevantEntities).ToList();
-			List<NetworkEntity> update = processor.RelevantEntities.Intersect(newRelevantEntities).ToList();
-
-			foreach(NetworkEntity entity in create) {
-				processor.CreateEntity(entity, AssignIfOwnerless(entity));
-			}
-			foreach (NetworkEntity entity in update) {
-				processor.UpdateEntity(entity, AssignIfOwnerless(entity));
-			}
-			foreach (NetworkEntity entity in delete) {
-				UnassignIfOwned(entity);
-				processor.DeleteEntity(entity);
-			}
-
-			bool AssignIfOwnerless(NetworkEntity entity) {
-				if (!Owners.TryGetValue(entity, out NetworkEntity currentOwnerProfileEntity) || currentOwnerProfileEntity == null || !Entities.ContainsKey(currentOwnerProfileEntity.NetworkID)) {
-					currentOwnerProfileEntity = profileEntity;
-					Owners[entity] = profileEntity;
+			foreach (NetworkEntity entity in Entities.Values) {
+				if (processor.RelevantEntities.Add(entity)) {
+					processor.CreateEntity(entity, AssignIfOwnerless(profileEntity, entity));
+				} else {
+					processor.UpdateEntity(entity, AssignIfOwnerless(profileEntity, entity));
 				}
-
-				return profileEntity == currentOwnerProfileEntity;
+				SetOperationBuffer.Add(entity);
 			}
 
-			void UnassignIfOwned(NetworkEntity entity) {
-				if(Owners.TryGetValue(entity, out NetworkEntity currentOwnerProfileEntity) && currentOwnerProfileEntity == profileEntity) {
-					Owners.Remove(entity);
+
+			foreach (NetworkEntity entity in processor.RelevantEntities) {
+				if (SetOperationBuffer.Add(entity)) {
+					UnassignIfOwned(profileEntity, entity);
+					processor.DeleteEntity(entity);
 				}
 			}
-
 		}
 
+		bool AssignIfOwnerless(NetworkEntity profileEntity, NetworkEntity entity) {
+			if (!Owners.TryGetValue(entity, out NetworkEntity currentOwnerProfileEntity) || currentOwnerProfileEntity == null || !Entities.ContainsKey(currentOwnerProfileEntity.NetworkID)) {
+				currentOwnerProfileEntity = profileEntity;
+				Owners[entity] = profileEntity;
+			}
+
+			return profileEntity == currentOwnerProfileEntity;
+		}
+
+		void UnassignIfOwned(NetworkEntity profileEntity, NetworkEntity entity) {
+			if (Owners.TryGetValue(entity, out NetworkEntity currentOwnerProfileEntity) && currentOwnerProfileEntity == profileEntity) {
+				Owners.Remove(entity);
+			}
+		}
 
 
 		public bool TryGetOwner(NetworkEntity entity, out NetworkEntity owner) {
