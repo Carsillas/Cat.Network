@@ -81,9 +81,9 @@ internal class RemoteClient : IEntityProcessor {
 
 	private void SendOutgoingRpcs(NetworkEntity entity) {
 
-		var outgoingRpcs = SerializationContext.GetOutgoingRpcs(entity);
+	List<byte[]> outgoingRpcs = SerializationContext.GetOutgoingRpcs(entity);
 
-		if(outgoingRpcs != null) {
+		if (outgoingRpcs != null) {
 			foreach (byte[] rpc in outgoingRpcs) {
 				const int ServerRpcHeaderLength = 17;
 				const int ServertRpcContentLengthSlot = 4;
