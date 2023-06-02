@@ -20,6 +20,10 @@ public class CatServer : ISerializationContext {
 	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCBuffers { get; } = new Dictionary<NetworkEntity, List<byte[]>>();
 	private List<RemoteClient> Clients { get; } = new List<RemoteClient>();
 
+
+	private Dictionary<NetworkEntity, NetworkEntity> Owners { get; } = new Dictionary<NetworkEntity, NetworkEntity>();
+
+
 	public CatServer(IEntityStorage entityStorage) {
 
 		EntityStorage = entityStorage;
@@ -31,6 +35,7 @@ public class CatServer : ISerializationContext {
 
 		RemoteClient remoteClient = new RemoteClient(this, transport, profileEntity);
 		remoteClient.CachedPacketProcessor = ProcessPacket;
+		remoteClient.Server = this;
 
 		Spawn(profileEntity, profileEntity);
 
@@ -85,14 +90,18 @@ public class CatServer : ISerializationContext {
 
 
 	protected void Spawn(NetworkEntity entity, NetworkEntity ownerProfileEntity = null) {
-
 		entity.NetworkID = Guid.NewGuid();
 		((INetworkEntity)entity).SerializationContext = this;
-		EntityStorage.RegisterEntity(entity, ownerProfileEntity);
+		EntityStorage.RegisterEntity(entity);
+
+		if(ownerProfileEntity != null) {
+			Owners.Add(entity, ownerProfileEntity);
+		}
 	}
 
 	protected void Despawn(NetworkEntity entity) {
 		EntityStorage.UnregisterEntity(entity.NetworkID);
+		Owners.Remove(entity);
 		((INetworkEntity)entity).SerializationContext = null;
 	}
 
@@ -145,9 +154,26 @@ public class CatServer : ISerializationContext {
 
 		iEntity.Deserialize(CreateOptions, content);
 
-		EntityStorage.RegisterEntity(entity, remoteClient.ProfileEntity);
+		EntityStorage.RegisterEntity(entity);
+		Owners.Add(entity, remoteClient.ProfileEntity);
 	}
 
+	internal bool AssignIfOwnerless(NetworkEntity profileEntity, NetworkEntity entity) {
+		if (!Owners.TryGetValue(entity, out NetworkEntity currentOwnerProfileEntity)  // entity is not registered to have an owner or
+			|| currentOwnerProfileEntity == null // owner is null or
+			|| !EntityStorage.TryGetEntityByNetworkID(currentOwnerProfileEntity.NetworkID, out NetworkEntity registeredCurrentOwner)) { // the owner is not registered (client disconnect?)
+			currentOwnerProfileEntity = profileEntity;
+			Owners[entity] = profileEntity;
+		}
+
+		return profileEntity == currentOwnerProfileEntity;
+	}
+
+	internal void UnassignIfOwned(NetworkEntity profileEntity, NetworkEntity entity) {
+		if (Owners.TryGetValue(entity, out NetworkEntity currentOwnerProfileEntity) && currentOwnerProfileEntity == profileEntity) {
+			Owners.Remove(entity);
+		}
+	}
 
 	private void HandleUpdateEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> content) {
 		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity) && remoteClient.OwnedEntities.Contains(entity)) {
@@ -159,17 +185,18 @@ public class CatServer : ISerializationContext {
 	private void HandleDeleteEntityRequest(RemoteClient remoteClient, Guid networkID) {
 
 		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity) &&
-			EntityStorage.TryGetOwner(entity, out NetworkEntity ownerProfile) &&
+			Owners.TryGetValue(entity, out NetworkEntity ownerProfile) &&
 			remoteClient.ProfileEntity == ownerProfile) {
 
 			EntityStorage.UnregisterEntity(networkID);
+			Owners.Remove(entity);
 			((INetworkEntity)entity).SerializationContext = null;
 		}
 	}
 	private void HandleRPCEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> contentBuffer) {
 
 		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity) &&
-			EntityStorage.TryGetOwner(entity, out NetworkEntity ownerProfile) &&
+			Owners.TryGetValue(entity, out NetworkEntity ownerProfile) &&
 			remoteClient.ProfileEntity != ownerProfile) {
 
 			Span<byte> copy = ((ISerializationContext)this).RentRPCBuffer(entity);
