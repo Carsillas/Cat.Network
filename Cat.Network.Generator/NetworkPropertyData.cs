@@ -1,5 +1,6 @@
 ﻿namespace Cat.Network.Generator {
 	public struct NetworkPropertyData {
+		public bool Declared { get; set; }
 		public byte AccessModifier { get; set; }
 		public string AccessModifierText {
 			get {

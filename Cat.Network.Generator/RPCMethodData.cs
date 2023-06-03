@@ -2,6 +2,8 @@
 
 namespace Cat.Network.Generator {
 	public struct RPCMethodData {
+
+		public bool Declared { get; set; }
 		public string InterfaceMethodDeclaration { get; set; }
 		public string ClassMethodInvocation { get; set; }
 

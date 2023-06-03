@@ -7,14 +7,6 @@ using System.Threading.Tasks;
 
 namespace Cat.Network.Test.Serialization;
 
-public partial class Hello : SerializationTestEntity {
-
-	void RPC.TestRPC() {
-
-	}
-
-}
-
 public partial class SerializationTestEntity : NetworkEntity {
 
 	bool NetworkProperty.BooleanProperty { get; set; }
@@ -25,6 +17,8 @@ public partial class SerializationTestEntity : NetworkEntity {
 	ushort NetworkProperty.UShortProperty { get; set; }
 	uint NetworkProperty.UIntProperty { get; set; }
 	ulong NetworkProperty.ULongProperty { get; set; }
+
+	List<int> NetworkList { get; } = new List<int>(;
 
 	public int StringSetCount { get; private set; }
 	private string BackingString { get; set; }
@@ -56,6 +50,5 @@ public partial class SerializationTestEntity : NetworkEntity {
 	void RPC.TestMemoryRPC(bool BooleanParam, byte ByteParam, short ShortParam, int IntParam, long LongParam, ushort UShortParam, uint UIntParam, ulong ULongParam) {
 		(ByteProperty, ShortProperty) = ((byte)ShortParam, ByteParam);
 	}
-
 
 }

@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Microsoft.CodeAnalysis;
+using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 
 namespace Cat.Network.Generator {
 	internal static class Utils {
@@ -17,6 +19,8 @@ namespace Cat.Network.Generator {
 		public const string NetworkEntityFQN = "Cat.Network.NetworkEntity";
 		public const string NetworkPropertyPrefix = "NetworkProperty";
 		public const string NetworkPropertyPrefixAndDot = NetworkPropertyPrefix + ".";
+		public const string NetworkCollectionPrefix = "NetworkCollection";
+		public const string NetworkCollectionPrefixAndDot = NetworkCollectionPrefix + ".";
 		public const string RPCPrefix = "RPC";
 		public const string RPCPrefixAndDot = RPCPrefix + ".";
 
@@ -66,6 +70,13 @@ namespace Cat.Network.Generator {
 			}
 
 			return deserializationExpression;
+		}
+
+		public static bool PassNodesOfType<T>(SyntaxNode syntaxNode, CancellationToken cancellationToken) {
+			if (syntaxNode is T) {
+				return true;
+			}
+			return false;
 		}
 
 	}
