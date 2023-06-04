@@ -139,4 +139,46 @@ public class SerializationTests : CatNetworkTest {
 		Assert.IsFalse(testEntityB.RPCInvoked);
 	}
 
+
+	[Test]
+	public void Test_CollectionSerialization() {
+		SerializationTestEntity testEntityA = new SerializationTestEntity {	};
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
+
+
+		ClientB.Tick();
+		Server.Tick();
+		ClientA.Tick();
+
+
+		testEntityA.MyInts.Add(1);
+		testEntityA.MyInts.Add(2);
+		testEntityA.MyInts.Add(6);
+		testEntityA.MyInts.Remove(2);
+		testEntityA.BooleanProperty = true;
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		CollectionAssert.AreEqual(testEntityA.MyInts, testEntityB.MyInts);
+
+		testEntityA.MyInts.Add(7);
+		testEntityA.BooleanProperty = true;
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		CollectionAssert.AreEqual(testEntityA.MyInts, testEntityB.MyInts);
+
+	}
 }

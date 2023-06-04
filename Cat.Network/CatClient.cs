@@ -26,6 +26,8 @@ public class CatClient : ISerializationContext {
 	private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new HashSet<NetworkEntity>();
 	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCBuffers { get; } = new Dictionary<NetworkEntity, List<byte[]>>();
 
+	private HashSet<NetworkEntity> EntitiesMarkedForClean { get; } = new HashSet<NetworkEntity>();
+
 
 	public CatClient(IProxyManager proxyManager) {
 		ProxyManager = proxyManager;
@@ -156,6 +158,10 @@ public class CatClient : ISerializationContext {
 
 		EntitiesToDespawn.Clear();
 
+		foreach (NetworkEntity entity in EntitiesMarkedForClean) {
+			INetworkEntity iEntity = entity;
+			iEntity.Clean();
+		}
 
 		OutgoingRPCBuffers.Clear();
 		BufferPool.FreeAllBuffers();
@@ -300,4 +306,9 @@ public class CatClient : ISerializationContext {
 		}
 		return null;
 	}
+
+	void ISerializationContext.MarkForClean(NetworkEntity entity) {
+		EntitiesMarkedForClean.Add(entity);
+	}
+
 }

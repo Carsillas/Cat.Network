@@ -1,6 +1,7 @@
 ﻿namespace Cat.Network.Generator {
 	public struct NetworkPropertyData {
 		public bool Declared { get; set; }
+		public string Name { get; set; }
 		public byte AccessModifier { get; set; }
 		public string AccessModifierText {
 			get {
@@ -14,7 +15,6 @@
 		}
 
 		public string FullyQualifiedTypeName { get; set; }
-		public string Name { get; set; }
 
 		public string InterfacePropertyDeclaration => $"{AccessModifierText} {FullyQualifiedTypeName} {Name} {{ get; set; }}";
 

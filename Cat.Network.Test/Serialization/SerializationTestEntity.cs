@@ -19,6 +19,9 @@ public partial class SerializationTestEntity : NetworkEntity {
 	ulong NetworkProperty.ULongProperty { get; set; }
 
 
+	List<int> NetworkCollection.MyInts { get; } = new List<int>();
+
+
 	public int StringSetCount { get; private set; }
 	private string BackingString { get; set; }
 	string NetworkProperty.StringProperty {

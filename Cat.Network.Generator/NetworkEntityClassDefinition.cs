@@ -16,6 +16,7 @@ namespace Cat.Network.Generator {
 		public bool IsNetworkEntity { get; set; }
 
 		public ImmutableArray<NetworkPropertyData> NetworkProperties { get; set; }
+		public ImmutableArray<NetworkCollectionData> NetworkCollections { get; set; }
 		public ImmutableArray<RPCMethodData> RPCs { get; set; }
 
 

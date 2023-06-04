@@ -32,18 +32,7 @@ namespace Cat.Network.Generator {
 					ClassDeclarationSyntax node = (ClassDeclarationSyntax)generatorSyntaxContext.Node;
 					INamedTypeSymbol symbol = generatorSyntaxContext.SemanticModel.GetDeclaredSymbol(node);
 
-					bool isNetworkEntity = false;
-					INamedTypeSymbol currentSymbol = symbol;
-
-					while (currentSymbol != null) {
-						if (currentSymbol.ToDisplayString(FullyQualifiedFormat) == NetworkEntityFQN) {
-							isNetworkEntity = true;
-							break;
-						}
-						currentSymbol = currentSymbol.BaseType;
-					}
-
-					if (!isNetworkEntity) {
+					if (!IsNetworkEntityType(symbol)) {
 						return new NetworkEntityClassDefinition { IsNetworkEntity = false };
 					}
 
@@ -54,6 +43,7 @@ namespace Cat.Network.Generator {
 						Namespace = symbol.ContainingNamespace.ToDisplayString(FullyQualifiedFormat),
 						MetadataName = symbol.MetadataName,
 						NetworkProperties = GetNetworkPropertiesForSymbol(symbol).Reverse().ToImmutableArray(),
+						NetworkCollections = GetNetworkCollectionsForSymbol(symbol).Reverse().ToImmutableArray(),
 						RPCs = GetRPCsForSymbol(symbol).ToImmutableArray(),
 					};
 
@@ -65,12 +55,28 @@ namespace Cat.Network.Generator {
 				allClasses.Where(data => data.IsNetworkEntity);
 
 
-			context.RegisterSourceOutput(allNetworkEntities, (c, source) => 
+			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.RPCs", NetworkEntityPropertyGenerator.GenerateNetworkPropertySource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkProperties", NetworkEntityRPCGenerator.GenerateRPCSource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkCollections", NetworkEntityCollectionGenerator.GenerateNetworkCollectionSource(source)));
+			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
+			c.AddSource($"{source.Namespace}.{source.MetadataName}.Interface", NetworkEntityInterfaceImplementationGenerator.GenerateNetworkEntitySource(source)));
+		}
+
+
+		private static bool IsNetworkEntityType(INamedTypeSymbol typeSymbol) {
+			INamedTypeSymbol currentSymbol = typeSymbol;
+
+			while (currentSymbol != null) {
+				if (currentSymbol.ToDisplayString(FullyQualifiedFormat) == NetworkEntityFQN) {
+					return true;
+				}
+				currentSymbol = currentSymbol.BaseType;
+			}
+
+			return false;
 		}
 
 
@@ -78,9 +84,24 @@ namespace Cat.Network.Generator {
 			return GetExplicitSymbols<IPropertySymbol>(typeSymbol, NetworkPropertyPrefix)
 			.Select(propertySymbol => new NetworkPropertyData {
 				Declared = propertySymbol.Declared,
-				Name = propertySymbol.Symbol.Name.Split('.').Last(),
+				Name = propertySymbol.Name,
 				AccessModifier = 0,
 				FullyQualifiedTypeName = propertySymbol.Symbol.Type.ToDisplayString(FullyQualifiedFormat)
+			});
+		}
+
+		private static IEnumerable<NetworkCollectionData> GetNetworkCollectionsForSymbol(INamedTypeSymbol typeSymbol) {
+			return GetExplicitSymbols<IPropertySymbol>(typeSymbol, NetworkCollectionPrefix)
+			.Where(propertySymbol =>
+				propertySymbol.Symbol.Type is INamedTypeSymbol namedTypeSymbol &&
+				namedTypeSymbol.IsGenericType &&
+				namedTypeSymbol.TypeArguments.Length == 1 &&
+				namedTypeSymbol.TypeArguments[0] is INamedTypeSymbol)
+			.Select(propertySymbol => new NetworkCollectionData {
+				Declared = propertySymbol.Declared,
+				Name = propertySymbol.Name,
+				FullyQualifiedTypeName = propertySymbol.Symbol.Type.ToDisplayString(FullyQualifiedFormat),
+				Item1FullyQualifiedTypeName = ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0].ToDisplayString(FullyQualifiedFormat)
 			});
 		}
 
@@ -90,10 +111,10 @@ namespace Cat.Network.Generator {
 				Declared = methodSymbol.Declared,
 				ClassMethodInvocation = methodSymbol.Symbol.ToDisplayString(ClassMethodInvocationFormat),
 				InterfaceMethodDeclaration = methodSymbol.Symbol.ToDisplayString(InterfaceMethodDeclarationFormat),
-				Parameters = methodSymbol.Symbol.Parameters.Select(parameter => 
-				new RPCParameterData { 
+				Parameters = methodSymbol.Symbol.Parameters.Select(parameter =>
+				new RPCParameterData {
 					FullyQualifiedTypeName = parameter.Type.ToDisplayString(FullyQualifiedFormat),
-					ParameterName = parameter.Name 
+					ParameterName = parameter.Name
 				}).ToImmutableArray()
 			});
 		}
@@ -119,7 +140,7 @@ namespace Cat.Network.Generator {
 						Symbol = symbol
 					});
 
-				foreach(var symbol in symbols) {
+				foreach (var symbol in symbols) {
 					yield return symbol;
 				}
 
@@ -129,6 +150,7 @@ namespace Cat.Network.Generator {
 
 		private struct ExplicitSymbol<T> where T : ISymbol {
 			public bool Declared { get; set; }
+			public string Name => Symbol.Name.Split('.').Last();
 			public T Symbol { get; set; }
 		}
 

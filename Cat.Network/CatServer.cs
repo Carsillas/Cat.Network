@@ -22,6 +22,7 @@ public class CatServer : ISerializationContext {
 
 
 	private Dictionary<NetworkEntity, NetworkEntity> Owners { get; } = new Dictionary<NetworkEntity, NetworkEntity>();
+	private HashSet<NetworkEntity> EntitiesMarkedForClean { get; } = new HashSet<NetworkEntity>();
 
 
 	public CatServer(IEntityStorage entityStorage) {
@@ -140,6 +141,11 @@ public class CatServer : ISerializationContext {
 			EntityStorage.ProcessRelevantEntities(client.ProfileEntity, client);
 		}
 
+		foreach(NetworkEntity entity in EntitiesMarkedForClean) {
+			INetworkEntity iEntity = entity;
+			iEntity.Clean();
+		}
+
 		BufferPool.FreeAllBuffers();
 		BufferPool.FreeAllPools();
 		OutgoingRPCBuffers.Clear();
@@ -230,5 +236,9 @@ public class CatServer : ISerializationContext {
 			return buffers;
 		}
 		return null;
+	}
+
+	void ISerializationContext.MarkForClean(NetworkEntity entity) {
+		EntitiesMarkedForClean.Add(entity);
 	}
 }

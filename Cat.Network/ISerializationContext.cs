@@ -10,4 +10,6 @@ public interface ISerializationContext {
 
 	internal List<byte[]> GetOutgoingRpcs(NetworkEntity entity);
 
+	void MarkForClean(NetworkEntity entity);
+
 }

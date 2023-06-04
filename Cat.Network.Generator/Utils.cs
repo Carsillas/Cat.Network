@@ -11,6 +11,10 @@ namespace Cat.Network.Generator {
 		public const string BinaryPrimitivesFQN = "System.Buffers.Binary.BinaryPrimitives";
 		public const string UnicodeFQN = "System.Text.Encoding.Unicode";
 		public const string NetworkEntityInterfaceFQN = "Cat.Network.INetworkEntity";
+		public const string NetworkCollectionInterfaceFQN = "Cat.Network.INetworkCollection";
+		public const string NetworkCollectionOperationFQN = "Cat.Network.NetworkCollectionOperation";
+		public const string NetworkCollectionOperationTypeFQN = "Cat.Network.NetworkCollectionOperationType";
+		public const string NetworkListFQN = "Cat.Network.NetworkList";
 		public const string NetworkPropertyInfoFQN = "Cat.Network.NetworkPropertyInfo";
 		public const string SerializationOptionsFQN = "Cat.Network.SerializationOptions";
 		public const string MemberIdentifierModeFQN = "Cat.Network.MemberIdentifierMode";

@@ -76,10 +76,7 @@ internal class RemoteClient : IEntityProcessor {
 			int contentLength = iEntity.Serialize(UpdateOptions, contentBuffer);
 
 			Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
-		} else if (iEntity.LastDirtyTick > -1) {
-			iEntity.LastDirtyTick = -1;
-			iEntity.Clean();
-		}
+		} 
 
 		if (isOwner) {
 			if (OwnedEntities.Add(entity)) {
