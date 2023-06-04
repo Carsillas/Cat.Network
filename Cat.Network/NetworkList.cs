@@ -21,6 +21,8 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> where T : st
 		InternalList = list;
 	}
 
+	public int Count => InternalList.Count;
+
 	public void Add(T item) {
 		((INetworkCollection<T>)this).AssertOwner();
 		InternalList.Add(item);

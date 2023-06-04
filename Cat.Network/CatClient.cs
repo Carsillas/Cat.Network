@@ -308,6 +308,8 @@ public class CatClient : ISerializationContext {
 	}
 
 	void ISerializationContext.MarkForClean(NetworkEntity entity) {
+		INetworkEntity iEntity = entity;
+		iEntity.LastDirtyTick = Time;
 		EntitiesMarkedForClean.Add(entity);
 	}
 

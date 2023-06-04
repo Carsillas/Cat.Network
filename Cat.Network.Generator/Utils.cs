@@ -18,6 +18,7 @@ namespace Cat.Network.Generator {
 		public const string NetworkPropertyInfoFQN = "Cat.Network.NetworkPropertyInfo";
 		public const string SerializationOptionsFQN = "Cat.Network.SerializationOptions";
 		public const string MemberIdentifierModeFQN = "Cat.Network.MemberIdentifierMode";
+		public const string MemberSerializationModeFQN = "Cat.Network.MemberSerializationMode";	
 		public const string SpanFQN = "System.Span<byte>";
 		public const string ReadOnlySpanFQN = "System.ReadOnlySpan<byte>";
 		public const string NetworkEntityFQN = "Cat.Network.NetworkEntity";

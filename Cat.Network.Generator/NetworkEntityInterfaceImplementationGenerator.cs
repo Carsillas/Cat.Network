@@ -103,31 +103,41 @@ namespace {classDefinition.Namespace} {{
 			foreach (NetworkCollectionData data in classDefinition.NetworkCollections) {
 				stringBuilder.AppendLine(@$"
 
-			var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.Item1FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
-			{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operationBuffer.Count); collectionContentBuffer = collectionContentBuffer.Slice(4);
+			if (serializationOptions.MemberSerializationMode == {MemberSerializationModeFQN}.Complete) {{
+				{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, {data.Name}.Count + 1); collectionContentBuffer = collectionContentBuffer.Slice(4);
+				collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Clear; collectionContentBuffer = collectionContentBuffer.Slice(1);
+				
+				foreach (var item in {data.Name}) {{
+					collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Add; collectionContentBuffer = collectionContentBuffer.Slice(1);
+					{GenerateSerialization("item", data.Item1FullyQualifiedTypeName, "collectionContentBuffer", "lengthStorage")}
+				}}
+			}} else if (serializationOptions.MemberSerializationMode == {MemberSerializationModeFQN}.Partial) {{
+				var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.Item1FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
+				{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operationBuffer.Count); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
-			foreach ({NetworkCollectionOperationFQN}<{data.Item1FullyQualifiedTypeName}> operation in operationBuffer) {{
-				switch (operation.OperationType) {{
-					case {NetworkCollectionOperationTypeFQN}.Add: {{
-						collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Add; collectionContentBuffer = collectionContentBuffer.Slice(1);
-						{GenerateSerialization("operation.Value", data.Item1FullyQualifiedTypeName, "collectionContentBuffer", "lengthStorage")}
-						break;
-					}}
+				foreach ({NetworkCollectionOperationFQN}<{data.Item1FullyQualifiedTypeName}> operation in operationBuffer) {{
+					switch (operation.OperationType) {{
+						case {NetworkCollectionOperationTypeFQN}.Add: {{
+							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Add; collectionContentBuffer = collectionContentBuffer.Slice(1);
+							{GenerateSerialization("operation.Value", data.Item1FullyQualifiedTypeName, "collectionContentBuffer", "lengthStorage")}
+							break;
+						}}
 						
-					case {NetworkCollectionOperationTypeFQN}.Remove: {{
-						collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Remove; collectionContentBuffer = collectionContentBuffer.Slice(1);
-						{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operation.Index); collectionContentBuffer = collectionContentBuffer.Slice(4);
-						break;
-					}}
-					case {NetworkCollectionOperationTypeFQN}.Set: {{
-						collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Set; collectionContentBuffer = collectionContentBuffer.Slice(1);	
-						{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operation.Index); collectionContentBuffer = collectionContentBuffer.Slice(4);
-						{GenerateSerialization("operation.Value", data.Item1FullyQualifiedTypeName, "collectionContentBuffer", "lengthStorage")}
-						break;
-					}}
-					case {NetworkCollectionOperationTypeFQN}.Clear: {{
-						collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Clear; collectionContentBuffer = collectionContentBuffer.Slice(1);
-						break;
+						case {NetworkCollectionOperationTypeFQN}.Remove: {{
+							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Remove; collectionContentBuffer = collectionContentBuffer.Slice(1);
+							{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operation.Index); collectionContentBuffer = collectionContentBuffer.Slice(4);
+							break;
+						}}
+						case {NetworkCollectionOperationTypeFQN}.Set: {{
+							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Set; collectionContentBuffer = collectionContentBuffer.Slice(1);	
+							{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operation.Index); collectionContentBuffer = collectionContentBuffer.Slice(4);
+							{GenerateSerialization("operation.Value", data.Item1FullyQualifiedTypeName, "collectionContentBuffer", "lengthStorage")}
+							break;
+						}}
+						case {NetworkCollectionOperationTypeFQN}.Clear: {{
+							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Clear; collectionContentBuffer = collectionContentBuffer.Slice(1);
+							break;
+						}}
 					}}
 				}}
 			}}

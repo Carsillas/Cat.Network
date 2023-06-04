@@ -154,16 +154,10 @@ public class SerializationTests : CatNetworkTest {
 		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
 
 
-		ClientB.Tick();
-		Server.Tick();
-		ClientA.Tick();
-
-
 		testEntityA.MyInts.Add(1);
 		testEntityA.MyInts.Add(2);
 		testEntityA.MyInts.Add(6);
 		testEntityA.MyInts.Remove(2);
-		testEntityA.BooleanProperty = true;
 
 		ClientA.Tick();
 		Server.Tick();
@@ -172,11 +166,110 @@ public class SerializationTests : CatNetworkTest {
 		CollectionAssert.AreEqual(testEntityA.MyInts, testEntityB.MyInts);
 
 		testEntityA.MyInts.Add(7);
-		testEntityA.BooleanProperty = true;
 
 		ClientA.Tick();
 		Server.Tick();
 		ClientB.Tick();
+
+		CollectionAssert.AreEqual(testEntityA.MyInts, testEntityB.MyInts);
+
+
+		testEntityA.MyInts.Clear();
+		testEntityA.MyInts.Add(4);
+		testEntityA.MyInts.Add(46);
+		testEntityA.MyInts.Add(35235);
+		testEntityA.MyInts[2] = 4;
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		ClientA.Despawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		testEntityA.MyInts.Add(19);
+		testEntityA.MyInts.Add(20);
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out entityB));
+		Assert.AreNotSame(testEntityB, entityB); // testEntityA was respawned, should not be the same instance
+		testEntityB = (SerializationTestEntity)entityB;
+
+		CollectionAssert.AreEqual(testEntityA.MyInts, testEntityB.MyInts);
+
+	}
+
+
+	[Test]
+	public void Test_CollectionSerialization2() {
+		SerializationTestEntity testEntityA = new SerializationTestEntity { };
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
+
+
+		testEntityA.MyInts.Add(1);
+		testEntityA.MyInts.Add(2);
+		testEntityA.MyInts.Add(6);
+		testEntityA.MyInts.Remove(2);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		CollectionAssert.AreEqual(testEntityA.MyInts, testEntityB.MyInts);
+
+		testEntityA.MyInts.Add(7);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		CollectionAssert.AreEqual(testEntityA.MyInts, testEntityB.MyInts);
+
+
+		testEntityA.MyInts.Clear();
+		testEntityA.MyInts.Add(4);
+		testEntityA.MyInts.Add(46);
+		testEntityA.MyInts.Add(35235);
+		testEntityA.MyInts[2] = 4;
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		ClientA.Despawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		testEntityA.MyInts.Add(19);
+		testEntityA.MyInts.Add(20);
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out entityB));
+		Assert.AreNotSame(testEntityB, entityB); // testEntityA was respawned, should not be the same instance
+		testEntityB = (SerializationTestEntity)entityB;
 
 		CollectionAssert.AreEqual(testEntityA.MyInts, testEntityB.MyInts);
 
