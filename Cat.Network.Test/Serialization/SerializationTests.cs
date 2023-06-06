@@ -1,5 +1,6 @@
 using Cat.Network.Test.Server;
 using NUnit.Framework;
+using System.Buffers.Binary;
 
 namespace Cat.Network.Test.Serialization;
 public class SerializationTests : CatNetworkTest {
@@ -17,6 +18,8 @@ public class SerializationTests : CatNetworkTest {
 			UShortProperty = 50,
 			UIntProperty = 60,
 			ULongProperty = 70,
+			FloatProperty = 123.456f,
+			DoubleProperty = 789.123,
 			StringProperty = WowString
 		};
 
@@ -38,6 +41,8 @@ public class SerializationTests : CatNetworkTest {
 		Assert.AreEqual(testEntityA.UShortProperty, testEntityB.UShortProperty);
 		Assert.AreEqual(testEntityA.UIntProperty, testEntityB.UIntProperty);
 		Assert.AreEqual(testEntityA.ULongProperty, testEntityB.ULongProperty);
+		Assert.AreEqual(testEntityA.FloatProperty, testEntityB.FloatProperty);
+		Assert.AreEqual(testEntityA.DoubleProperty, testEntityB.DoubleProperty);
 		Assert.AreEqual(testEntityA.StringProperty, testEntityB.StringProperty);
 
 	}
@@ -241,6 +246,7 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 		Assert.AreEqual(testEntityA.NullableIntProperty, testEntityB.NullableIntProperty);
+
 
 		testEntityA.NullableIntProperty = null;
 		ClientA.Tick();

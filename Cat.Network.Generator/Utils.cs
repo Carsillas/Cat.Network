@@ -40,6 +40,8 @@ namespace Cat.Network.Generator {
 			{ "System.UInt16", $"{BinaryPrimitivesFQN}.WriteUInt16LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);"},
 			{ "System.UInt32", $"{BinaryPrimitivesFQN}.WriteUInt32LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);"},
 			{ "System.UInt64", $"{BinaryPrimitivesFQN}.WriteUInt64LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);"},
+			{ "System.Single", $"{BinaryPrimitivesFQN}.WriteSingleLittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);"},
+			{ "System.Double", $"{BinaryPrimitivesFQN}.WriteDoubleLittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);"},
 			{ "System.Boolean", $"{PropertyBufferName}[0] = {{0}} ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);" },
 			{ "System.String", $"{PropertyBufferName} = {PropertyBufferName}.Slice({UnicodeFQN}.GetBytes({{0}}, {PropertyBufferName}));" }
 		};
@@ -52,6 +54,8 @@ namespace Cat.Network.Generator {
 			{ "System.UInt16", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt16LittleEndian({PropertyBufferName});"},
 			{ "System.UInt32", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt32LittleEndian({PropertyBufferName});"},
 			{ "System.UInt64", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt64LittleEndian({PropertyBufferName});"},
+			{ "System.Single", $"{{0}} = {BinaryPrimitivesFQN}.ReadSingleLittleEndian({PropertyBufferName});"},
+			{ "System.Double", $"{{0}} = {BinaryPrimitivesFQN}.ReadDoubleLittleEndian({PropertyBufferName});"},
 			{ "System.Boolean", $"{{0}} = {PropertyBufferName}[0] == 1;" },
 			{ "System.String", $"{{0}} = {UnicodeFQN}.GetString({PropertyBufferName});" },
 		};

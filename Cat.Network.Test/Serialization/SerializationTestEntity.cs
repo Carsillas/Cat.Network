@@ -17,6 +17,8 @@ public partial class SerializationTestEntity : NetworkEntity {
 	ushort NetworkProperty.UShortProperty { get; set; }
 	uint NetworkProperty.UIntProperty { get; set; }
 	ulong NetworkProperty.ULongProperty { get; set; }
+	float NetworkProperty.FloatProperty { get; set; }
+	double NetworkProperty.DoubleProperty { get; set; }
 
 
 	int? NetworkProperty.NullableIntProperty { get; set; }
