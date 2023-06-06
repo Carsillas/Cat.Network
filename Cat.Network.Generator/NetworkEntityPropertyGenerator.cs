@@ -58,7 +58,7 @@ namespace {classDefinition.Namespace} {{
 
 			int i = 0;
 			foreach (NetworkPropertyData data in classDefinition.NetworkProperties.Where(property => property.Declared)) {
-				stringBuilder.AppendLine($"\t\t{data.AccessModifierText} {data.FullyQualifiedTypeName} {data.Name} {GenerateGetterSetter(declaredPropertiesStartIndex + i, data)}");
+				stringBuilder.AppendLine($"\t\tpublic {data.TypeInfo.FullyQualifiedTypeName} {data.Name} {GenerateGetterSetter(declaredPropertiesStartIndex + i, data)}");
 				i++;
 			}
 

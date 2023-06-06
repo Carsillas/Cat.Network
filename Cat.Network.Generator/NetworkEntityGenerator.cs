@@ -56,9 +56,9 @@ namespace Cat.Network.Generator {
 
 
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
-			c.AddSource($"{source.Namespace}.{source.MetadataName}.RPCs", NetworkEntityPropertyGenerator.GenerateNetworkPropertySource(source)));
+			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkProperties", NetworkEntityPropertyGenerator.GenerateNetworkPropertySource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
-			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkProperties", NetworkEntityRPCGenerator.GenerateRPCSource(source)));
+			c.AddSource($"{source.Namespace}.{source.MetadataName}.RPCs", NetworkEntityRPCGenerator.GenerateRPCSource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkCollections", NetworkEntityCollectionGenerator.GenerateNetworkCollectionSource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
@@ -85,8 +85,7 @@ namespace Cat.Network.Generator {
 			.Select(propertySymbol => new NetworkPropertyData {
 				Declared = propertySymbol.Declared,
 				Name = propertySymbol.Name,
-				AccessModifier = 0,
-				FullyQualifiedTypeName = propertySymbol.Symbol.Type.ToDisplayString(FullyQualifiedFormat)
+				TypeInfo = GetTypeInfo(propertySymbol.Symbol.Type)
 			});
 		}
 
@@ -100,8 +99,8 @@ namespace Cat.Network.Generator {
 			.Select(propertySymbol => new NetworkCollectionData {
 				Declared = propertySymbol.Declared,
 				Name = propertySymbol.Name,
-				FullyQualifiedTypeName = propertySymbol.Symbol.Type.ToDisplayString(FullyQualifiedFormat),
-				Item1FullyQualifiedTypeName = ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0].ToDisplayString(FullyQualifiedFormat)
+				CollectionTypeInfo = GetTypeInfo(propertySymbol.Symbol.Type),
+				ItemTypeInfo = GetTypeInfo(((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0])
 			});
 		}
 
@@ -113,7 +112,7 @@ namespace Cat.Network.Generator {
 				InterfaceMethodDeclaration = methodSymbol.Symbol.ToDisplayString(InterfaceMethodDeclarationFormat),
 				Parameters = methodSymbol.Symbol.Parameters.Select(parameter =>
 				new RPCParameterData {
-					FullyQualifiedTypeName = parameter.Type.ToDisplayString(FullyQualifiedFormat),
+					TypeInfo = GetTypeInfo(parameter.Type),
 					ParameterName = parameter.Name
 				}).ToImmutableArray()
 			});
@@ -146,6 +145,15 @@ namespace Cat.Network.Generator {
 
 				currentSymbol = currentSymbol.BaseType;
 			}
+		}
+
+		private static TypeInfo GetTypeInfo(ITypeSymbol type) {
+			return new TypeInfo {
+				IsNullable = type.OriginalDefinition.ToDisplayString(FullyQualifiedFormat) == "System.Nullable<T>",
+				GenericArgumentFQNs = (type as INamedTypeSymbol)?.TypeArguments
+										.Select(t => t.ToDisplayString(FullyQualifiedFormat)).ToImmutableArray() ?? ImmutableArray<string>.Empty,
+				FullyQualifiedTypeName = type.ToDisplayString(FullyQualifiedFormat)
+			};
 		}
 
 		private struct ExplicitSymbol<T> where T : ISymbol {

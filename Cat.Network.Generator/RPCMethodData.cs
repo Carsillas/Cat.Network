@@ -13,7 +13,7 @@ namespace Cat.Network.Generator {
 
 	public struct RPCParameterData {
 		public string ParameterName { get; set; }
-		public string FullyQualifiedTypeName { get; set; }
+		public TypeInfo TypeInfo { get; set; }
 	}
 
 }

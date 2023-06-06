@@ -7,15 +7,17 @@ namespace Cat.Network.Generator {
 	public struct NetworkCollectionData {
 		public bool Declared { get; set; }
 		public string Name { get; set; }
-		public string FullyQualifiedTypeName { get; set; }
-		public string Item1FullyQualifiedTypeName { get; set; }
-		public string Item2FullyQualifiedTypeName { get; set; }
+
+
+		public TypeInfo CollectionTypeInfo { get; set; }
+		public TypeInfo ItemTypeInfo { get; set; }
+
 
 		public string BackingCollectionName => $"__{Name}";
-		public string InterfaceCollectionDeclaration => $"{FullyQualifiedTypeName} {Name} {{ get; }}";
-		public string ExposedInterfaceCollectionDeclaration => $"{NetworkListFQN}<{Item1FullyQualifiedTypeName}> {BackingCollectionName} {{ get; set; }}";
-		public string ExposedExplicitInterfaceCollectionImplementation => $"{NetworkListFQN}<{Item1FullyQualifiedTypeName}> {NetworkCollectionPrefix}.{BackingCollectionName} {{ get; set; }}";
-		public string ExposedInterfaceCollectionImplementation => $"public {NetworkListFQN}<{Item1FullyQualifiedTypeName}> {Name} => (({NetworkCollectionPrefix})this).{BackingCollectionName};";
+		public string InterfaceCollectionDeclaration => $"{CollectionTypeInfo.FullyQualifiedTypeName} {Name} {{ get; }}";
+		public string ExposedInterfaceCollectionDeclaration => $"{NetworkListFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {BackingCollectionName} {{ get; set; }}";
+		public string ExposedExplicitInterfaceCollectionImplementation => $"{NetworkListFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {NetworkCollectionPrefix}.{BackingCollectionName} {{ get; set; }}";
+		public string ExposedInterfaceCollectionImplementation => $"public {NetworkListFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {Name} => (({NetworkCollectionPrefix})this).{BackingCollectionName};";
 
 	}
 }

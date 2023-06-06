@@ -1,22 +1,20 @@
-﻿namespace Cat.Network.Generator {
+﻿using System.Collections.Immutable;
+
+namespace Cat.Network.Generator {
 	public struct NetworkPropertyData {
 		public bool Declared { get; set; }
 		public string Name { get; set; }
-		public byte AccessModifier { get; set; }
-		public string AccessModifierText {
-			get {
-				switch (AccessModifier) {
-					case 0: return "public";
-					case 1: return "protected";
-					case 2: return "private";
-				}
-				return "";
-			}
-		}
-
-		public string FullyQualifiedTypeName { get; set; }
-
-		public string InterfacePropertyDeclaration => $"{AccessModifierText} {FullyQualifiedTypeName} {Name} {{ get; set; }}";
+		public TypeInfo TypeInfo { get; set; }
+		public string InterfacePropertyDeclaration => $"{TypeInfo.FullyQualifiedTypeName} {Name} {{ get; set; }}";
 
 	}
+
+	public struct TypeInfo {
+		
+		public bool IsNullable { get; set; }
+		public string FullyQualifiedTypeName { get; set; }
+		public ImmutableArray<string> GenericArgumentFQNs { get; set; }
+
+	}
+
 }

@@ -43,7 +43,7 @@ namespace {classDefinition.Namespace} {{
 			}
 
 			foreach (NetworkCollectionData data in classDefinition.NetworkCollections) {
-				stringBuilder.AppendLine($"\t\t\t(({NetworkCollectionPrefix})this).{data.BackingCollectionName} = new {NetworkListFQN}<{data.Item1FullyQualifiedTypeName}>(this, (({NetworkCollectionPrefix})this).{data.Name});");
+				stringBuilder.AppendLine($"\t\t\t(({NetworkCollectionPrefix})this).{data.BackingCollectionName} = new {NetworkListFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>(this, (({NetworkCollectionPrefix})this).{data.Name});");
 			}
 
 			stringBuilder.AppendLine($"\t\t}}");
@@ -57,7 +57,7 @@ namespace {classDefinition.Namespace} {{
 			stringBuilder.AppendLine($"\t\tvoid {NetworkEntityInterfaceFQN}.Clean() {{");
 
 			foreach (NetworkCollectionData collection in classDefinition.NetworkCollections) {
-				stringBuilder.AppendLine($"\t\t\t(({NetworkCollectionInterfaceFQN}<{collection.Item1FullyQualifiedTypeName}>){collection.Name}).OperationBuffer.Clear();");
+				stringBuilder.AppendLine($"\t\t\t(({NetworkCollectionInterfaceFQN}<{collection.ItemTypeInfo.FullyQualifiedTypeName}>){collection.Name}).OperationBuffer.Clear();");
 			}
 
 			stringBuilder.AppendLine($"\t\t}}");
@@ -71,10 +71,8 @@ namespace {classDefinition.Namespace} {{
 			stringBuilder.AppendLine(@$"
 		System.Int32 {NetworkEntityInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer) {{
 			{SpanFQN} propertyContentBuffer = buffer.Slice(8);
-			System.Int32 lengthStorage = 0;
 			{NetworkEntityInterfaceFQN} iEntity = this;
 ");
-
 
 			for (int i = 0; i < classDefinition.NetworkProperties.Length; i++) {
 				NetworkPropertyData data = classDefinition.NetworkProperties[i];
@@ -82,13 +80,13 @@ namespace {classDefinition.Namespace} {{
 				stringBuilder.AppendLine(@$"
 			if (iEntity.NetworkProperties[{i}].LastDirtyTick >= (iEntity.SerializationContext?.Time ?? 0)) {{
 				if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
-					 lengthStorage = {UnicodeFQN}.GetBytes(iEntity.NetworkProperties[{i}].Name, propertyContentBuffer.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, lengthStorage); propertyContentBuffer = propertyContentBuffer.Slice(4 + lengthStorage);
+					 System.Int32 lengthStorage = {UnicodeFQN}.GetBytes(iEntity.NetworkProperties[{i}].Name, propertyContentBuffer.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, lengthStorage); propertyContentBuffer = propertyContentBuffer.Slice(4 + lengthStorage);
 				}}
 				if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{
 					{BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, {i}); propertyContentBuffer = propertyContentBuffer.Slice(4);
 				}}
 
-				{GenerateSerialization(data.Name, data.FullyQualifiedTypeName, "propertyContentBuffer", "lengthStorage")}
+				{GenerateSerialization(data.Name, data.TypeInfo, "propertyContentBuffer")}
 
 			}}");
 			}
@@ -109,17 +107,17 @@ namespace {classDefinition.Namespace} {{
 				
 				foreach (var item in {data.Name}) {{
 					collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Add; collectionContentBuffer = collectionContentBuffer.Slice(1);
-					{GenerateSerialization("item", data.Item1FullyQualifiedTypeName, "collectionContentBuffer", "lengthStorage")}
+					{GenerateSerialization("item", data.ItemTypeInfo, "collectionContentBuffer")}
 				}}
 			}} else if (serializationOptions.MemberSerializationMode == {MemberSerializationModeFQN}.Partial) {{
-				var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.Item1FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
+				var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
 				{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operationBuffer.Count); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
-				foreach ({NetworkCollectionOperationFQN}<{data.Item1FullyQualifiedTypeName}> operation in operationBuffer) {{
+				foreach ({NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> operation in operationBuffer) {{
 					switch (operation.OperationType) {{
 						case {NetworkCollectionOperationTypeFQN}.Add: {{
 							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Add; collectionContentBuffer = collectionContentBuffer.Slice(1);
-							{GenerateSerialization("operation.Value", data.Item1FullyQualifiedTypeName, "collectionContentBuffer", "lengthStorage")}
+							{GenerateSerialization("operation.Value", data.ItemTypeInfo, "collectionContentBuffer")}
 							break;
 						}}
 						
@@ -131,7 +129,7 @@ namespace {classDefinition.Namespace} {{
 						case {NetworkCollectionOperationTypeFQN}.Set: {{
 							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Set; collectionContentBuffer = collectionContentBuffer.Slice(1);	
 							{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operation.Index); collectionContentBuffer = collectionContentBuffer.Slice(4);
-							{GenerateSerialization("operation.Value", data.Item1FullyQualifiedTypeName, "collectionContentBuffer", "lengthStorage")}
+							{GenerateSerialization("operation.Value", data.ItemTypeInfo, "collectionContentBuffer")}
 							break;
 						}}
 						case {NetworkCollectionOperationTypeFQN}.Clear: {{
@@ -171,8 +169,6 @@ namespace {classDefinition.Namespace} {{
 			{ReadOnlySpanFQN} propertyContentBuffer = buffer.Slice(4, propertyContentLength);
 			{ReadOnlySpanFQN} collectionContentBuffer = buffer.Slice(4 + propertyContentLength + 4, collectionContentLength);
 
-			System.Int32 lengthStorage = 0;
-
 			if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
 
 			}}
@@ -185,7 +181,7 @@ namespace {classDefinition.Namespace} {{
 					propertyContentBuffer = propertyContentBuffer.Slice(propertyLength);
 				}}
 
-				void ReadIndexedProperty(System.Int32 index, {ReadOnlySpanFQN} propertyBuffer) {{
+				void ReadIndexedProperty(System.Int32 index, {ReadOnlySpanFQN} indexedPropertyBuffer) {{
 					switch (index) {{
 {GenerateIndexedPropertyCases(classDefinition.NetworkProperties)}
 					}}
@@ -198,7 +194,7 @@ namespace {classDefinition.Namespace} {{
 
 			System.Int32 operationCount = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 			
-			var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.Item1FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
+			var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
 
 			for (System.Int32 i = 0; i < operationCount; i++) {{
 				
@@ -207,10 +203,15 @@ namespace {classDefinition.Namespace} {{
 				switch (operationType) {{
 					case {NetworkCollectionOperationTypeFQN}.Add: {{
 						System.Int32 itemLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
-						{GenerateDeserialization("var item", data.Item1FullyQualifiedTypeName, "collectionContentBuffer")} collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
+						
+						{data.ItemTypeInfo.FullyQualifiedTypeName} item;
+						{GenerateDeserialization("item", data.ItemTypeInfo, "collectionContentBuffer")}
+
+						collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
+
 						if (iEntity.SerializationContext.DeserializeDirtiesProperty) {{
 							iEntity.SerializationContext.MarkForClean(this);
-							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.Item1FullyQualifiedTypeName}> {{
+							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 								OperationType = {NetworkCollectionOperationTypeFQN}.Add,
 								Value = item
 							}});
@@ -225,7 +226,7 @@ namespace {classDefinition.Namespace} {{
 						
 						if (iEntity.SerializationContext.DeserializeDirtiesProperty) {{
 							iEntity.SerializationContext.MarkForClean(this);
-							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.Item1FullyQualifiedTypeName}> {{
+							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 								OperationType = {NetworkCollectionOperationTypeFQN}.Remove,
 								Index = index
 							}});
@@ -237,11 +238,15 @@ namespace {classDefinition.Namespace} {{
 					case {NetworkCollectionOperationTypeFQN}.Set: {{
 						System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 						System.Int32 itemLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
-						{GenerateDeserialization($"var item", data.Item1FullyQualifiedTypeName, "collectionContentBuffer")} collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
+						
+						{data.ItemTypeInfo.FullyQualifiedTypeName} item;
+						{GenerateDeserialization("item", data.ItemTypeInfo, "collectionContentBuffer")}
+						
+						collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
 
 						if (iEntity.SerializationContext.DeserializeDirtiesProperty) {{
 							iEntity.SerializationContext.MarkForClean(this);
-							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.Item1FullyQualifiedTypeName}> {{
+							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 								OperationType = {NetworkCollectionOperationTypeFQN}.Set,
 								Index = index,
 								Value = item
@@ -256,7 +261,7 @@ namespace {classDefinition.Namespace} {{
 
 						if (iEntity.SerializationContext.DeserializeDirtiesProperty) {{
 							iEntity.SerializationContext.MarkForClean(this);
-							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.Item1FullyQualifiedTypeName}> {{
+							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 								OperationType = {NetworkCollectionOperationTypeFQN}.Clear
 							}});
 						}}
@@ -279,7 +284,7 @@ namespace {classDefinition.Namespace} {{
 
 					casesStringBuilder.AppendLine($@"
 						case {i}:
-							{GenerateDeserialization(data.Name, data.FullyQualifiedTypeName, "propertyBuffer")}
+							{GenerateDeserialization(data.Name, data.TypeInfo, "indexedPropertyBuffer")}
 							break;");
 				}
 
