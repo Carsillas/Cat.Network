@@ -121,6 +121,8 @@ public class SerializationTests : CatNetworkTest {
 			}
 		};
 
+		testEntityA.TransformProperty = testEntityA.TransformProperty with { Rotation = testEntityA.TransformProperty.Rotation with { Z = 1 } };
+
 		ClientA.Spawn(testEntityA);
 
 		ClientA.Tick();

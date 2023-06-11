@@ -141,7 +141,9 @@ namespace Cat.Network.Generator {
 
 			return symbol.GetMembers()
 					.Where(s => !s.IsStatic)
-					.Where(s => (s is IPropertySymbol propertySymbol && propertySymbol.Type.IsValueType) || (s is IFieldSymbol fieldSymbol && fieldSymbol.Type.IsValueType))
+					.Where(s =>
+						   (s is IPropertySymbol propertySymbol && propertySymbol.Type.IsValueType && symbol.GetMembers().Any(f => f is IFieldSymbol fieldSymbol && SymbolEqualityComparer.Default.Equals(fieldSymbol.AssociatedSymbol, propertySymbol)))
+						|| (s is IFieldSymbol fieldSymbol && fieldSymbol.Type.IsValueType))
 					.Where(s => s.DeclaredAccessibility == Accessibility.Public)
 					.OrderBy(s => s.Name);
 		}
@@ -176,7 +178,7 @@ namespace Cat.Network.Generator {
 		}
 
 		private static bool TryGetBuiltInDeserialization(ITypeSymbol symbol, string accessPrefix, string name, out string deserialization) {
-			
+
 			ITypeSymbol serializationType = symbol;
 			bool isNullable = IsNullableValueType(symbol, out INamedTypeSymbol valueType);
 			if (isNullable) {
@@ -200,7 +202,7 @@ namespace Cat.Network.Generator {
 
 			bool isNullable = IsNullableValueType(symbol, out INamedTypeSymbol valueType);
 
-			if(isNullable) {
+			if (isNullable) {
 				symbol = valueType;
 			}
 

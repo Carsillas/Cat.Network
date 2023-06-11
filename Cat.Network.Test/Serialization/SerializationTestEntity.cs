@@ -73,4 +73,9 @@ public struct Transform {
 	public Vector3? Position;
 	public Vector3 Scale;
 
+	public Vector3 Rotation { get; set; }
+
+	public Vector3 RotationTest => Rotation;
+	public Vector3 RotationTest2 { get => Rotation; set => Rotation = value; }
+
 }
