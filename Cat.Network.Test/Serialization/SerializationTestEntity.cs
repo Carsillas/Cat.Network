@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -22,6 +23,8 @@ public partial class SerializationTestEntity : NetworkEntity {
 
 
 	int? NetworkProperty.NullableIntProperty { get; set; }
+
+	Transform NetworkProperty.TransformProperty { get; set; }
 
 
 	List<int> NetworkCollection.MyInts { get; } = new List<int>();
@@ -57,5 +60,17 @@ public partial class SerializationTestEntity : NetworkEntity {
 	void RPC.TestMemoryRPC(bool BooleanParam, byte ByteParam, short ShortParam, int IntParam, long LongParam, ushort UShortParam, uint UIntParam, ulong ULongParam) {
 		(ByteProperty, ShortProperty) = ((byte)ShortParam, ByteParam);
 	}
+
+	void RPC.TestTransformSerialization(Transform transform) {
+		Assert.AreEqual(TransformProperty, transform);
+	}
+
+}
+
+
+public struct Transform {
+
+	public Vector3? Position;
+	public Vector3 Scale;
 
 }

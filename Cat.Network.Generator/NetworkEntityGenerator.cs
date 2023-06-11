@@ -16,13 +16,6 @@ namespace Cat.Network.Generator {
 	[Generator(LanguageNames.CSharp)]
 	public class NetworkEntityGenerator : IIncrementalGenerator {
 
-
-		private static SymbolDisplayFormat FullyQualifiedFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
-		private static SymbolDisplayFormat TypeNameFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
-		private static SymbolDisplayFormat InterfaceMethodDeclarationFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, parameterOptions: SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeDefaultValue | SymbolDisplayParameterOptions.IncludeName, memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeType);
-		private static SymbolDisplayFormat ClassMethodInvocationFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, parameterOptions: SymbolDisplayParameterOptions.IncludeName, memberOptions: SymbolDisplayMemberOptions.IncludeParameters);
-
-
 		public void Initialize(IncrementalGeneratorInitializationContext context) {
 
 			IncrementalValuesProvider<NetworkEntityClassDefinition> allClasses = context.SyntaxProvider.CreateSyntaxProvider(
@@ -85,7 +78,9 @@ namespace Cat.Network.Generator {
 			.Select(propertySymbol => new NetworkPropertyData {
 				Declared = propertySymbol.Declared,
 				Name = propertySymbol.Name,
-				TypeInfo = GetTypeInfo(propertySymbol.Symbol.Type)
+				TypeInfo = GetTypeInfo(propertySymbol.Symbol.Type),
+				SerializationExpression = GenerateTypeSerialization(propertySymbol.Name, propertySymbol.Symbol.Type),
+				DeserializationExpression = GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type)
 			});
 		}
 
@@ -100,7 +95,9 @@ namespace Cat.Network.Generator {
 				Declared = propertySymbol.Declared,
 				Name = propertySymbol.Name,
 				CollectionTypeInfo = GetTypeInfo(propertySymbol.Symbol.Type),
-				ItemTypeInfo = GetTypeInfo(((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0])
+				ItemTypeInfo = GetTypeInfo(((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0]),
+				ItemSerializationExpression = GenerateTypeSerialization("item", ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0]),
+				ItemDeserializationExpression = GenerateTypeDeserialization("item", ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0])
 			});
 		}
 
@@ -113,7 +110,9 @@ namespace Cat.Network.Generator {
 				Parameters = methodSymbol.Symbol.Parameters.Select(parameter =>
 				new RPCParameterData {
 					TypeInfo = GetTypeInfo(parameter.Type),
-					ParameterName = parameter.Name
+					ParameterName = parameter.Name,
+					SerializationExpression = GenerateTypeSerialization(parameter.Name, parameter.Type),
+					DeserializationExpression = GenerateTypeDeserialization(parameter.Name, parameter.Type)
 				}).ToImmutableArray()
 			});
 		}
@@ -145,15 +144,6 @@ namespace Cat.Network.Generator {
 
 				currentSymbol = currentSymbol.BaseType;
 			}
-		}
-
-		private static TypeInfo GetTypeInfo(ITypeSymbol type) {
-			return new TypeInfo {
-				IsNullable = type.OriginalDefinition.ToDisplayString(FullyQualifiedFormat) == "System.Nullable<T>",
-				GenericArgumentFQNs = (type as INamedTypeSymbol)?.TypeArguments
-										.Select(t => t.ToDisplayString(FullyQualifiedFormat)).ToImmutableArray() ?? ImmutableArray<string>.Empty,
-				FullyQualifiedTypeName = type.ToDisplayString(FullyQualifiedFormat)
-			};
 		}
 
 		private struct ExplicitSymbol<T> where T : ISymbol {

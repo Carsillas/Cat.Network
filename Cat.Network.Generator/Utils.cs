@@ -1,12 +1,27 @@
 ﻿using Microsoft.CodeAnalysis;
 using System;
 using System.Buffers.Binary;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Data.SqlTypes;
+using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading;
 
 namespace Cat.Network.Generator {
 	internal static class Utils {
+
+
+
+		public static SymbolDisplayFormat FullyQualifiedFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
+		public static SymbolDisplayFormat TypeNameFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameOnly, genericsOptions: SymbolDisplayGenericsOptions.IncludeTypeParameters);
+		public static SymbolDisplayFormat InterfaceMethodDeclarationFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, parameterOptions: SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeDefaultValue | SymbolDisplayParameterOptions.IncludeName, memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeType);
+		public static SymbolDisplayFormat ClassMethodInvocationFormat { get; } = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces, parameterOptions: SymbolDisplayParameterOptions.IncludeName, memberOptions: SymbolDisplayMemberOptions.IncludeParameters);
+
+
+
 
 		public const string BinaryPrimitivesFQN = "System.Buffers.Binary.BinaryPrimitives";
 		public const string UnicodeFQN = "System.Text.Encoding.Unicode";
@@ -18,7 +33,7 @@ namespace Cat.Network.Generator {
 		public const string NetworkPropertyInfoFQN = "Cat.Network.NetworkPropertyInfo";
 		public const string SerializationOptionsFQN = "Cat.Network.SerializationOptions";
 		public const string MemberIdentifierModeFQN = "Cat.Network.MemberIdentifierMode";
-		public const string MemberSerializationModeFQN = "Cat.Network.MemberSerializationMode";	
+		public const string MemberSerializationModeFQN = "Cat.Network.MemberSerializationMode";
 		public const string SpanFQN = "System.Span<byte>";
 		public const string ReadOnlySpanFQN = "System.ReadOnlySpan<byte>";
 		public const string NetworkEntityFQN = "Cat.Network.NetworkEntity";
@@ -32,84 +47,49 @@ namespace Cat.Network.Generator {
 
 		private const string PropertyBufferName = "propertyBuffer";
 
-		private static Dictionary<string, string> SerializationTemplates { get; } = new Dictionary<string, string>() {
-			{ "System.Byte", $"{PropertyBufferName}[0] = {{0}}; {PropertyBufferName} = {PropertyBufferName}.Slice(1);"},
-			{ "System.Int16", $"{BinaryPrimitivesFQN}.WriteInt16LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);"},
-			{ "System.Int32", $"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);"},
-			{ "System.Int64", $"{BinaryPrimitivesFQN}.WriteInt64LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);"},
-			{ "System.UInt16", $"{BinaryPrimitivesFQN}.WriteUInt16LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);"},
-			{ "System.UInt32", $"{BinaryPrimitivesFQN}.WriteUInt32LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);"},
-			{ "System.UInt64", $"{BinaryPrimitivesFQN}.WriteUInt64LittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);"},
-			{ "System.Single", $"{BinaryPrimitivesFQN}.WriteSingleLittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);"},
-			{ "System.Double", $"{BinaryPrimitivesFQN}.WriteDoubleLittleEndian({PropertyBufferName}, {{0}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);"},
-			{ "System.Boolean", $"{PropertyBufferName}[0] = {{0}} ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);" },
-			{ "System.String", $"{PropertyBufferName} = {PropertyBufferName}.Slice({UnicodeFQN}.GetBytes({{0}}, {PropertyBufferName}));" }
-		};
-		
-		private static Dictionary<string, string> DeserializationTemplates { get; } = new Dictionary<string, string>() {
-			{ "System.Byte", $"{{0}} = {PropertyBufferName}[0];"},
-			{ "System.Int16", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt16LittleEndian({PropertyBufferName});"},
-			{ "System.Int32", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName});"},
-			{ "System.Int64", $"{{0}} = {BinaryPrimitivesFQN}.ReadInt64LittleEndian({PropertyBufferName});"},
-			{ "System.UInt16", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt16LittleEndian({PropertyBufferName});"},
-			{ "System.UInt32", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt32LittleEndian({PropertyBufferName});"},
-			{ "System.UInt64", $"{{0}} = {BinaryPrimitivesFQN}.ReadUInt64LittleEndian({PropertyBufferName});"},
-			{ "System.Single", $"{{0}} = {BinaryPrimitivesFQN}.ReadSingleLittleEndian({PropertyBufferName});"},
-			{ "System.Double", $"{{0}} = {BinaryPrimitivesFQN}.ReadDoubleLittleEndian({PropertyBufferName});"},
-			{ "System.Boolean", $"{{0}} = {PropertyBufferName}[0] == 1;" },
-			{ "System.String", $"{{0}} = {UnicodeFQN}.GetString({PropertyBufferName});" },
+		private static Dictionary<string, StringTemplate> SerializationTemplates { get; } = new Dictionary<string, StringTemplate>() {
+			{ "System.Byte", new StringTemplate($"{PropertyBufferName}[0] = {{name}}; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name")},
+			{ "System.Int16", new StringTemplate($"{BinaryPrimitivesFQN}.WriteInt16LittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);", "name")},
+			{ "System.Int32", new StringTemplate($"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name")},
+			{ "System.Int64", new StringTemplate($"{BinaryPrimitivesFQN}.WriteInt64LittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name")},
+			{ "System.UInt16", new StringTemplate($"{BinaryPrimitivesFQN}.WriteUInt16LittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);", "name")},
+			{ "System.UInt32", new StringTemplate($"{BinaryPrimitivesFQN}.WriteUInt32LittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name")},
+			{ "System.UInt64", new StringTemplate($"{BinaryPrimitivesFQN}.WriteUInt64LittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name")},
+			{ "System.Single", new StringTemplate($"{BinaryPrimitivesFQN}.WriteSingleLittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name")},
+			{ "System.Double", new StringTemplate($"{BinaryPrimitivesFQN}.WriteDoubleLittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name")},
+			{ "System.Boolean", new StringTemplate($"{PropertyBufferName}[0] = {{name}} ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name") },
+			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {UnicodeFQN}.GetBytes({{name}}, {PropertyBufferName}.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, serializedStringLength); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") }
 		};
 
+		private static Dictionary<string, StringTemplate> DeserializationTemplates { get; } = new Dictionary<string, StringTemplate>() {
+			{ "System.Byte", new StringTemplate($"{{name}} = {PropertyBufferName}[0]; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name")},
+			{ "System.Int16", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadInt16LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);", "name")},
+			{ "System.Int32", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name")},
+			{ "System.Int64", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadInt64LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name")},
+			{ "System.UInt16", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadUInt16LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);", "name")},
+			{ "System.UInt32", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadUInt32LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name")},
+			{ "System.UInt64", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadUInt64LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name")},
+			{ "System.Single", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadSingleLittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name")},
+			{ "System.Double", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadDoubleLittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name")},
+			{ "System.Boolean", new StringTemplate($"{{name}} = {PropertyBufferName}[0] == 1; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name")},
+			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); {{name}} = {UnicodeFQN}.GetString({PropertyBufferName}.Slice(4, serializedStringLength)); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") },
+		};
 
-		private static string SerializationTemplateWrapper = $"{{{{ {SpanFQN} {PropertyBufferName} = {{0}}.Slice(4); {{1}} System.Int32 lengthStorage = {{0}}.Slice(4).Length - {PropertyBufferName}.Length; {BinaryPrimitivesFQN}.WriteInt32LittleEndian({{0}}, lengthStorage); {{0}} = {{0}}.Slice(4 + lengthStorage); }}}}";
-		private static string DeserializationTemplateWrapper = $"{{{{ {ReadOnlySpanFQN} {PropertyBufferName} = {{0}}; {{1}} }}}}";
-		private static string NullableSerializationTemplate = $"{PropertyBufferName}[0] = {{0}}.HasValue ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1); if ({{0}}.HasValue) {{{{ {{1}} }}}}";
-		private static string NullableDeserializationTemplate = $"if ({PropertyBufferName}[0] == 1) {{{{ {PropertyBufferName} = {PropertyBufferName}.Slice(1); {{1}} }}}} else {{{{ {{0}} = null; }}}}";
+
+		private static StringTemplate SerializationTemplateWrapper = new StringTemplate($"{{ {SpanFQN} {PropertyBufferName} = {{bufferName}}.Slice(4); {{serializationExpression}} System.Int32 lengthStorage = {{bufferName}}.Slice(4).Length - {PropertyBufferName}.Length; {BinaryPrimitivesFQN}.WriteInt32LittleEndian({{bufferName}}, lengthStorage); {{bufferName}} = {{bufferName}}.Slice(4 + lengthStorage); }}", "bufferName", "serializationExpression");
+		private static StringTemplate DeserializationTemplateWrapper = new StringTemplate($"{{ {ReadOnlySpanFQN} {PropertyBufferName} = {{bufferName}}; {{serializationTemplate}} }}", "bufferName", "serializationTemplate");
+		private static StringTemplate NullableSerializationTemplate = new StringTemplate($"{PropertyBufferName}[0] = {{propertyName}}.HasValue ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1); if ({{propertyName}}.HasValue) {{ {{serializationExpression}} }}", "propertyName", "serializationExpression");
+		private static StringTemplate NullableDeserializationTemplate = new StringTemplate($"if ({PropertyBufferName}[0] == 1) {{ {PropertyBufferName} = {PropertyBufferName}.Slice(1); {{deserializationExpression}} }} else {{ {{propertyName}} = null; }}", "propertyName", "deserializationExpression");
 
 
-		public static string GenerateSerialization(string propertyName, TypeInfo typeInfo, string bufferName) {
-			
-			string firstGenericArgument = typeInfo.GenericArgumentFQNs.Length >= 1 ? typeInfo.GenericArgumentFQNs[0] : "";
-			string serializationTemplateType = typeInfo.IsNullable ? firstGenericArgument : typeInfo.FullyQualifiedTypeName;
-
-			string serializationExpression = "";
-
-
-			if (SerializationTemplates.TryGetValue(serializationTemplateType, out string template)) {
-				string propertyNameSanitized = typeInfo.IsNullable ? $"{propertyName}.Value" : propertyName;
-
-				serializationExpression = string.Format(template, propertyNameSanitized);
-			} else {
-				serializationExpression = $"/* Skipping serialization for unknown type: {typeInfo.FullyQualifiedTypeName} {propertyName} */";
-			}
-
-			if (typeInfo.IsNullable) {
-				serializationExpression = string.Format(NullableSerializationTemplate, propertyName, serializationExpression);
-			}
-
-			serializationExpression = string.Format(SerializationTemplateWrapper, bufferName, serializationExpression);
+		public static string GenerateSerialization(string serializationExpression, string bufferName) {
+			serializationExpression = SerializationTemplateWrapper.Apply(bufferName, serializationExpression);
 
 			return serializationExpression;
 		}
 
-		public static string GenerateDeserialization(string propertyName, TypeInfo typeInfo, string bufferName) {
-
-			string firstGenericArgument = typeInfo.GenericArgumentFQNs.Length >= 1 ? typeInfo.GenericArgumentFQNs[0] : "";
-			string deserializationTemplateType = typeInfo.IsNullable ? firstGenericArgument : typeInfo.FullyQualifiedTypeName;
-
-			string deserializationExpression = "";
-
-			if (DeserializationTemplates.TryGetValue(deserializationTemplateType, out string template)) {
-				deserializationExpression = string.Format(template, propertyName);
-			} else {
-				deserializationExpression = $"/* Skipping serialization for unknown type: {typeInfo.FullyQualifiedTypeName} {propertyName} */";
-			}
-
-			if (typeInfo.IsNullable) {
-				deserializationExpression = string.Format(NullableDeserializationTemplate, propertyName, deserializationExpression);
-			}
-
-			deserializationExpression = string.Format(DeserializationTemplateWrapper, bufferName, deserializationExpression);
+		public static string GenerateDeserialization(string deserializationExpression, string bufferName) {
+			deserializationExpression = DeserializationTemplateWrapper.Apply(bufferName, deserializationExpression);
 
 			return deserializationExpression;
 		}
@@ -120,6 +100,182 @@ namespace Cat.Network.Generator {
 			}
 			return false;
 		}
+		public static bool IsNullableValueType(ITypeSymbol symbol) {
+			return IsNullableValueType(symbol, out _);
+		}
+		private static bool IsNullableValueType(ITypeSymbol symbol, out INamedTypeSymbol valueType) {
+			valueType = null;
+			if (symbol.OriginalDefinition.ToDisplayString(FullyQualifiedFormat) == "System.Nullable<T>" &&
+				symbol is INamedTypeSymbol namedSymbol &&
+				namedSymbol.TypeArguments.Length == 1 &&
+				namedSymbol.TypeArguments[0] is INamedTypeSymbol namedGenericArgument) {
+				valueType = namedGenericArgument;
+				return true;
+			}
+			return false;
+		}
 
+		public static string GenerateTypeSerialization(string name, ITypeSymbol symbol) {
+
+			if (TryGetSerialization(symbol, string.Empty, name, out string serialization)) {
+				return serialization;
+			}
+
+			return $"Failed to generate serialization for item {symbol.ToDisplayString(FullyQualifiedFormat)} {name}";
+		}
+
+		public static string GenerateTypeDeserialization(string name, ITypeSymbol symbol) {
+
+			if (TryGetDeserialization(symbol, string.Empty, name, out string deserialization)) {
+				return deserialization;
+			}
+
+			return $"Failed to generate deserialization for item {symbol.ToDisplayString(FullyQualifiedFormat)} {name}";
+		}
+
+		private static IEnumerable<ISymbol> GetSerializationEligibleSymbols(ITypeSymbol symbol) {
+
+			if (IsNullableValueType(symbol, out INamedTypeSymbol valueType)) {
+				symbol = valueType;
+			}
+
+			return symbol.GetMembers()
+					.Where(s => !s.IsStatic)
+					.Where(s => (s is IPropertySymbol propertySymbol && propertySymbol.Type.IsValueType) || (s is IFieldSymbol fieldSymbol && fieldSymbol.Type.IsValueType))
+					.Where(s => s.DeclaredAccessibility == Accessibility.Public)
+					.OrderBy(s => s.Name);
+		}
+
+
+		private static bool TryGetSerialization(ITypeSymbol symbol, string accessPrefix, string name, out string serialization) {
+			return TryGetBuiltInSerialization(symbol, accessPrefix, name, out serialization) || TryGetCompoundSerialization(symbol, accessPrefix, name, out serialization);
+		}
+		private static bool TryGetDeserialization(ITypeSymbol symbol, string accessPrefix, string name, out string deserialization) {
+			return TryGetBuiltInDeserialization(symbol, accessPrefix, name, out deserialization) || TryGetCompoundDeserialization(symbol, accessPrefix, name, out deserialization);
+		}
+
+		private static bool TryGetBuiltInSerialization(ITypeSymbol symbol, string accessPrefix, string name, out string serialization) {
+			ITypeSymbol serializationType = symbol;
+			bool isNullable = IsNullableValueType(symbol, out INamedTypeSymbol valueType);
+			if (isNullable) {
+				serializationType = valueType;
+			}
+
+			serialization = null;
+
+			if (SerializationTemplates.TryGetValue(serializationType.ToDisplayString(FullyQualifiedFormat), out StringTemplate serializationTemplate)) {
+
+				string accessName = accessPrefix + (isNullable ? $"{name}.Value" : name);
+
+				serialization = serializationTemplate.Apply(accessName);
+				serialization = isNullable ? NullableSerializationTemplate.Apply(name, serialization) : serialization;
+				return true;
+			}
+
+			return false;
+		}
+
+		private static bool TryGetBuiltInDeserialization(ITypeSymbol symbol, string accessPrefix, string name, out string deserialization) {
+			
+			ITypeSymbol serializationType = symbol;
+			bool isNullable = IsNullableValueType(symbol, out INamedTypeSymbol valueType);
+			if (isNullable) {
+				serializationType = valueType;
+			}
+
+			deserialization = null;
+
+			if (DeserializationTemplates.TryGetValue(serializationType.ToDisplayString(FullyQualifiedFormat), out StringTemplate deserializationTemplate)) {
+				string accessName = $"{accessPrefix}{(accessPrefix == string.Empty ? "" : ".")}{name}";
+
+				deserialization = deserializationTemplate.Apply(accessName);
+				deserialization = isNullable ? NullableDeserializationTemplate.Apply(name, deserialization) : deserialization;
+				return true;
+			}
+
+			return false;
+		}
+
+		private static bool TryGetCompoundSerialization(ITypeSymbol symbol, string accessPrefix, string name, out string serialization) {
+
+			bool isNullable = IsNullableValueType(symbol, out INamedTypeSymbol valueType);
+
+			if(isNullable) {
+				symbol = valueType;
+			}
+
+			IEnumerable<ISymbol> memberSymbols = GetSerializationEligibleSymbols(symbol);
+
+			StringBuilder builder = new StringBuilder();
+
+			builder.AppendLine($"{{ // {name}");
+
+			foreach (ISymbol member in memberSymbols) {
+				ITypeSymbol memberType = (member as IFieldSymbol)?.Type ?? (member as IPropertySymbol)?.Type;
+
+				string nextAccessPrefix = $"{accessPrefix}{name}.{(isNullable ? "Value." : "")}";
+				if (memberType != null && TryGetSerialization(memberType, nextAccessPrefix, member.Name, out serialization)) {
+					builder.AppendLine(serialization);
+				}
+			}
+
+			builder.AppendLine($"}}");
+
+			serialization = builder.ToString();
+
+			if (isNullable) {
+				serialization = NullableSerializationTemplate.Apply($"{accessPrefix}{name}", serialization);
+			}
+
+			return true;
+		}
+
+		private static bool TryGetCompoundDeserialization(ITypeSymbol symbol, string accessPrefix, string name, out string deserialization) {
+
+			bool isNullable = IsNullableValueType(symbol, out INamedTypeSymbol valueType);
+
+			if (isNullable) {
+				symbol = valueType;
+			}
+
+			IEnumerable<ISymbol> memberSymbols = GetSerializationEligibleSymbols(symbol);
+
+			StringBuilder builder = new StringBuilder();
+
+			string localValueName = $"{accessPrefix}{name}_";
+
+			builder.AppendLine($"{{ // {name}");
+			builder.AppendLine($"{symbol.ToDisplayString(FullyQualifiedFormat)} {localValueName} = default;");
+
+			foreach (ISymbol member in memberSymbols) {
+				ITypeSymbol memberType = (member as IFieldSymbol)?.Type ?? (member as IPropertySymbol)?.Type;
+
+				if (memberType != null && TryGetDeserialization(memberType, localValueName, member.Name, out deserialization)) {
+					builder.AppendLine(deserialization);
+				}
+			}
+
+			string accessName = $"{accessPrefix}{(accessPrefix == string.Empty ? "" : ".")}{name}";
+
+			builder.AppendLine($"{accessName} = {localValueName};");
+			builder.AppendLine($"}}");
+
+			deserialization = builder.ToString();
+
+			if (isNullable) {
+				deserialization = NullableDeserializationTemplate.Apply(accessName, deserialization);
+			}
+
+			return true;
+		}
+
+		public static TypeInfo GetTypeInfo(ITypeSymbol type) {
+			return new TypeInfo {
+				IsNullable = IsNullableValueType(type),
+				GenericArgumentFQNs = (type as INamedTypeSymbol)?.TypeArguments
+										.Select(t => t.ToDisplayString(FullyQualifiedFormat)).ToImmutableArray() ?? ImmutableArray<string>.Empty,
+				FullyQualifiedTypeName = type.ToDisplayString(FullyQualifiedFormat)
+			};
+		}
 	}
 }

@@ -78,7 +78,7 @@ namespace {classDefinition.Namespace} {{
 						{{
 							System.Int32 lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
 							bufferCopy = bufferCopy.Slice(4);
-							{GenerateDeserialization(parameter.ParameterName, parameter.TypeInfo, "bufferCopy")}
+							{GenerateDeserialization(parameter.DeserializationExpression, "bufferCopy")}
 							bufferCopy = bufferCopy.Slice(lengthStorage);
 						}}
 "))}
@@ -125,7 +125,7 @@ namespace {classDefinition.Namespace} {{
 					serializationStringBuilder.AppendLine($"\t\t\t\t{BinaryPrimitivesFQN}.WriteInt64LittleEndian(bufferCopy, {methodNameHashTruncated}L); bufferCopy = bufferCopy.Slice(8);");
 
 					foreach (RPCParameterData rpcParameterData in method.Parameters) {
-						string serialization = Utils.GenerateSerialization(rpcParameterData.ParameterName, rpcParameterData.TypeInfo, "bufferCopy");
+						string serialization = Utils.GenerateSerialization(rpcParameterData.SerializationExpression, "bufferCopy");
 
 						serializationStringBuilder.AppendLine($"\t\t\t\t{serialization}");
 					}

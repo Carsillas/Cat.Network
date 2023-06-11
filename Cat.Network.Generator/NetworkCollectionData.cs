@@ -19,5 +19,9 @@ namespace Cat.Network.Generator {
 		public string ExposedExplicitInterfaceCollectionImplementation => $"{NetworkListFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {NetworkCollectionPrefix}.{BackingCollectionName} {{ get; set; }}";
 		public string ExposedInterfaceCollectionImplementation => $"public {NetworkListFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {Name} => (({NetworkCollectionPrefix})this).{BackingCollectionName};";
 
+
+		public string ItemSerializationExpression { get; set; }
+		public string ItemDeserializationExpression { get; set; }
+
 	}
 }

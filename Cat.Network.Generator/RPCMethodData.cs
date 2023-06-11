@@ -14,6 +14,9 @@ namespace Cat.Network.Generator {
 	public struct RPCParameterData {
 		public string ParameterName { get; set; }
 		public TypeInfo TypeInfo { get; set; }
+
+		public string SerializationExpression { get; set; }
+		public string DeserializationExpression { get; set; }
 	}
 
 }

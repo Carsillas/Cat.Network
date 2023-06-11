@@ -7,6 +7,9 @@ namespace Cat.Network.Generator {
 		public TypeInfo TypeInfo { get; set; }
 		public string InterfacePropertyDeclaration => $"{TypeInfo.FullyQualifiedTypeName} {Name} {{ get; set; }}";
 
+
+		public string SerializationExpression { get; set; }
+		public string DeserializationExpression { get; set; }
 	}
 
 	public struct TypeInfo {
