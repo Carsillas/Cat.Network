@@ -249,12 +249,6 @@ public class CatClient : ISerializationContext {
 
 	private void HandleDeleteEntityRequest(Guid networkID) {
 		if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
-
-			if (entity.IsOwner) {
-				// ignoring despawn of owned entity
-				return;
-			}
-
 			entity.IsSpawned = false;
 
 			INetworkEntity iEntity = entity;
