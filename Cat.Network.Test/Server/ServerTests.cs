@@ -123,6 +123,32 @@ public class ServerTest : CatNetworkTest {
 		Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
 	}
 
+
+	[Test]
+	public void Test_ServerDespawn() {
+
+		TestEntity testEntityA = new TestEntity();
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+
+		Assert.IsTrue(ClientA.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityA));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Server.Despawn(entityServer);
+
+		Server.Tick();
+		ClientA.Tick();
+		ClientB.Tick();
+
+		Assert.IsFalse(ClientA.TryGetEntityByNetworkID(testEntityA.NetworkID, out entityA));
+		Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out entityB));
+
+	}
+
 	[Test]
 	public void Test_SimultaneousCreationUpdateRequests() {
 

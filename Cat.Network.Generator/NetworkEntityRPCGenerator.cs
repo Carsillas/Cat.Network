@@ -28,7 +28,7 @@ namespace {classDefinition.Namespace} {{
 		private static string GenerateRPCInterface(NetworkEntityClassDefinition classDefinition) {
 			bool isNetworkEntity = $"{classDefinition.Namespace}.{classDefinition.Name}" == NetworkEntityFQN;
 			string superInterface = isNetworkEntity ? "" : $": {classDefinition.BaseTypeFQN}.{RPCPrefix} ";
-			string interfaceKeywords = isNetworkEntity ? "protected interface" : "protected new interface";
+			string interfaceKeywords = isNetworkEntity ? "public interface" : "public new interface";
 			return $@"
 		{interfaceKeywords} {RPCPrefix} {superInterface}{{
 {GenerateInterfaceMethods(classDefinition)}

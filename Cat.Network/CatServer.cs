@@ -21,6 +21,7 @@ public class CatServer : ISerializationContext {
 	private List<RemoteClient> Clients { get; } = new List<RemoteClient>();
 
 
+	// TODO maybe use ConditionalWeakTable here? Ideally IEntityStorage is the only holder of entities
 	private Dictionary<NetworkEntity, NetworkEntity> Owners { get; } = new Dictionary<NetworkEntity, NetworkEntity>();
 	private HashSet<NetworkEntity> EntitiesMarkedForClean { get; } = new HashSet<NetworkEntity>();
 
