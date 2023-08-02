@@ -11,12 +11,8 @@
 		<Version>0.0.1</Version>
 	</PropertyGroup>
 
-	<ItemGroup>
-	  <PackageReference Include="Cat.Network.Generator" Version="0.0.1" />
-	</ItemGroup>
-
   <ItemGroup>
-    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+    <PackageReference Include="Cat.Network.Generator" Version="0.0.1" />
   </ItemGroup>
 
 </Project>

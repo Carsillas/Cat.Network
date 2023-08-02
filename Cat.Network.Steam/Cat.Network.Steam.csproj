@@ -5,10 +5,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Cat.Network.Generator" Version="0.0.1" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\Cat.Async\Cat.Async.csproj" />
     <ProjectReference Include="..\Cat.Network\Cat.Network.csproj" />
   </ItemGroup>
@@ -17,6 +13,10 @@
     <Reference Include="Facepunch.Steamworks.Win64">
       <HintPath>lib\Facepunch.Steamworks.Win64.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Cat.Network.Generator" Version="0.0.1" />
   </ItemGroup>
 
 	<PropertyGroup>

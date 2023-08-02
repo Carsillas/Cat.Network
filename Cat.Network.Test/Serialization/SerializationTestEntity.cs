@@ -20,6 +20,7 @@ public partial class SerializationTestEntity : NetworkEntity {
 	ulong NetworkProperty.ULongProperty { get; set; }
 	float NetworkProperty.FloatProperty { get; set; }
 	double NetworkProperty.DoubleProperty { get; set; }
+	CustomEnum NetworkProperty.EnumProperty { get; set; }
 
 
 	int? NetworkProperty.NullableIntProperty { get; set; }
