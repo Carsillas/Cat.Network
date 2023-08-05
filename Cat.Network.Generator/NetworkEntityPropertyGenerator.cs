@@ -70,7 +70,7 @@ namespace {classDefinition.Namespace} {{
 			string GenerateGetterSetter(int propertyIndex, NetworkPropertyData data) {
 
 				string eventInvocation = $@"
-				PropertyChangedEventArgs<{data.TypeInfo.FullyQualifiedTypeName}> args = new PropertyChangedEventArgs<{data.TypeInfo.FullyQualifiedTypeName}> {{
+				{NetworkPropertyChangedEventArgsFQN}<{data.TypeInfo.FullyQualifiedTypeName}> args = new {NetworkPropertyChangedEventArgsFQN}<{data.TypeInfo.FullyQualifiedTypeName}> {{
 					PreviousValue = oldValue,
 					CurrentValue = (({NetworkPropertyPrefix})this).{data.Name}
 				}};

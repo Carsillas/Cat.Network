@@ -27,6 +27,7 @@ namespace Cat.Network.Generator {
 		public const string UnicodeFQN = "System.Text.Encoding.Unicode";
 		public const string NetworkPropertyChangedEventAttributeFQN = "Cat.Network.PropertyChangedEventAttribute";
 		public const string NetworkPropertyChangedEventFQN = "Cat.Network.NetworkPropertyChanged";
+		public const string NetworkPropertyChangedEventArgsFQN = "Cat.Network.PropertyChangedEventArgs";
 		public const string NetworkEntityInterfaceFQN = "Cat.Network.INetworkEntity";
 		public const string NetworkCollectionInterfaceFQN = "Cat.Network.INetworkCollection";
 		public const string NetworkCollectionOperationFQN = "Cat.Network.NetworkCollectionOperation";
