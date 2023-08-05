@@ -14,7 +14,7 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> where T : st
 	private List<T> InternalList { get; }
 	private ISerializationContext SerializationContext => ((INetworkEntity)Owner).SerializationContext;
 
-	List<NetworkCollectionOperation<T>> INetworkCollection<T>.OperationBuffer { get; } = new List<NetworkCollectionOperation<T>>();
+	List<NetworkCollectionOperation<T>> INetworkCollection<T>.OperationBuffer { get; } = new();
 
 	public NetworkList(NetworkEntity owner, List<T> list) {
 		Owner = owner;

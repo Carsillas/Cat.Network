@@ -3,6 +3,9 @@
 namespace Cat.Network;
 
 public interface IEntityStorage {
+
+	void Initialize(CatServer server);
+	
 	void RegisterEntity(NetworkEntity entity);
 	void UnregisterEntity(Guid entityNetworkID);
 

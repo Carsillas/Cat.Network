@@ -4,8 +4,8 @@ using System.Collections.Generic;
 namespace Cat.Network.Test {
 	public class TestTransport : ITransport {
 
-		BufferPool BufferPool { get; } = new BufferPool();
-		public Queue<byte[]> Messages { get; } = new Queue<byte[]>();
+		BufferPool BufferPool { get; } = new();
+		public Queue<byte[]> Messages { get; } = new();
 		public TestTransport Remote { get; set; }
 
 		public void ReadIncomingPackets(PacketProcessor packetProcessor) {

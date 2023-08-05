@@ -7,14 +7,14 @@ using static Cat.Network.CatServer;
 namespace Cat.Network;
 internal static class SerializationUtils {
 
-	private static Dictionary<Type, string> AssemblyQualifiedTypeNames { get; } = new Dictionary<Type, string>();
+	private static Dictionary<Type, string> AssemblyQualifiedTypeNames { get; } = new();
 
-	public static SerializationOptions UpdateOptions { get; } = new SerializationOptions {
+	public static SerializationOptions UpdateOptions { get; } = new() {
 		MemberIdentifierMode = MemberIdentifierMode.Index,
 		MemberSelectionMode = MemberSelectionMode.Dirty,
 		MemberSerializationMode = MemberSerializationMode.Partial
 	};
-	public static SerializationOptions CreateOptions { get; } = new SerializationOptions {
+	public static SerializationOptions CreateOptions { get; } = new() {
 		MemberIdentifierMode = MemberIdentifierMode.Index,
 		MemberSelectionMode = MemberSelectionMode.All,
 		MemberSerializationMode = MemberSerializationMode.Complete

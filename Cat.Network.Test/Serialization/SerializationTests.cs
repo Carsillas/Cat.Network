@@ -24,7 +24,8 @@ public class SerializationTests : CatNetworkTest {
 			DoubleProperty = 789.123,
 			StringProperty = WowString,
 			EnumProperty = CustomEnum.Test1,
-			GuidProperty = Guid.NewGuid()
+			GuidProperty = Guid.NewGuid(),
+			NullableGuidProperty = Guid.NewGuid()
 		};
 
 		ClientA.Spawn(testEntityA);
@@ -50,6 +51,7 @@ public class SerializationTests : CatNetworkTest {
 		Assert.AreEqual(testEntityA.StringProperty, testEntityB.StringProperty);
 		Assert.AreEqual(testEntityA.EnumProperty, testEntityB.EnumProperty);
 		Assert.AreEqual(testEntityA.GuidProperty, testEntityB.GuidProperty);
+		Assert.AreEqual(testEntityA.NullableGuidProperty, testEntityB.NullableGuidProperty);
 
 	}
 

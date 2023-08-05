@@ -5,9 +5,9 @@ using System.Text;
 
 namespace Cat.Network.Test {
 	public class TestEntityStorage : IEntityStorage {
-		private Dictionary<Guid, NetworkEntity> Entities { get; } = new Dictionary<Guid, NetworkEntity>();
+		private Dictionary<Guid, NetworkEntity> Entities { get; } = new();
 
-		private HashSet<NetworkEntity> SetOperationBuffer { get; } = new HashSet<NetworkEntity>();
+		private HashSet<NetworkEntity> SetOperationBuffer { get; } = new();
 
 		public void RegisterEntity(NetworkEntity entity) {
 			Entities.Add(entity.NetworkID, entity);

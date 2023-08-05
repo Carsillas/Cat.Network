@@ -10,7 +10,7 @@ namespace Cat.Network.Steam {
 	public class SteamGameServer : CatServer, ISocketManager, IDisposable {
 
 		private SocketManager SocketManager { get; set; }
-		private Dictionary<uint, Client> ConnectedClients { get; } = new Dictionary<uint, Client>();
+		private Dictionary<uint, Client> ConnectedClients { get; } = new();
 
 		public SteamGameServer(IEntityStorage entityStorage) : base(entityStorage) {
 			SocketManager = SteamNetworkingSockets.CreateRelaySocket<SocketManager>();

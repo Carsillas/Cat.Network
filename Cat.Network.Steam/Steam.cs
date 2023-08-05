@@ -17,7 +17,7 @@ namespace Cat.Network.Steam {
 
 		private Lobby? CurrentLobby { get; set; }
 
-		private ConcurrentQueue<Action> SteamResultContinuations { get; } = new ConcurrentQueue<Action>();
+		private ConcurrentQueue<Action> SteamResultContinuations { get; } = new();
 
 		public Steam() {
 			Init();

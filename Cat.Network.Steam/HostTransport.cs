@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Cat.Network.Steam {
 	public class HostTransport : ITransport {
-		private ConcurrentQueue<byte[]> Messages { get; } = new ConcurrentQueue<byte[]>();
+		private ConcurrentQueue<byte[]> Messages { get; } = new();
 		public HostTransport Remote { get; set; }
 
 		private bool TryReadPacket(out byte[] bytes) {

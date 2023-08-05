@@ -26,7 +26,7 @@ internal class SocketTransportTest {
 
 	private Socket ListenSocket { get; set; }
 
-	private IPEndPoint ListenEndPoint { get; } = new IPEndPoint(IPAddress.Loopback, 8192);
+	private IPEndPoint ListenEndPoint { get; } = new(IPAddress.Loopback, 8192);
 
 	[SetUp]
 	public async Task Setup() {

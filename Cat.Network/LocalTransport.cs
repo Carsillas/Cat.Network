@@ -24,8 +24,8 @@ public class LocalTransportPair {
 
 	private class LocalTransport : ITransport {
 
-		BufferPool BufferPool { get; } = new BufferPool();
-		internal Queue<byte[]> Messages { get; } = new Queue<byte[]>();
+		BufferPool BufferPool { get; } = new();
+		internal Queue<byte[]> Messages { get; } = new();
 		public LocalTransport Remote { get; set; }
 
 		public void ReadIncomingPackets(PacketProcessor packetProcessor) {

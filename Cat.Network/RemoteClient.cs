@@ -8,9 +8,9 @@ using static Cat.Network.SerializationUtils;
 namespace Cat.Network;
 internal class RemoteClient : IEntityProcessor {
 
-	internal HashSet<NetworkEntity> OwnedEntities { get; } = new HashSet<NetworkEntity>();
-	private HashSet<NetworkEntity> InternalRelevantEntities { get; } = new HashSet<NetworkEntity>();
-	public IEntityProcessor.FastEnumerable RelevantEntities => new IEntityProcessor.FastEnumerable(InternalRelevantEntities.GetEnumerator());
+	internal HashSet<NetworkEntity> OwnedEntities { get; } = new();
+	private HashSet<NetworkEntity> InternalRelevantEntities { get; } = new();
+	public IEntityProcessor.FastEnumerable RelevantEntities => new(InternalRelevantEntities.GetEnumerator());
 
 
 	private byte[] OutgoingReliableDataBuffer = new byte[1_000_000];
@@ -46,6 +46,11 @@ internal class RemoteClient : IEntityProcessor {
 		Transport.SendPacket(OutgoingReliableDataBuffer, headerLength);
 	}
 
+	internal void RegisterSpawnedEntity(NetworkEntity entity) {
+		InternalRelevantEntities.Add(entity);
+		OwnedEntities.Add(entity);
+	}
+	
 	private void CreateEntity(NetworkEntity entity) {
 		bool isOwner = Server.AssignIfOwnerless(ProfileEntity, entity);
 

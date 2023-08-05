@@ -16,19 +16,19 @@ public class CatServer : ISerializationContext {
 
 	public int Time { get; private set; }
 
-	private BufferPool BufferPool { get; } = new BufferPool();
-	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCBuffers { get; } = new Dictionary<NetworkEntity, List<byte[]>>();
-	private List<RemoteClient> Clients { get; } = new List<RemoteClient>();
+	private BufferPool BufferPool { get; } = new();
+	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCBuffers { get; } = new();
+	private List<RemoteClient> Clients { get; } = new();
 
 
 	// TODO maybe use ConditionalWeakTable here? Ideally IEntityStorage is the only holder of entities
-	private Dictionary<NetworkEntity, NetworkEntity> Owners { get; } = new Dictionary<NetworkEntity, NetworkEntity>();
-	private HashSet<NetworkEntity> EntitiesMarkedForClean { get; } = new HashSet<NetworkEntity>();
+	private Dictionary<NetworkEntity, NetworkEntity> Owners { get; } = new();
+	private HashSet<NetworkEntity> EntitiesMarkedForClean { get; } = new();
 
 
 	public CatServer(IEntityStorage entityStorage) {
-
 		EntityStorage = entityStorage;
+		EntityStorage.Initialize(this);
 	}
 
 	public void AddTransport(ITransport transport, NetworkEntity profileEntity) {
@@ -91,7 +91,7 @@ public class CatServer : ISerializationContext {
 	}
 
 
-	protected void Spawn(NetworkEntity entity, NetworkEntity ownerProfileEntity = null) {
+	public void Spawn(NetworkEntity entity, NetworkEntity ownerProfileEntity = null) {
 		entity.NetworkID = Guid.NewGuid();
 		((INetworkEntity)entity).SerializationContext = this;
 		EntityStorage.RegisterEntity(entity);
@@ -101,7 +101,7 @@ public class CatServer : ISerializationContext {
 		}
 	}
 
-	protected void Despawn(NetworkEntity entity) {
+	public void Despawn(NetworkEntity entity) {
 		EntityStorage.UnregisterEntity(entity.NetworkID);
 		Owners.Remove(entity);
 		((INetworkEntity)entity).SerializationContext = null;
@@ -160,8 +160,8 @@ public class CatServer : ISerializationContext {
 		entity.NetworkID = networkID;
 
 		iEntity.Deserialize(CreateOptions, content);
-
 		EntityStorage.RegisterEntity(entity);
+		remoteClient.RegisterSpawnedEntity(entity);
 		Owners.Add(entity, remoteClient.ProfileEntity);
 	}
 

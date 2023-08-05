@@ -9,11 +9,11 @@ internal class BufferPool {
 
 	private const int BufferSize = 256 * 1024;
 
-	private List<byte[]> FreeBuffers { get; } = new List<byte[]>();
-	private List<byte[]> HeldBuffers { get; } = new List<byte[]>();
+	private List<byte[]> FreeBuffers { get; } = new();
+	private List<byte[]> HeldBuffers { get; } = new();
 
-	private List<List<byte[]>> FreePools { get; } = new List<List<byte[]>>();
-	private List<List<byte[]>> HeldPools { get; } = new List<List<byte[]>>();
+	private List<List<byte[]>> FreePools { get; } = new();
+	private List<List<byte[]>> HeldPools { get; } = new();
 
 	public byte[] RentBuffer() {
 		byte[] buffer = null;

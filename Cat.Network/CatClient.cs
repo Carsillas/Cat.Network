@@ -17,16 +17,16 @@ public class CatClient : ISerializationContext {
 	bool ISerializationContext.DeserializeDirtiesProperty => false;
 	public int Time { get; private set; }
 
-	private BufferPool BufferPool { get; } = new BufferPool();
+	private BufferPool BufferPool { get; } = new();
 
 	private byte[] OutgoingReliableDataBuffer = new byte[1_000_000];
 
-	private Dictionary<Guid, NetworkEntity> Entities { get; } = new Dictionary<Guid, NetworkEntity>();
-	private HashSet<NetworkEntity> EntitiesToSpawn { get; } = new HashSet<NetworkEntity>();
-	private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new HashSet<NetworkEntity>();
-	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCBuffers { get; } = new Dictionary<NetworkEntity, List<byte[]>>();
+	private Dictionary<Guid, NetworkEntity> Entities { get; } = new();
+	private HashSet<NetworkEntity> EntitiesToSpawn { get; } = new();
+	private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new();
+	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCBuffers { get; } = new();
 
-	private HashSet<NetworkEntity> EntitiesMarkedForClean { get; } = new HashSet<NetworkEntity>();
+	private HashSet<NetworkEntity> EntitiesMarkedForClean { get; } = new();
 
 
 	public CatClient(IProxyManager proxyManager) {

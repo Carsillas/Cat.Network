@@ -23,6 +23,7 @@ public partial class SerializationTestEntity : NetworkEntity {
 	CustomEnum NetworkProperty.EnumProperty { get; set; }
 
 	Guid NetworkProperty.GuidProperty { get; set; }
+	Guid? NetworkProperty.NullableGuidProperty { get; set; }
 	
 
 	int? NetworkProperty.NullableIntProperty { get; set; }
@@ -30,7 +31,7 @@ public partial class SerializationTestEntity : NetworkEntity {
 	Transform NetworkProperty.TransformProperty { get; set; }
 
 
-	List<int> NetworkCollection.MyInts { get; } = new List<int>();
+	List<int> NetworkCollection.MyInts { get; } = new();
 
 
 	public int StringSetCount { get; private set; }
