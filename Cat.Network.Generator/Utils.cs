@@ -58,7 +58,8 @@ namespace Cat.Network.Generator {
 			{ "System.Single", new StringTemplate($"{BinaryPrimitivesFQN}.WriteSingleLittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name")},
 			{ "System.Double", new StringTemplate($"{BinaryPrimitivesFQN}.WriteDoubleLittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name")},
 			{ "System.Boolean", new StringTemplate($"{PropertyBufferName}[0] = {{name}} ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name") },
-			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {UnicodeFQN}.GetBytes({{name}}, {PropertyBufferName}.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, serializedStringLength); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") }
+			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {UnicodeFQN}.GetBytes({{name}}, {PropertyBufferName}.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, serializedStringLength); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") },
+			{ "System.Guid", new StringTemplate($"{{name}}.TryWriteBytes({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(16);", "name") }
 		};
 
 		private static Dictionary<string, StringTemplate> DeserializationTemplates { get; } = new Dictionary<string, StringTemplate>() {
@@ -73,6 +74,7 @@ namespace Cat.Network.Generator {
 			{ "System.Double", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadDoubleLittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name")},
 			{ "System.Boolean", new StringTemplate($"{{name}} = {PropertyBufferName}[0] == 1; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name")},
 			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); {{name}} = {UnicodeFQN}.GetString({PropertyBufferName}.Slice(4, serializedStringLength)); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") },
+			{ "System.Guid", new StringTemplate($"{{name}} = new System.Guid({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(16);", "name")}
 		};
 
 
@@ -107,6 +109,7 @@ namespace Cat.Network.Generator {
 		public static string GenerateSerialization(string serializationExpression, string bufferName) {
 			serializationExpression = SerializationTemplateWrapper.Apply(bufferName, serializationExpression);
 
+			
 			return serializationExpression;
 		}
 

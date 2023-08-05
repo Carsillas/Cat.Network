@@ -1,3 +1,4 @@
+using System;
 using Cat.Network.Test.Server;
 using NUnit.Framework;
 using System.Buffers.Binary;
@@ -22,7 +23,8 @@ public class SerializationTests : CatNetworkTest {
 			FloatProperty = 123.456f,
 			DoubleProperty = 789.123,
 			StringProperty = WowString,
-			EnumProperty = CustomEnum.Test1
+			EnumProperty = CustomEnum.Test1,
+			GuidProperty = Guid.NewGuid()
 		};
 
 		ClientA.Spawn(testEntityA);
@@ -47,6 +49,7 @@ public class SerializationTests : CatNetworkTest {
 		Assert.AreEqual(testEntityA.DoubleProperty, testEntityB.DoubleProperty);
 		Assert.AreEqual(testEntityA.StringProperty, testEntityB.StringProperty);
 		Assert.AreEqual(testEntityA.EnumProperty, testEntityB.EnumProperty);
+		Assert.AreEqual(testEntityA.GuidProperty, testEntityB.GuidProperty);
 
 	}
 

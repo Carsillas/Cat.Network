@@ -22,6 +22,8 @@ public partial class SerializationTestEntity : NetworkEntity {
 	double NetworkProperty.DoubleProperty { get; set; }
 	CustomEnum NetworkProperty.EnumProperty { get; set; }
 
+	Guid NetworkProperty.GuidProperty { get; set; }
+	
 
 	int? NetworkProperty.NullableIntProperty { get; set; }
 
