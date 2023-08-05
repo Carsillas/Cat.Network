@@ -9,6 +9,10 @@ namespace Cat.Network.Test {
 
 		private HashSet<NetworkEntity> SetOperationBuffer { get; } = new();
 
+		public void Initialize(CatServer server) {
+			
+		}
+
 		public void RegisterEntity(NetworkEntity entity) {
 			Entities.Add(entity.NetworkID, entity);
 		}

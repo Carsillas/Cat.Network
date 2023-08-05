@@ -58,7 +58,6 @@ namespace Cat.Network.Generator {
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.Interface", NetworkEntityInterfaceImplementationGenerator.GenerateNetworkEntitySource(source)));
 		}
 
-
 		private static bool IsNetworkEntityType(INamedTypeSymbol typeSymbol) {
 			INamedTypeSymbol currentSymbol = typeSymbol;
 
@@ -71,8 +70,7 @@ namespace Cat.Network.Generator {
 
 			return false;
 		}
-
-
+		
 		private static IEnumerable<NetworkPropertyData> GetNetworkPropertiesForSymbol(INamedTypeSymbol typeSymbol) {
 			return GetExplicitSymbols<IPropertySymbol>(typeSymbol, NetworkPropertyPrefix)
 			.Select(propertySymbol => new NetworkPropertyData {
@@ -80,7 +78,8 @@ namespace Cat.Network.Generator {
 				Name = propertySymbol.Name,
 				TypeInfo = GetTypeInfo(propertySymbol.Symbol.Type),
 				SerializationExpression = GenerateTypeSerialization(propertySymbol.Name, propertySymbol.Symbol.Type),
-				DeserializationExpression = GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type)
+				DeserializationExpression = GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type),
+				ExposeEvent = propertySymbol.Symbol.GetAttributes().Any(attributeData => attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) == NetworkPropertyChangedEventAttributeFQN)
 			});
 		}
 

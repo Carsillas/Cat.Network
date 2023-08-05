@@ -11,6 +11,8 @@ namespace Cat.Network.Test.Serialization;
 public partial class SerializationTestEntity : NetworkEntity {
 
 	bool NetworkProperty.BooleanProperty { get; set; }
+	
+	[PropertyChangedEvent]
 	byte NetworkProperty.ByteProperty { get; set; }
 	short NetworkProperty.ShortProperty { get; set; }
 	int NetworkProperty.IntProperty { get; set; }

@@ -58,12 +58,27 @@ namespace {classDefinition.Namespace} {{
 
 			int i = 0;
 			foreach (NetworkPropertyData data in classDefinition.NetworkProperties.Where(property => property.Declared)) {
+				
+				if(data.ExposeEvent){
+					stringBuilder.AppendLine($"\t\tpublic event {NetworkPropertyChangedEventFQN}<{classDefinition.Name}, {data.TypeInfo.FullyQualifiedTypeName}> On{data.Name}Changed;");
+				}
+				
 				stringBuilder.AppendLine($"\t\tpublic {data.TypeInfo.FullyQualifiedTypeName} {data.Name} {GenerateGetterSetter(declaredPropertiesStartIndex + i, data)}");
 				i++;
 			}
 
 			string GenerateGetterSetter(int propertyIndex, NetworkPropertyData data) {
 
+				string eventInvocation = $@"
+				PropertyChangedEventArgs<{data.TypeInfo.FullyQualifiedTypeName}> args = new PropertyChangedEventArgs<{data.TypeInfo.FullyQualifiedTypeName}> {{
+					PreviousValue = oldValue,
+					CurrentValue = (({NetworkPropertyPrefix})this).{data.Name}
+				}};
+
+				if (!System.Collections.Generic.EqualityComparer<{data.TypeInfo.FullyQualifiedTypeName}>.Default.Equals(args.PreviousValue, args.CurrentValue)) {{
+					On{data.Name}Changed?.Invoke(this, args);
+				}}";
+				
 				return
 		$@" {{ 
 			get => (({NetworkPropertyPrefix})this).{data.Name};
@@ -72,7 +87,9 @@ namespace {classDefinition.Namespace} {{
 				ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
 				iEntity.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
 				networkPropertyInfo.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
-				(({NetworkPropertyPrefix})this).{data.Name} = value; 
+				var oldValue = (({NetworkPropertyPrefix})this).{data.Name};
+				(({NetworkPropertyPrefix})this).{data.Name} = value;
+				{(data.ExposeEvent ? eventInvocation : "")}
 			}}
 		}}";
 

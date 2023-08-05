@@ -275,5 +275,82 @@ public class SerializationTests : CatNetworkTest {
 		ClientB.Tick();
 		Assert.AreEqual(testEntityA.NullableIntProperty, testEntityB.NullableIntProperty);
 	}
+	
+	[Test]
+	public void Test_PropertyChangedEvent() {
+		SerializationTestEntity testEntityA = new SerializationTestEntity { ByteProperty = 14 };
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
+
+		bool eventInvokedA = false;
+		bool eventInvokedB = false;
+		
+		testEntityA.OnBytePropertyChanged += (sender, args) => {
+			eventInvokedA = true;
+		};
+		
+		testEntityB.OnBytePropertyChanged += (sender, args) => {
+			eventInvokedB = true;
+		};
+		
+		testEntityA.ByteProperty = 12;
+		
+		Assert.IsTrue(eventInvokedA);
+		Assert.IsFalse(eventInvokedB);
+		
+		eventInvokedA = false;
+		eventInvokedB = false;
+		
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+		
+		Assert.IsFalse(eventInvokedA);
+		Assert.IsTrue(eventInvokedB);
+		
+		eventInvokedA = false;
+		eventInvokedB = false;
+		
+		testEntityA.ByteProperty = 12;
+		
+		Assert.IsFalse(eventInvokedA);
+		Assert.IsFalse(eventInvokedB);
+		
+		eventInvokedA = false;
+		eventInvokedB = false;
+		
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+		
+		Assert.IsFalse(eventInvokedA);
+		Assert.IsFalse(eventInvokedB);
+		
+		eventInvokedA = false;
+		eventInvokedB = false;
+		
+		testEntityA.ByteProperty = 13;
+		
+		Assert.IsTrue(eventInvokedA);
+		Assert.IsFalse(eventInvokedB);
+		
+		eventInvokedA = false;
+		eventInvokedB = false;
+		
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+		
+		Assert.IsFalse(eventInvokedA);
+		Assert.IsTrue(eventInvokedB);
+		
+	}
 
 }
