@@ -60,7 +60,7 @@ namespace {classDefinition.Namespace} {{
 			foreach (NetworkPropertyData data in classDefinition.NetworkProperties.Where(property => property.Declared)) {
 				
 				if(data.ExposeEvent){
-					stringBuilder.AppendLine($"\t\tpublic event {NetworkPropertyChangedEventFQN}<{classDefinition.Name}, {data.TypeInfo.FullyQualifiedTypeName}> On{data.Name}Changed;");
+					stringBuilder.AppendLine($"\t\tpublic event {NetworkPropertyChangedEventFQN}<{classDefinition.Name}, {data.TypeInfo.FullyQualifiedTypeName}> {data.Name}Changed;");
 				}
 				
 				stringBuilder.AppendLine($"\t\tpublic {data.TypeInfo.FullyQualifiedTypeName} {data.Name} {GenerateGetterSetter(declaredPropertiesStartIndex + i, data)}");
@@ -76,7 +76,7 @@ namespace {classDefinition.Namespace} {{
 				}};
 
 				if (!System.Collections.Generic.EqualityComparer<{data.TypeInfo.FullyQualifiedTypeName}>.Default.Equals(args.PreviousValue, args.CurrentValue)) {{
-					On{data.Name}Changed?.Invoke(this, args);
+					{data.Name}Changed?.Invoke(this, args);
 				}}";
 				
 				return

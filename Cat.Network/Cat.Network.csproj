@@ -1,18 +1,21 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <DebugType>embedded</DebugType>
+        <EmbedAllSources>true</EmbedAllSources>
+        <DebugSymbols>true</DebugSymbols>
+    </PropertyGroup>
 
-	<PropertyGroup>
-		<Title>Cat Network</Title>
-		<Authors>Carsillas</Authors>
-		<RepositoryUrl>https://github.com/Carsillas/Cat.Network</RepositoryUrl>
-		<Version>0.0.1</Version>
-	</PropertyGroup>
+    <PropertyGroup>
+        <Title>Cat Network</Title>
+        <Authors>Carsillas</Authors>
+        <RepositoryUrl>https://github.com/Carsillas/Cat.Network</RepositoryUrl>
+        <Version>0.0.1</Version>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Cat.Network.Generator" Version="0.0.1" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Cat.Network.Generator" Version="0.0.1"/>
+    </ItemGroup>
 
 </Project>

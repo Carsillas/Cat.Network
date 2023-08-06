@@ -23,6 +23,8 @@ public partial class SerializationTestEntity : NetworkEntity {
 	float NetworkProperty.FloatProperty { get; set; }
 	double NetworkProperty.DoubleProperty { get; set; }
 	CustomEnum NetworkProperty.EnumProperty { get; set; }
+	
+	Vector3 NetworkProperty.VectorProperty { get; set; }
 
 	Guid NetworkProperty.GuidProperty { get; set; }
 	Guid? NetworkProperty.NullableGuidProperty { get; set; }

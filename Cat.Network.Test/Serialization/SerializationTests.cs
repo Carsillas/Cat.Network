@@ -25,7 +25,8 @@ public class SerializationTests : CatNetworkTest {
 			StringProperty = WowString,
 			EnumProperty = CustomEnum.Test1,
 			GuidProperty = Guid.NewGuid(),
-			NullableGuidProperty = Guid.NewGuid()
+			NullableGuidProperty = Guid.NewGuid(),
+			VectorProperty = new Vector3(1, 2, 3)
 		};
 
 		ClientA.Spawn(testEntityA);
@@ -52,6 +53,7 @@ public class SerializationTests : CatNetworkTest {
 		Assert.AreEqual(testEntityA.EnumProperty, testEntityB.EnumProperty);
 		Assert.AreEqual(testEntityA.GuidProperty, testEntityB.GuidProperty);
 		Assert.AreEqual(testEntityA.NullableGuidProperty, testEntityB.NullableGuidProperty);
+		Assert.AreEqual(testEntityA.VectorProperty, testEntityB.VectorProperty);
 
 	}
 
@@ -292,11 +294,11 @@ public class SerializationTests : CatNetworkTest {
 		bool eventInvokedA = false;
 		bool eventInvokedB = false;
 		
-		testEntityA.OnBytePropertyChanged += (sender, args) => {
+		testEntityA.BytePropertyChanged += (sender, args) => {
 			eventInvokedA = true;
 		};
 		
-		testEntityB.OnBytePropertyChanged += (sender, args) => {
+		testEntityB.BytePropertyChanged += (sender, args) => {
 			eventInvokedB = true;
 		};
 		

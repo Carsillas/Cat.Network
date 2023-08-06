@@ -78,7 +78,7 @@ namespace {classDefinition.Namespace} {{
 				NetworkPropertyData data = classDefinition.NetworkProperties[i];
 
 				stringBuilder.AppendLine(@$"
-			if (iEntity.NetworkProperties[{i}].LastDirtyTick >= (iEntity.SerializationContext?.Time ?? 0)) {{
+			if (serializationOptions.MemberSelectionMode == {MemberSelectionModeFQN}.All || iEntity.NetworkProperties[{i}].LastDirtyTick >= (iEntity.SerializationContext?.Time ?? 0)) {{
 				if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
 					 System.Int32 lengthStorage = {UnicodeFQN}.GetBytes(iEntity.NetworkProperties[{i}].Name, propertyContentBuffer.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, lengthStorage); propertyContentBuffer = propertyContentBuffer.Slice(4 + lengthStorage);
 				}}
