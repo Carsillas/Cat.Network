@@ -15,7 +15,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Cat.Network.Generator" Version="0.0.1"/>
+        <PackageReference Include="Cat.Network.Generator" Version="0.0.1" />
     </ItemGroup>
 
 </Project>

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,7 +27,7 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> where T : st
 		((INetworkCollection<T>)this).AssertOwner();
 		InternalList.Add(item);
 
-		if(Owner.IsOwner && SerializationContext != null) {
+		if(SerializationContext != null) {
 			SerializationContext.MarkForClean(Owner);
 			((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
 				OperationType = NetworkCollectionOperationType.Add,
@@ -44,7 +44,7 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> where T : st
 		if (index >= 0) {
 			InternalList.RemoveAt(index);
 			SerializationContext.MarkForClean(Owner);
-			if (Owner.IsOwner && SerializationContext != null) {
+			if (SerializationContext != null) {
 				((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
 					OperationType = NetworkCollectionOperationType.Remove,
 					Index = index,
@@ -60,7 +60,7 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> where T : st
 	public void Clear() {
 		((INetworkCollection<T>)this).AssertOwner();
 		InternalList.Clear();
-		if (Owner.IsOwner && SerializationContext != null) {
+		if (SerializationContext != null) {
 			SerializationContext.MarkForClean(Owner);
 			((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
 				OperationType = NetworkCollectionOperationType.Clear
@@ -84,7 +84,7 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> where T : st
 			((INetworkCollection<T>)this).AssertOwner();
 			InternalList[index] = value;
 
-			if (Owner.IsOwner && SerializationContext != null) {
+			if (SerializationContext != null) {
 				SerializationContext.MarkForClean(Owner);
 				((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
 					OperationType = NetworkCollectionOperationType.Set,
