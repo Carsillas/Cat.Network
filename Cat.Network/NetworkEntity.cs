@@ -2,22 +2,31 @@
 
 namespace Cat.Network;
 
-public interface INetworkEntity {
 
-	Guid NetworkID { get; }
-
+public interface INetworkSerializable {
+	
+	ISerializationContext SerializationContext { get; }
+	
 	void Initialize();
-
 	int Serialize(SerializationOptions serializationOptions, Span<byte> buffer);
 	void Deserialize(SerializationOptions serializationOptions, ReadOnlySpan<byte> buffer);
+	
+	// Should clean set the LastSetTick and LastUpdateTick of all network properties as well as call clean for NetworkDataObjects?
+	void Clean();
+	
+	// NetworkDataObjects will call into parent for LastModifyTick
+	NetworkPropertyInfo[] NetworkProperties { get; set; }
+}
+
+public interface INetworkEntity : INetworkSerializable {
+	
+	ISerializationContext INetworkSerializable.SerializationContext => SerializationContext;
+	new ISerializationContext SerializationContext { get; set; }
+	
+	Guid NetworkID { get; }
 
 	void HandleRPCInvocation(NetworkEntity instigator, ReadOnlySpan<byte> buffer);
-
-
-	void Clean();
-
-	NetworkPropertyInfo[] NetworkProperties { get; set; }
-	ISerializationContext SerializationContext { get; set; }
+	
 
 	int LastDirtyTick { get; set; }
 
@@ -30,9 +39,10 @@ public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 	public bool IsSpawned { get; internal set; }
 
 	bool NetworkProperty.DestroyWithOwner { get; set; }
-
+	
 	ISerializationContext INetworkEntity.SerializationContext { get; set; }
-	NetworkPropertyInfo[] INetworkEntity.NetworkProperties { get; set; }
+	
+	NetworkPropertyInfo[] INetworkSerializable.NetworkProperties { get; set; }
 	int INetworkEntity.LastDirtyTick { get; set; }
 
 	public NetworkEntity() {

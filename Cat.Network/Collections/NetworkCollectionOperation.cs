@@ -1,4 +1,4 @@
-namespace Cat.Network;
+namespace Cat.Network.Collections;
 
 public struct NetworkCollectionOperation<T> {
 	public NetworkCollectionOperationType OperationType { get; set; }

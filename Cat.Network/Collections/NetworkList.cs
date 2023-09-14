@@ -6,9 +6,9 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cat.Network;
+namespace Cat.Network.Collections;
 
-public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> where T : struct {
+public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 
 	private NetworkEntity Owner { get; }
 	private List<T> InternalList { get; }
@@ -16,7 +16,7 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> where T : st
 
 	List<NetworkCollectionOperation<T>> INetworkCollection<T>.OperationBuffer { get; } = new();
 
-	public NetworkList(NetworkEntity owner, List<T> list) {
+	internal NetworkList(NetworkEntity owner, List<T> list) {
 		Owner = owner;
 		InternalList = list;
 	}

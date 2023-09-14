@@ -1,4 +1,4 @@
-﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -14,55 +14,48 @@ using static Cat.Network.Generator.Utils;
 namespace Cat.Network.Generator {
 
 	[Generator(LanguageNames.CSharp)]
-	public class NetworkEntityGenerator : IIncrementalGenerator {
+	public class NetworkDataObjectGenerator : IIncrementalGenerator {
 
 		public void Initialize(IncrementalGeneratorInitializationContext context) {
 
-			IncrementalValuesProvider<NetworkEntityClassDefinition> allClasses = context.SyntaxProvider.CreateSyntaxProvider(
+			IncrementalValuesProvider<NetworkDataObjectDefinition> allClasses = context.SyntaxProvider.CreateSyntaxProvider(
 				PassNodesOfType<ClassDeclarationSyntax>,
 				(generatorSyntaxContext, cancellationToken) => {
 
 					ClassDeclarationSyntax node = (ClassDeclarationSyntax)generatorSyntaxContext.Node;
 					INamedTypeSymbol symbol = generatorSyntaxContext.SemanticModel.GetDeclaredSymbol(node);
 
-					if (!IsTypeWithFQN(symbol, NetworkEntityFQN)) {
-						return new NetworkEntityClassDefinition { IsNetworkEntity = false };
+					if (!IsTypeWithFQN(symbol, NetworkDataObjectFQN)) {
+						return new NetworkDataObjectDefinition { IsNetworkDataObject = false };
 					}
 
-					return new NetworkEntityClassDefinition {
+					return new NetworkDataObjectDefinition {
 						Name = symbol.ToDisplayString(TypeNameFormat),
-						IsNetworkEntity = true,
+						IsNetworkDataObject = true,
 						BaseTypeFQN = symbol.BaseType?.ToDisplayString(FullyQualifiedFormat),
 						Namespace = symbol.ContainingNamespace.ToDisplayString(FullyQualifiedFormat),
 						MetadataName = symbol.MetadataName,
-						NetworkProperties = GetNetworkPropertiesForSymbol(symbol).Reverse().ToImmutableArray(),
-						NetworkCollections = GetNetworkCollectionsForSymbol(symbol).Reverse().ToImmutableArray(),
-						RPCs = GetRPCsForSymbol(symbol).ToImmutableArray(),
+						NetworkProperties = GetNetworkPropertiesForSymbol(symbol).Reverse().ToImmutableArray()
 					};
 
 				}
 			);
 
 
-			IncrementalValuesProvider<NetworkEntityClassDefinition> allNetworkEntities =
-				allClasses.Where(data => data.IsNetworkEntity);
-
-
-			NetworkEntityPropertyGenerator propertyGenerator = new NetworkEntityPropertyGenerator();
+			IncrementalValuesProvider<NetworkDataObjectDefinition> allNetworkEntities =
+				allClasses.Where(data => data.IsNetworkDataObject);
 			
-			NetworkEntityInterfaceImplementationGenerator interfaceGenerator =
-				new NetworkEntityInterfaceImplementationGenerator();
-			
+			NetworkDataObjectPropertyGenerator propertyGenerator = new NetworkDataObjectPropertyGenerator();
+
+			NetworkDataObjectInterfaceImplementationGenerator networkDataObjectInterfaceImplementationGenerator =
+				new NetworkDataObjectInterfaceImplementationGenerator();
+
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkProperties", propertyGenerator.GenerateNetworkPropertySource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
-			c.AddSource($"{source.Namespace}.{source.MetadataName}.RPCs", NetworkEntityRPCGenerator.GenerateRPCSource(source)));
-			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
-			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkCollections", NetworkEntityCollectionGenerator.GenerateNetworkCollectionSource(source)));
-			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
-			c.AddSource($"{source.Namespace}.{source.MetadataName}.Interface", interfaceGenerator.GenerateNetworkSerializableSource(source)));
+			c.AddSource($"{source.Namespace}.{source.MetadataName}.Interface", networkDataObjectInterfaceImplementationGenerator.GenerateNetworkSerializableSource(source)));
 		}
-		
+
 		private static IEnumerable<NetworkPropertyData> GetNetworkPropertiesForSymbol(INamedTypeSymbol typeSymbol) {
 			return GetExplicitSymbols<IPropertySymbol>(typeSymbol, NetworkPropertyPrefix)
 			.Select(propertySymbol => new NetworkPropertyData {
@@ -72,23 +65,6 @@ namespace Cat.Network.Generator {
 				SerializationExpression = GenerateTypeSerialization(propertySymbol.Name, propertySymbol.Symbol.Type),
 				DeserializationExpression = GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type),
 				ExposeEvent = propertySymbol.Symbol.GetAttributes().Any(attributeData => attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) == NetworkPropertyChangedEventAttributeFQN)
-			});
-		}
-
-		private static IEnumerable<NetworkCollectionData> GetNetworkCollectionsForSymbol(INamedTypeSymbol typeSymbol) {
-			return GetExplicitSymbols<IPropertySymbol>(typeSymbol, NetworkCollectionPrefix)
-			.Where(propertySymbol =>
-				propertySymbol.Symbol.Type is INamedTypeSymbol namedTypeSymbol &&
-				namedTypeSymbol.IsGenericType &&
-				namedTypeSymbol.TypeArguments.Length == 1 &&
-				namedTypeSymbol.TypeArguments[0] is INamedTypeSymbol)
-			.Select(propertySymbol => new NetworkCollectionData {
-				Declared = propertySymbol.Declared,
-				Name = propertySymbol.Name,
-				CollectionTypeInfo = GetTypeInfo(propertySymbol.Symbol.Type),
-				ItemTypeInfo = GetTypeInfo(((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0]),
-				ItemSerializationExpression = GenerateTypeSerialization("item", ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0]),
-				ItemDeserializationExpression = GenerateTypeDeserialization("item", ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0])
 			});
 		}
 
@@ -145,5 +121,4 @@ namespace Cat.Network.Generator {
 
 
 	}
-
 }

@@ -50,7 +50,8 @@ public class CatClient : ISerializationContext {
 
 
 		foreach (ref NetworkPropertyInfo prop in ((INetworkEntity)entity).NetworkProperties.AsSpan()) {
-			prop.LastDirtyTick = Time;
+			prop.LastSetTick = Time;
+			prop.LastUpdateTick = Time;
 		}
 
 		INetworkEntity iEntity = entity;

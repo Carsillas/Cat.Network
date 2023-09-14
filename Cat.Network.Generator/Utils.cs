@@ -29,10 +29,7 @@ namespace Cat.Network.Generator {
 		public const string NetworkPropertyChangedEventFQN = "Cat.Network.NetworkPropertyChanged";
 		public const string NetworkPropertyChangedEventArgsFQN = "Cat.Network.PropertyChangedEventArgs";
 		public const string NetworkEntityInterfaceFQN = "Cat.Network.INetworkEntity";
-		public const string NetworkCollectionInterfaceFQN = "Cat.Network.INetworkCollection";
-		public const string NetworkCollectionOperationFQN = "Cat.Network.NetworkCollectionOperation";
-		public const string NetworkCollectionOperationTypeFQN = "Cat.Network.NetworkCollectionOperationType";
-		public const string NetworkListFQN = "Cat.Network.NetworkList";
+		public const string NetworkSerializableInterfaceFQN = "Cat.Network.INetworkSerializable";
 		public const string NetworkPropertyInfoFQN = "Cat.Network.NetworkPropertyInfo";
 		public const string SerializationOptionsFQN = "Cat.Network.SerializationOptions";
 		public const string MemberIdentifierModeFQN = "Cat.Network.MemberIdentifierMode";
@@ -41,16 +38,25 @@ namespace Cat.Network.Generator {
 		public const string SpanFQN = "System.Span<byte>";
 		public const string ReadOnlySpanFQN = "System.ReadOnlySpan<byte>";
 		public const string NetworkEntityFQN = "Cat.Network.NetworkEntity";
+		public const string NetworkDataObjectFQN = "Cat.Network.NetworkDataObject";
 		public const string NetworkPropertyPrefix = "NetworkProperty";
 		public const string NetworkPropertyPrefixAndDot = NetworkPropertyPrefix + ".";
 		public const string NetworkCollectionPrefix = "NetworkCollection";
 		public const string NetworkCollectionPrefixAndDot = NetworkCollectionPrefix + ".";
 		public const string RPCPrefix = "RPC";
 		public const string RPCPrefixAndDot = RPCPrefix + ".";
-
-
+		
+		
+		public const string NetworkCollectionInterfaceFQN = "Cat.Network.Collections.INetworkCollection";
+		public const string NetworkCollectionOperationFQN = "Cat.Network.NetworkCollectionOperation";
+		public const string NetworkCollectionOperationTypeFQN = "Cat.Network.NetworkCollectionOperationType";
+		public const string NetworkValueListFQN = "Cat.Network.Collections.NetworkValueList";
+		public const string NetworkObjectListFQN = "Cat.Network.Collections.NetworkObjectList";
+		
+		
 		private const string PropertyBufferName = "propertyBuffer";
 
+		
 		private static Dictionary<string, StringTemplate> SerializationTemplates { get; } = new Dictionary<string, StringTemplate>() {
 			{ "System.Byte", new StringTemplate($"{PropertyBufferName}[0] = {{name}}; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name")},
 			{ "System.Int16", new StringTemplate($"{BinaryPrimitivesFQN}.WriteInt16LittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);", "name")},
@@ -129,9 +135,24 @@ namespace Cat.Network.Generator {
 			}
 			return false;
 		}
+		
+		public static bool IsTypeWithFQN(INamedTypeSymbol typeSymbol, string fqn) {
+			INamedTypeSymbol currentSymbol = typeSymbol;
+
+			while (currentSymbol != null) {
+				if (currentSymbol.ToDisplayString(FullyQualifiedFormat) == fqn) {
+					return true;
+				}
+				currentSymbol = currentSymbol.BaseType;
+			}
+
+			return false;
+		}
+		
 		public static bool IsNullableValueType(ITypeSymbol symbol) {
 			return IsNullableValueType(symbol, out _);
 		}
+		
 		private static bool IsNullableValueType(ITypeSymbol symbol, out INamedTypeSymbol valueType) {
 			valueType = null;
 			if (symbol.OriginalDefinition.ToDisplayString(FullyQualifiedFormat) == "System.Nullable<T>" &&
