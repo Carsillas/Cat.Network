@@ -23,7 +23,7 @@ public class CatServer : ISerializationContext {
 
 	// TODO maybe use ConditionalWeakTable here? Ideally IEntityStorage is the only holder of entities
 	private Dictionary<NetworkEntity, NetworkEntity> Owners { get; } = new();
-	private HashSet<NetworkEntity> EntitiesMarkedForClean { get; } = new();
+	private HashSet<INetworkEntity> EntitiesMarkedForClean { get; } = new();
 
 
 	public CatServer(IEntityStorage entityStorage) {
@@ -239,9 +239,8 @@ public class CatServer : ISerializationContext {
 		return null;
 	}
 
-	void ISerializationContext.MarkForClean(NetworkEntity entity) {
-		INetworkEntity iEntity = entity;
-		iEntity.LastDirtyTick = Time;
+	void ISerializationContext.MarkForClean(INetworkEntity entity) {
+		entity.LastDirtyTick = Time;
 		EntitiesMarkedForClean.Add(entity);
 	}
 }

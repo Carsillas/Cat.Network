@@ -11,152 +11,107 @@ namespace Cat.Network.Generator {
 
 		public string GenerateNetworkSerializableSource(NetworkSerializableClassDefinition classDefinition) {
 
-			return $@"
+			ScopedStringWriter writer = new ScopedStringWriter();
 
-namespace {classDefinition.Namespace} {{
+			using (writer.EnterScope($"namespace {classDefinition.Namespace}")) {
+				using (writer.EnterScope($"partial class {classDefinition.Name} : {NetworkEntityInterfaceFQN}")) {
+					GenerateNetworkEntityInitializer(writer, classDefinition);
+					GenerateNetworkCollectionClean(writer, classDefinition);
+					GenerateNetworkEntitySerialize(writer, classDefinition);
+					GenerateNetworkEntityDeserialize(writer, classDefinition);
+				}
+			}
 
-	partial class {classDefinition.Name} : {NetworkEntityInterfaceFQN} {{
-
-{GenerateNetworkEntityInitializer(classDefinition)}
-{GenerateNetworkCollectionClean(classDefinition)}
-{GenerateNetworkEntitySerialize(classDefinition)}
-{GenerateNetworkEntityDeserialize(classDefinition)}
-
-	}}
-}}
-";
+			writer.ToString();
 		}
 
-		private string GenerateNetworkEntityInitializer(NetworkSerializableClassDefinition classDefinition) {
-			StringBuilder stringBuilder = new StringBuilder();
 
-			stringBuilder.AppendLine(@$"
-		void {NetworkSerializableInterfaceFQN}.Initialize() {{
-			{NetworkPropertyInfoFQN}[] networkProperties = new {NetworkPropertyInfoFQN}[{classDefinition.NetworkProperties.Length}];
-			{NetworkSerializableInterfaceFQN} iSerializable = this;
-			iSerializable.NetworkProperties = networkProperties;
-");
-
-			for (int i = 0; i < classDefinition.NetworkProperties.Length; i++) {
-				NetworkPropertyData data = classDefinition.NetworkProperties[i];
-				stringBuilder.AppendLine($"\t\t\tnetworkProperties[{i}] = new {NetworkPropertyInfoFQN} {{ Index = {i}, Name = \"{data.Name}\" }};");
-			}
-
-			foreach (NetworkCollectionData data in classDefinition.NetworkCollections) {
-				stringBuilder.AppendLine($"\t\t\t(({NetworkCollectionPrefix})this).{data.BackingCollectionName} = new {NetworkValueListFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>(this, (({NetworkCollectionPrefix})this).{data.Name});");
-			}
-
-			stringBuilder.AppendLine($"\t\t}}");
-
-			return stringBuilder.ToString();
+		protected virtual void GenerateAdditionalInitialization(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
+			
 		}
+		
+		private void GenerateNetworkEntityInitializer(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
 
-		private string GenerateNetworkCollectionClean(NetworkSerializableClassDefinition classDefinition) {
-			StringBuilder stringBuilder = new StringBuilder();
-
-			stringBuilder.AppendLine($"\t\tvoid {NetworkSerializableInterfaceFQN}.Clean() {{");
-
-			foreach (NetworkCollectionData collection in classDefinition.NetworkCollections) {
-				stringBuilder.AppendLine($"\t\t\t(({NetworkCollectionInterfaceFQN}<{collection.ItemTypeInfo.FullyQualifiedTypeName}>){collection.Name}).OperationBuffer.Clear();");
-			}
-
-			stringBuilder.AppendLine($"\t\t}}");
-
-			return stringBuilder.ToString();
-		}
-
-		private string GenerateNetworkEntitySerialize(NetworkSerializableClassDefinition classDefinition) {
-			StringBuilder stringBuilder = new StringBuilder();
-
-			stringBuilder.AppendLine(@$"
-		System.Int32 {NetworkSerializableInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer) {{
-			{SpanFQN} propertyContentBuffer = buffer.Slice(8);
-			{NetworkSerializableInterfaceFQN} iSerializable = this;
-");
-
-			for (int i = 0; i < classDefinition.NetworkProperties.Length; i++) {
-				NetworkPropertyData data = classDefinition.NetworkProperties[i];
-
-				stringBuilder.AppendLine(@$"
-			if (serializationOptions.MemberSelectionMode == {MemberSelectionModeFQN}.All || iSerializable.NetworkProperties[{i}].LastDirtyTick >= (iSerializable.SerializationContext?.Time ?? 0)) {{
-				if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
-					 System.Int32 lengthStorage = {UnicodeFQN}.GetBytes(iSerializable.NetworkProperties[{i}].Name, propertyContentBuffer.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, lengthStorage); propertyContentBuffer = propertyContentBuffer.Slice(4 + lengthStorage);
-				}}
-				if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{
-					{BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, {i}); propertyContentBuffer = propertyContentBuffer.Slice(4);
-				}}
-
-				{GenerateSerialization(data.SerializationExpression, "propertyContentBuffer")}
-
-			}}");
-			}
-
-			stringBuilder.AppendLine(@$"
-			System.Int32 propertyContentLength = buffer.Slice(8).Length - propertyContentBuffer.Length;
-			{BinaryPrimitivesFQN}.WriteInt32LittleEndian(buffer.Slice(4), propertyContentLength);
-
-			{SpanFQN} collectionContentBuffer = propertyContentBuffer.Slice(4);");
-
-
-			foreach (NetworkCollectionData data in classDefinition.NetworkCollections) {
-				stringBuilder.AppendLine(@$"
-
-			if (serializationOptions.MemberSerializationMode == {MemberSerializationModeFQN}.Complete) {{
-				{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, {data.Name}.Count + 1); collectionContentBuffer = collectionContentBuffer.Slice(4);
-				collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Clear; collectionContentBuffer = collectionContentBuffer.Slice(1);
+			using (writer.EnterScope($"void {NetworkSerializableInterfaceFQN}.Initialize()")) {
 				
-				foreach (var item in {data.Name}) {{
-					collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Add; collectionContentBuffer = collectionContentBuffer.Slice(1);
-					{GenerateSerialization(data.ItemSerializationExpression, "collectionContentBuffer")}
-				}}
-			}} else if (serializationOptions.MemberSerializationMode == {MemberSerializationModeFQN}.Partial) {{
-				var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
-				{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operationBuffer.Count); collectionContentBuffer = collectionContentBuffer.Slice(4);
+				writer.AppendBlock($@"
+					{NetworkPropertyInfoFQN}[] networkProperties = new {NetworkPropertyInfoFQN}[{classDefinition.NetworkProperties.Length}];
+					{NetworkSerializableInterfaceFQN} iSerializable = this;
+					iSerializable.NetworkProperties = networkProperties;
+				");
+				
+				for (int i = 0; i < classDefinition.NetworkProperties.Length; i++) {
+					NetworkPropertyData data = classDefinition.NetworkProperties[i];
+					writer.AppendLine($"networkProperties[{i}] = new {NetworkPropertyInfoFQN} {{ Index = {i}, Name = \"{data.Name}\" }};");
+				}
 
-				foreach ({NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> operation in operationBuffer) {{
-					var item = operation.Value;
-					switch (operation.OperationType) {{
-						case {NetworkCollectionOperationTypeFQN}.Add: {{
-							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Add; collectionContentBuffer = collectionContentBuffer.Slice(1);
-							{GenerateSerialization(data.ItemSerializationExpression, "collectionContentBuffer")}
-							break;
+				GenerateAdditionalInitialization(writer, classDefinition);
+			}
+
+		}
+
+		protected virtual void GenerateAdditionalClean(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
+			
+		}
+		
+		private void GenerateNetworkCollectionClean(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
+			using (writer.EnterScope($"void {NetworkSerializableInterfaceFQN}.Clean()")) {
+				GenerateAdditionalClean(writer, classDefinition);
+			}
+		}
+
+			
+		protected virtual void GenerateAdditionalSerialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
+			
+		}
+		
+		private void GenerateNetworkEntitySerialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
+
+			using (writer.EnterScope(
+				       $"System.Int32 {NetworkSerializableInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer)")) {
+				
+				// TODO change propertyContentBuffer to just contentBuffer
+				
+				writer.AppendBlock($@"
+					{SpanFQN} propertyContentBuffer = buffer.Slice(8);
+					{NetworkSerializableInterfaceFQN} iSerializable = this;
+				");
+				
+				for (int i = 0; i < classDefinition.NetworkProperties.Length; i++) {
+					NetworkPropertyData data = classDefinition.NetworkProperties[i];
+
+					writer.AppendBlock(@$"
+					if (serializationOptions.MemberSelectionMode == {MemberSelectionModeFQN}.All || iSerializable.NetworkProperties[{i}].LastDirtyTick >= (iSerializable.SerializationContext?.Time ?? 0)) {{
+						if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
+							 System.Int32 lengthStorage = {UnicodeFQN}.GetBytes(iSerializable.NetworkProperties[{i}].Name, propertyContentBuffer.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, lengthStorage); propertyContentBuffer = propertyContentBuffer.Slice(4 + lengthStorage);
 						}}
-						
-						case {NetworkCollectionOperationTypeFQN}.Remove: {{
-							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Remove; collectionContentBuffer = collectionContentBuffer.Slice(1);
-							{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operation.Index); collectionContentBuffer = collectionContentBuffer.Slice(4);
-							break;
+						if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{
+							{BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, {i}); propertyContentBuffer = propertyContentBuffer.Slice(4);
 						}}
-						case {NetworkCollectionOperationTypeFQN}.Set: {{
-							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Set; collectionContentBuffer = collectionContentBuffer.Slice(1);	
-							{BinaryPrimitivesFQN}.WriteInt32LittleEndian(collectionContentBuffer, operation.Index); collectionContentBuffer = collectionContentBuffer.Slice(4);
-							{GenerateSerialization(data.ItemSerializationExpression, "collectionContentBuffer")}
-							break;
-						}}
-						case {NetworkCollectionOperationTypeFQN}.Clear: {{
-							collectionContentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Clear; collectionContentBuffer = collectionContentBuffer.Slice(1);
-							break;
-						}}
-					}}
-				}}
-			}}
-");
+
+						{GenerateSerialization(data.SerializationExpression, "propertyContentBuffer")}
+					}}");
+				}
+				
+				GenerateAdditionalSerialize(writer, classDefinition);
+				
+				writer.AppendBlock(@$"
+					System.Int32 collectionContentLength = propertyContentBuffer.Slice(4).Length - collectionContentBuffer.Length;
+					{BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, collectionContentLength);
+					System.Int32 contentLength = buffer.Slice(4).Length - collectionContentBuffer.Length;
+					{BinaryPrimitivesFQN}.WriteInt32LittleEndian(buffer, contentLength);
+					return contentLength + 4;
+				");
+				
 			}
 
 
-			stringBuilder.AppendLine(@$"
-			System.Int32 collectionContentLength = propertyContentBuffer.Slice(4).Length - collectionContentBuffer.Length;
-			{BinaryPrimitivesFQN}.WriteInt32LittleEndian(propertyContentBuffer, collectionContentLength);
-			System.Int32 contentLength = buffer.Slice(4).Length - collectionContentBuffer.Length;
-			{BinaryPrimitivesFQN}.WriteInt32LittleEndian(buffer, contentLength);
-			return contentLength + 4;
-		}}");
 
 			return stringBuilder.ToString();
 		}
 
 
-		private string GenerateNetworkEntityDeserialize(NetworkSerializableClassDefinition classDefinition) {
+		private void GenerateNetworkEntityDeserialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
 			StringBuilder stringBuilder = new StringBuilder();
 
 			stringBuilder.AppendLine($@"
@@ -211,7 +166,7 @@ namespace {classDefinition.Namespace} {{
 						collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
 
 						if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
-							iSerializable.SerializationContext.MarkForClean(this);
+							iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 								OperationType = {NetworkCollectionOperationTypeFQN}.Add,
 								Value = item
@@ -226,7 +181,7 @@ namespace {classDefinition.Namespace} {{
 						System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 						
 						if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
-							iSerializable.SerializationContext.MarkForClean(this);
+							iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 								OperationType = {NetworkCollectionOperationTypeFQN}.Remove,
 								Index = index
@@ -246,7 +201,7 @@ namespace {classDefinition.Namespace} {{
 						collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
 
 						if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
-							iSerializable.SerializationContext.MarkForClean(this);
+							iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 								OperationType = {NetworkCollectionOperationTypeFQN}.Set,
 								Index = index,
@@ -261,7 +216,7 @@ namespace {classDefinition.Namespace} {{
 					case {NetworkCollectionOperationTypeFQN}.Clear: {{
 
 						if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
-							iSerializable.SerializationContext.MarkForClean(this);
+							iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 							operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 								OperationType = {NetworkCollectionOperationTypeFQN}.Clear
 							}});
