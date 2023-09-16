@@ -29,9 +29,8 @@ namespace {classDefinition.Namespace} {{
 		private string GenerateNetworkPropertyInterface(NetworkSerializableClassDefinition classDefinition) {
 			bool isNetworkEntity = $"{classDefinition.Namespace}.{classDefinition.Name}" == NetworkEntityFQN;
 			string superInterface = isNetworkEntity ? "" : $": {classDefinition.BaseTypeFQN}.{NetworkPropertyPrefix} ";
-			string interfaceKeywords = isNetworkEntity ? "protected interface" : "protected new interface";
 			return $@"
-		{interfaceKeywords} {NetworkPropertyPrefix} {superInterface}{{
+		protected new interface {NetworkPropertyPrefix} {superInterface}{{
 {GenerateInterfaceProperties(classDefinition)}
 		}}
 ";
