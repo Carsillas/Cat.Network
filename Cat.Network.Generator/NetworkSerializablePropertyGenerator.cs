@@ -84,7 +84,7 @@ namespace {classDefinition.Namespace} {{
 				{NetworkEntityInterfaceFQN} iEntity = this;
 				ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
 				iEntity.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
-				networkPropertyInfo.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
+				networkPropertyInfo.LastSetTick = iEntity.SerializationContext?.Time ?? 0;
 				var oldValue = (({NetworkPropertyPrefix})this).{data.Name};
 				(({NetworkPropertyPrefix})this).{data.Name} = value;
 				{(data.ExposeEvent ? eventInvocation : "")}

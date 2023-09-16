@@ -91,6 +91,9 @@ namespace Cat.Network.Generator {
 			
 			foreach (NetworkCollectionData data in networkEntityClassDefinition.NetworkCollections) {
 				writer.AppendBlock(@$"
+					System.Int32 collectionContentLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(contentBuffer);
+					{ReadOnlySpanFQN} collectionContentBuffer = contentBuffer.Slice(4, collectionContentLength);
+					contentBuffer = contentBuffer.Slice(collectionContentLength);
 
 					System.Int32 operationCount = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 					

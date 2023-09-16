@@ -8,15 +8,15 @@ public interface INetworkDataObject {
 	
 }
 
-public partial record NetworkDataObject : INetworkSerializable, INetworkDataObject {
-	
-	INetworkSerializable INetworkDataObject.Parent { get; set; }
-	INetworkEntity INetworkSerializable.Anchor => ((INetworkDataObject)this).Parent?.Anchor;
-	NetworkPropertyInfo[] INetworkSerializable.NetworkProperties { get; set; }
-
-	public NetworkDataObject() {
-		((INetworkSerializable)this).Initialize();
-	}
-	
-}
+// public partial record NetworkDataObject : INetworkSerializable, INetworkDataObject {
+// 	
+// 	INetworkSerializable INetworkDataObject.Parent { get; set; }
+// 	INetworkEntity INetworkSerializable.Anchor => ((INetworkDataObject)this).Parent?.Anchor;
+// 	NetworkPropertyInfo[] INetworkSerializable.NetworkProperties { get; set; }
+//
+// 	public NetworkDataObject() {
+// 		((INetworkSerializable)this).Initialize();
+// 	}
+// 	
+// }
 

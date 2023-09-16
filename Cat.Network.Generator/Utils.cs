@@ -48,8 +48,8 @@ namespace Cat.Network.Generator {
 		
 		
 		public const string NetworkCollectionInterfaceFQN = "Cat.Network.Collections.INetworkCollection";
-		public const string NetworkCollectionOperationFQN = "Cat.Network.NetworkCollectionOperation";
-		public const string NetworkCollectionOperationTypeFQN = "Cat.Network.NetworkCollectionOperationType";
+		public const string NetworkCollectionOperationFQN = "Cat.Network.Collections.NetworkCollectionOperation";
+		public const string NetworkCollectionOperationTypeFQN = "Cat.Network.Collections.NetworkCollectionOperationType";
 		public const string NetworkValueListFQN = "Cat.Network.Collections.NetworkValueList";
 		public const string NetworkObjectListFQN = "Cat.Network.Collections.NetworkObjectList";
 		

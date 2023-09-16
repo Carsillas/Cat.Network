@@ -67,17 +67,16 @@ namespace Cat.Network.Generator {
 			for (int i = 0; i < classDefinition.NetworkProperties.Length; i++) {
 				NetworkPropertyData data = classDefinition.NetworkProperties[i];
 
-				writer.AppendBlock(@$"
-					if (serializationOptions.MemberSelectionMode == {MemberSelectionModeFQN}.All || iSerializable.NetworkProperties[{i}].LastDirtyTick >= (iSerializable.SerializationContext?.Time ?? 0)) {{
-						if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name) {{
-							 System.Int32 lengthStorage = {UnicodeFQN}.GetBytes(iSerializable.NetworkProperties[{i}].Name, contentBuffer.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, lengthStorage); contentBuffer = contentBuffer.Slice(4 + lengthStorage);
-						}}
-						if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index) {{
-							{BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, {i}); contentBuffer = contentBuffer.Slice(4);
-						}}
-
-						{GenerateSerialization(data.SerializationExpression, "contentBuffer")}
-					}}");
+				using (writer.EnterScope($"if (serializationOptions.MemberSelectionMode == {MemberSelectionModeFQN}.All || iSerializable.NetworkProperties[{i}].LastSetTick >= (iSerializable.SerializationContext?.Time ?? 0))")) {
+					using (writer.EnterScope($"if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name)")) {
+						writer.AppendLine($"System.Int32 lengthStorage = {UnicodeFQN}.GetBytes(iSerializable.NetworkProperties[{i}].Name, contentBuffer.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, lengthStorage); contentBuffer = contentBuffer.Slice(4 + lengthStorage);");
+					}
+					using (writer.EnterScope($"if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index)")) {
+						writer.AppendLine($"{BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, {i}); contentBuffer = contentBuffer.Slice(4);");
+					}
+					
+					writer.AppendBlock(GenerateSerialization(data.SerializationExpression, "contentBuffer"));
+				}
 			}
 
 			writer.AppendBlock($@"
@@ -113,13 +112,10 @@ namespace Cat.Network.Generator {
 			using var scope = writer.EnterScope();
 
 			writer.AppendBlock($@"
-				{NetworkSerializableInterfaceFQN} iSerializable = this;
-				
-				System.Int32 propertyContentLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(buffer);
-				System.Int32 collectionContentLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(buffer.Slice(propertyContentLength + 4));
-
-				{ReadOnlySpanFQN} propertyContentBuffer = buffer.Slice(4, propertyContentLength);
-				{ReadOnlySpanFQN} collectionContentBuffer = buffer.Slice(4 + propertyContentLength + 4, collectionContentLength);	
+				// Property deserialization
+				System.Int32 propertyContentLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(contentBuffer);
+				{ReadOnlySpanFQN} propertyContentBuffer = contentBuffer.Slice(4, propertyContentLength);
+				contentBuffer = contentBuffer.Slice(4 + propertyContentLength);
 			");
 
 			using (writer.EnterScope($"if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name)")) { }
@@ -130,7 +126,7 @@ namespace Cat.Network.Generator {
 						System.Int32 propertyIndex = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(propertyContentBuffer); propertyContentBuffer = propertyContentBuffer.Slice(4);
 						System.Int32 propertyLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(propertyContentBuffer); propertyContentBuffer = propertyContentBuffer.Slice(4);
 						ReadIndexedProperty(propertyIndex, propertyContentBuffer.Slice(0, propertyLength));
-						iSerializable.NetworkProperties[propertyIndex].LastDirtyTick = iSerializable.SerializationContext.DeserializeDirtiesProperty ? iSerializable.SerializationContext?.Time ?? 0 : 0;
+						iSerializable.NetworkProperties[propertyIndex].LastSetTick = iSerializable.SerializationContext.DeserializeDirtiesProperty ? iSerializable.SerializationContext?.Time ?? 0 : 0;
 						propertyContentBuffer = propertyContentBuffer.Slice(propertyLength);
 					");
 				}
@@ -158,6 +154,11 @@ namespace Cat.Network.Generator {
 
 		private void GenerateNetworkEntityDeserialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
 			using (writer.EnterScope($"void {NetworkSerializableInterfaceFQN}.Deserialize({SerializationOptionsFQN} serializationOptions, {ReadOnlySpanFQN} buffer)")) {
+				
+				writer.AppendBlock($@"{
+					NetworkSerializableInterfaceFQN} iSerializable = this;
+					{ReadOnlySpanFQN} contentBuffer = buffer;
+				");
 				
 				GeneratePropertyDeserialize(writer, classDefinition);
 				

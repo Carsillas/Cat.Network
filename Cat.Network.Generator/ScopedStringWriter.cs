@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text;
 
 namespace Cat.Network.Generator {
@@ -28,26 +29,48 @@ namespace Cat.Network.Generator {
 		}
 		
 		public void AppendBlock(string text) {
-			StringBuilder.AppendLine();
-
 			if (string.IsNullOrEmpty(text)) {
 				return;
 			}
 
 			string[] lines = text.Split('\n');
 
-			foreach (string line in lines) {
-				AppendLine(line.Trim());
+			int minDepth = lines.Min(CountLeadingTabs);
+			
+			for (var i = 0; i < lines.Length; i++) {
+				var line = lines[i];
+
+				if (i == 0 && (line == "\r\n" || line == "\n")) {
+					continue;
+				}
+				
+				AppendLine(line.Substring(minDepth).TrimEnd());
 			}
+		}
+
+		private static int CountLeadingTabs(string line) {
+			int count = 0;
+			foreach (char c in line) {
+				if (c == '\t') {
+					count++;
+				} else {
+					break;
+				}
+			}
+
+			return count;
 		}
 		
 		public WriterScope EnterScope(string prefix = null) {
 
-			if (!string.IsNullOrEmpty(prefix)) {
-				Append(" ");
+			if (string.IsNullOrWhiteSpace(prefix)) {
+				AppendLine("{");
+			} else {
+				AppendLine(prefix);
+				Append(" {");
 			}
 			
-			AppendLine("{");
+			
 			Depth++;
 
 			return new WriterScope(this);
