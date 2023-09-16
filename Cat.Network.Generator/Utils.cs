@@ -265,22 +265,25 @@ namespace Cat.Network.Generator {
 
 			IEnumerable<ISymbol> memberSymbols = GetSerializationEligibleSymbols(symbol);
 
-			StringBuilder builder = new StringBuilder();
+			ScopedStringWriter writer = new ScopedStringWriter();
+			
+			using (writer.EnterScope()) {
+				writer.AppendLine($"// {name}");
 
-			builder.AppendLine($"{{ // {name}");
+				foreach (ISymbol member in memberSymbols) {
+					ITypeSymbol memberType = (member as IFieldSymbol)?.Type ?? (member as IPropertySymbol)?.Type;
 
-			foreach (ISymbol member in memberSymbols) {
-				ITypeSymbol memberType = (member as IFieldSymbol)?.Type ?? (member as IPropertySymbol)?.Type;
+					string nextAccessPrefix = $"{accessPrefix}{name}.{(isNullable ? "Value." : "")}";
+					if (memberType != null && TryGetSerialization(memberType, nextAccessPrefix, member.Name, out serialization)) {
 
-				string nextAccessPrefix = $"{accessPrefix}{name}.{(isNullable ? "Value." : "")}";
-				if (memberType != null && TryGetSerialization(memberType, nextAccessPrefix, member.Name, out serialization)) {
-					builder.AppendLine(serialization);
+						serialization = string.Join("\n", serialization.Split('\n').Select(x => $"\t{x}"));
+						
+						writer.AppendLine(serialization);
+					}
 				}
 			}
-
-			builder.AppendLine($"}}");
-
-			serialization = builder.ToString();
+			
+			serialization = writer.ToString();
 
 			if (isNullable) {
 				serialization = NullableSerializationTemplate.Apply($"{accessPrefix}{name}", serialization);
@@ -299,28 +302,31 @@ namespace Cat.Network.Generator {
 
 			IEnumerable<ISymbol> memberSymbols = GetSerializationEligibleSymbols(symbol);
 
-			StringBuilder builder = new StringBuilder();
+			ScopedStringWriter writer = new ScopedStringWriter();
 
 			string localValueName = $"{accessPrefix}{name}_";
-
-			builder.AppendLine($"{{ // {name}");
-			builder.AppendLine($"{symbol.ToDisplayString(FullyQualifiedFormat)} {localValueName} = default;");
-
-			foreach (ISymbol member in memberSymbols) {
-				ITypeSymbol memberType = (member as IFieldSymbol)?.Type ?? (member as IPropertySymbol)?.Type;
-
-				if (memberType != null && TryGetDeserialization(memberType, localValueName, member.Name, out deserialization)) {
-					builder.AppendLine(deserialization);
-				}
-			}
-
 			string accessName = $"{accessPrefix}{(accessPrefix == string.Empty ? "" : ".")}{name}";
 
-			builder.AppendLine($"{accessName} = {localValueName};");
-			builder.AppendLine($"}}");
+			using (writer.EnterScope()) {
+				writer.AppendLine($"// {name}");
+				writer.AppendLine($"{symbol.ToDisplayString(FullyQualifiedFormat)} {localValueName} = default;");
 
-			deserialization = builder.ToString();
+				foreach (ISymbol member in memberSymbols) {
+					ITypeSymbol memberType = (member as IFieldSymbol)?.Type ?? (member as IPropertySymbol)?.Type;
 
+					if (memberType != null && TryGetDeserialization(memberType, localValueName, member.Name, out deserialization)) {
+						
+						deserialization = string.Join("\n", deserialization.Split('\n').Select(x => $"\t{x}"));
+						
+						writer.AppendBlock(deserialization);
+					}
+				}
+
+				writer.AppendLine($"{accessName} = {localValueName};");
+			}
+			
+			deserialization = writer.ToString();
+			
 			if (isNullable) {
 				deserialization = NullableDeserializationTemplate.Apply(accessName, deserialization);
 			}

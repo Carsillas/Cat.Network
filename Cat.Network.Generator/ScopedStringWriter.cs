@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
@@ -25,7 +26,7 @@ namespace Cat.Network.Generator {
 			}
 			
 			AppendDepth();
-			StringBuilder.Append(text.Trim());
+			StringBuilder.Append(text.TrimEnd());
 		}
 		
 		public void AppendBlock(string text) {
@@ -35,16 +36,26 @@ namespace Cat.Network.Generator {
 
 			string[] lines = text.Split('\n');
 
-			int minDepth = lines.Min(CountLeadingTabs);
-			
+			int minDepth = lines.Where(x => !string.IsNullOrWhiteSpace(x)).Min(CountLeadingTabs);
+
+
+			for (int i = 0; i < lines.Length; i++) {
+				string line = lines[i];
+				if (string.IsNullOrWhiteSpace(line)) {
+					lines[i] = string.Empty;
+				} else {
+					lines[i] = line.Substring(minDepth).TrimEnd();
+				}
+			}
+
 			for (var i = 0; i < lines.Length; i++) {
 				var line = lines[i];
 
-				if (i == 0 && (line == "\r\n" || line == "\n")) {
+				if (i == 0 && string.IsNullOrWhiteSpace(line)) {
 					continue;
 				}
 				
-				AppendLine(line.Substring(minDepth).TrimEnd());
+				AppendLine(line);
 			}
 		}
 

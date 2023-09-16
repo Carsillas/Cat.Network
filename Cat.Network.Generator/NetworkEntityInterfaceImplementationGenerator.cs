@@ -96,11 +96,11 @@ namespace Cat.Network.Generator {
 					contentBuffer = contentBuffer.Slice(collectionContentLength);
 
 					System.Int32 operationCount = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
-					
+
 					var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
 
 					for (System.Int32 i = 0; i < operationCount; i++) {{
-						
+
 						{NetworkCollectionOperationTypeFQN} operationType = ({NetworkCollectionOperationTypeFQN})collectionContentBuffer[0]; collectionContentBuffer = collectionContentBuffer.Slice(1);
 
 						switch (operationType) {{
@@ -123,10 +123,10 @@ namespace Cat.Network.Generator {
 								(({NetworkCollectionPrefix})this).{data.Name}.Add(item);
 								break;
 							}}
-								
+
 							case {NetworkCollectionOperationTypeFQN}.Remove: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
-								
+
 								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
 									iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 									operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
@@ -141,10 +141,10 @@ namespace Cat.Network.Generator {
 							case {NetworkCollectionOperationTypeFQN}.Set: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 								System.Int32 itemLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
-								
+
 								{data.ItemTypeInfo.FullyQualifiedTypeName} item;
 								{GenerateDeserialization(data.ItemDeserializationExpression, "collectionContentBuffer")}
-								
+
 								collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
 
 								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
@@ -173,8 +173,7 @@ namespace Cat.Network.Generator {
 								break;
 							}}
 						}}
-					}}
-				");
+					}}");
 			}
 			
 		}

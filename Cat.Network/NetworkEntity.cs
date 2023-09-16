@@ -15,7 +15,7 @@ public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 	NetworkPropertyInfo[] INetworkSerializable.NetworkProperties { get; set; }
 	int INetworkEntity.LastDirtyTick { get; set; }
 
-	public NetworkEntity() {
+	protected NetworkEntity() {
 		((INetworkEntity)this).Initialize();
 	}
 

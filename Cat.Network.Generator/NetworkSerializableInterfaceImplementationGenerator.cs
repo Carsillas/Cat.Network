@@ -15,10 +15,10 @@ namespace Cat.Network.Generator {
 
 			using (writer.EnterScope($"namespace {classDefinition.Namespace}")) {
 				using (writer.EnterScope($"partial class {classDefinition.Name} : {NetworkEntityInterfaceFQN}")) {
-					GenerateNetworkEntityInitializer(writer, classDefinition);
-					GenerateNetworkCollectionClean(writer, classDefinition);
-					GenerateNetworkEntitySerialize(writer, classDefinition);
-					GenerateNetworkEntityDeserialize(writer, classDefinition);
+					GenerateInitialize(writer, classDefinition);
+					GenerateClean(writer, classDefinition);
+					GenerateSerialize(writer, classDefinition);
+					GenerateDeserialize(writer, classDefinition);
 				}
 			}
 
@@ -28,7 +28,7 @@ namespace Cat.Network.Generator {
 
 		protected virtual void GenerateAdditionalInitialization(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) { }
 
-		private void GenerateNetworkEntityInitializer(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
+		private void GenerateInitialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
 			using (writer.EnterScope($"void {NetworkSerializableInterfaceFQN}.Initialize()")) {
 				writer.AppendBlock($@"
 					{NetworkPropertyInfoFQN}[] networkProperties = new {NetworkPropertyInfoFQN}[{classDefinition.NetworkProperties.Length}];
@@ -48,7 +48,7 @@ namespace Cat.Network.Generator {
 
 		protected virtual void GenerateAdditionalClean(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) { }
 
-		private void GenerateNetworkCollectionClean(ScopedStringWriter writer,
+		private void GenerateClean(ScopedStringWriter writer,
 			NetworkSerializableClassDefinition classDefinition) {
 			using (writer.EnterScope($"void {NetworkSerializableInterfaceFQN}.Clean()")) {
 				GenerateAdditionalClean(writer, classDefinition);
@@ -87,13 +87,12 @@ namespace Cat.Network.Generator {
 
 		protected virtual void GenerateAdditionalSerialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) { }
 
-		private void GenerateNetworkEntitySerialize(ScopedStringWriter writer,
+		private void GenerateSerialize(ScopedStringWriter writer,
 			NetworkSerializableClassDefinition classDefinition) {
-			using (writer.EnterScope(
-				       $"System.Int32 {NetworkSerializableInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer)")) {
+			using (writer.EnterScope($"System.Int32 {NetworkSerializableInterfaceFQN}.Serialize({SerializationOptionsFQN} serializationOptions, {SpanFQN} buffer)")) {
 				writer.AppendBlock($@"
-					{SpanFQN} contentBuffer = buffer.Slice(4);
 					{NetworkSerializableInterfaceFQN} iSerializable = this;
+					{SpanFQN} contentBuffer = buffer.Slice(4);
 				");
 
 				GeneratePropertySerialize(writer, classDefinition);
@@ -152,11 +151,11 @@ namespace Cat.Network.Generator {
 
 		protected virtual void GenerateAdditionalDeserialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) { }
 
-		private void GenerateNetworkEntityDeserialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
+		private void GenerateDeserialize(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
 			using (writer.EnterScope($"void {NetworkSerializableInterfaceFQN}.Deserialize({SerializationOptionsFQN} serializationOptions, {ReadOnlySpanFQN} buffer)")) {
 				
-				writer.AppendBlock($@"{
-					NetworkSerializableInterfaceFQN} iSerializable = this;
+				writer.AppendBlock($@"
+					{NetworkSerializableInterfaceFQN} iSerializable = this;
 					{ReadOnlySpanFQN} contentBuffer = buffer;
 				");
 				
