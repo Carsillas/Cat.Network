@@ -30,6 +30,7 @@ namespace Cat.Network.Generator {
 		public const string NetworkPropertyChangedEventArgsFQN = "Cat.Network.PropertyChangedEventArgs";
 		public const string NetworkEntityInterfaceFQN = "Cat.Network.INetworkEntity";
 		public const string NetworkSerializableInterfaceFQN = "Cat.Network.INetworkSerializable";
+		public const string NetworkDataObjectInterfaceFQN = "Cat.Network.INetworkDataObject";
 		public const string NetworkPropertyInfoFQN = "Cat.Network.NetworkPropertyInfo";
 		public const string SerializationOptionsFQN = "Cat.Network.SerializationOptions";
 		public const string MemberIdentifierModeFQN = "Cat.Network.MemberIdentifierMode";
