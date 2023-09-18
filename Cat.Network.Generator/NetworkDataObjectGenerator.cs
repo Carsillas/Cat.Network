@@ -19,10 +19,10 @@ namespace Cat.Network.Generator {
 		public void Initialize(IncrementalGeneratorInitializationContext context) {
 
 			IncrementalValuesProvider<NetworkDataObjectDefinition> allClasses = context.SyntaxProvider.CreateSyntaxProvider(
-				PassNodesOfType<ClassDeclarationSyntax>,
+				PassNodesOfType<RecordDeclarationSyntax>,
 				(generatorSyntaxContext, cancellationToken) => {
 
-					ClassDeclarationSyntax node = (ClassDeclarationSyntax)generatorSyntaxContext.Node;
+					RecordDeclarationSyntax node = (RecordDeclarationSyntax)generatorSyntaxContext.Node;
 					INamedTypeSymbol symbol = generatorSyntaxContext.SemanticModel.GetDeclaredSymbol(node);
 
 					if (!IsTypeWithFQN(symbol, NetworkDataObjectFQN)) {
@@ -51,7 +51,7 @@ namespace Cat.Network.Generator {
 				new NetworkDataObjectInterfaceImplementationGenerator();
 
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
-			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkProperties", propertyGenerator.GenerateNetworkPropertySource(source)));
+				c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkProperties", propertyGenerator.GenerateNetworkPropertySource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.Interface", networkDataObjectInterfaceImplementationGenerator.GenerateNetworkSerializableSource(source)));
 		}

@@ -2,6 +2,12 @@ using static Cat.Network.Generator.Utils;
 
 namespace Cat.Network.Generator {
 	public class NetworkEntityInterfaceImplementationGenerator : NetworkSerializableInterfaceImplementationGenerator {
+		
+		
+		protected override string SerializableTypeKind { get; } = "class";
+
+		protected override string InterfaceFQN { get; } = NetworkEntityInterfaceFQN;
+
 		protected override void GenerateAdditionalInitialization(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
 			base.GenerateAdditionalInitialization(writer, classDefinition);
 			

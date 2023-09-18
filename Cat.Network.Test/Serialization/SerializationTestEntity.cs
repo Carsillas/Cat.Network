@@ -34,6 +34,8 @@ public partial class SerializationTestEntity : NetworkEntity {
 
 	Transform NetworkProperty.TransformProperty { get; set; }
 
+	NetworkDataObject NetworkProperty.ReferenceTypeProperty { get; set; }
+	
 
 	List<int> NetworkCollection.MyInts { get; } = new();
 

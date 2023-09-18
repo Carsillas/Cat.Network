@@ -4,17 +4,23 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.CodeAnalysis;
 using static Cat.Network.Generator.Utils;
 
 // @formatter:csharp_max_line_length 400
 
 namespace Cat.Network.Generator {
-	public class NetworkSerializableInterfaceImplementationGenerator {
+	public abstract class NetworkSerializableInterfaceImplementationGenerator {
+		
+		protected abstract string SerializableTypeKind { get; }
+		protected abstract string InterfaceFQN { get; }
+		
+		
 		public string GenerateNetworkSerializableSource(NetworkSerializableClassDefinition classDefinition) {
 			ScopedStringWriter writer = new ScopedStringWriter();
 
 			using (writer.EnterScope($"namespace {classDefinition.Namespace}")) {
-				using (writer.EnterScope($"partial class {classDefinition.Name} : {NetworkEntityInterfaceFQN}")) {
+				using (writer.EnterScope($"partial {SerializableTypeKind} {classDefinition.Name} : {InterfaceFQN}")) {
 					GenerateInitialize(writer, classDefinition);
 					GenerateClean(writer, classDefinition);
 					GenerateSerialize(writer, classDefinition);

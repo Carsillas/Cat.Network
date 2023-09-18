@@ -2,6 +2,12 @@ using static Cat.Network.Generator.Utils;
 
 namespace Cat.Network.Generator {
 	public class NetworkEntityPropertyGenerator : NetworkSerializablePropertyGenerator {
+		
+		
+		protected override string SerializableTypeKind { get; } = "class";
+		protected override string BaseFQN { get; } = NetworkEntityFQN;
+		protected override string InterfaceFQN { get; } = NetworkEntityInterfaceFQN;
+		
 		protected override void GenerateAdditionalPropertyDefinition(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition, NetworkPropertyData data) {
 			if (data.ExposeEvent) {
 				writer.AppendLine($"public event {NetworkPropertyChangedEventFQN}<{classDefinition.Name}, {data.TypeInfo.FullyQualifiedTypeName}> {data.Name}Changed;");

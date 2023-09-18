@@ -4,17 +4,23 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.CodeAnalysis;
 using static Cat.Network.Generator.Utils;
 
 // @formatter:csharp_max_line_length 400
 
 namespace Cat.Network.Generator {
 	public abstract class NetworkSerializablePropertyGenerator {
+		
+		protected abstract string SerializableTypeKind { get; }
+		protected abstract string BaseFQN { get; }
+		protected abstract string InterfaceFQN { get; }
+		
 		public string GenerateNetworkPropertySource(NetworkSerializableClassDefinition classDefinition) {
 			ScopedStringWriter writer = new ScopedStringWriter();
 
 			using (writer.EnterScope($"namespace {classDefinition.Namespace}")) {
-				using (writer.EnterScope($"partial class {classDefinition.Name} : {NetworkEntityInterfaceFQN}, {classDefinition.Name}.{NetworkPropertyPrefix}")) {
+				using (writer.EnterScope($"partial {SerializableTypeKind} {classDefinition.Name} : {InterfaceFQN}, {classDefinition.Name}.{NetworkPropertyPrefix}")) {
 					GenerateNetworkPropertyInterface(writer, classDefinition);
 					GenerateNetworkPropertyDefinitions(writer, classDefinition);
 				}
@@ -25,8 +31,8 @@ namespace Cat.Network.Generator {
 
 
 		private void GenerateNetworkPropertyInterface(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition) {
-			bool isNetworkEntity = $"{classDefinition.Namespace}.{classDefinition.Name}" == NetworkEntityFQN;
-			string superInterface = isNetworkEntity ? string.Empty : $" : {classDefinition.BaseTypeFQN}.{NetworkPropertyPrefix}";
+			bool isBaseType = $"{classDefinition.Namespace}.{classDefinition.Name}" == BaseFQN;
+			string superInterface = isBaseType ? string.Empty : $" : {classDefinition.BaseTypeFQN}.{NetworkPropertyPrefix}";
 
 			using (writer.EnterScope($"protected new interface {NetworkPropertyPrefix}{superInterface}")) {
 				GenerateInterfaceProperties(writer, classDefinition);
