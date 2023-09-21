@@ -80,7 +80,7 @@ namespace Cat.Network.Generator {
 					using (writer.EnterScope($"if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Index)")) {
 						writer.AppendLine($"{BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, {i}); contentBuffer = contentBuffer.Slice(4);");
 					}
-					
+
 					writer.AppendBlock(GenerateSerialization(data.SerializationExpression, "contentBuffer"));
 				}
 			}
@@ -131,7 +131,7 @@ namespace Cat.Network.Generator {
 						System.Int32 propertyIndex = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(propertyContentBuffer); propertyContentBuffer = propertyContentBuffer.Slice(4);
 						System.Int32 propertyLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(propertyContentBuffer); propertyContentBuffer = propertyContentBuffer.Slice(4);
 						ReadIndexedProperty(propertyIndex, propertyContentBuffer.Slice(0, propertyLength));
-						iSerializable.NetworkProperties[propertyIndex].LastSetTick = iSerializable.SerializationContext.DeserializeDirtiesProperty ? iSerializable.SerializationContext?.Time ?? 0 : 0;
+						iSerializable.NetworkProperties[propertyIndex].LastSetTick = iSerializable.SerializationContext?.DeserializeDirtiesProperty == true ? iSerializable.SerializationContext?.Time ?? 0 : 0;
 						propertyContentBuffer = propertyContentBuffer.Slice(propertyLength);
 					");
 				}

@@ -5,7 +5,7 @@ namespace Cat.Network;
 public interface INetworkSerializable {
 	
 	INetworkEntity Anchor { get; }
-	ISerializationContext SerializationContext => Anchor.SerializationContext;
+	ISerializationContext SerializationContext => Anchor?.SerializationContext;
 	
 	void Initialize();
 	int Serialize(SerializationOptions serializationOptions, Span<byte> buffer);

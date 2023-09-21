@@ -68,24 +68,9 @@ namespace Cat.Network.Generator {
 			});
 		}
 
-		private static IEnumerable<RPCMethodData> GetRPCsForSymbol(INamedTypeSymbol typeSymbol) {
-			return GetExplicitSymbols<IMethodSymbol>(typeSymbol, RPCPrefix)
-			.Select(methodSymbol => new RPCMethodData {
-				Declared = methodSymbol.Declared,
-				ClassMethodInvocation = methodSymbol.Symbol.ToDisplayString(ClassMethodInvocationFormat),
-				InterfaceMethodDeclaration = methodSymbol.Symbol.ToDisplayString(InterfaceMethodDeclarationFormat),
-				Parameters = methodSymbol.Symbol.Parameters.Select(parameter =>
-				new RPCParameterData {
-					TypeInfo = GetTypeInfo(parameter.Type),
-					ParameterName = parameter.Name,
-					SerializationExpression = GenerateTypeSerialization(parameter.Name, parameter.Type),
-					DeserializationExpression = GenerateTypeDeserialization(parameter.Name, parameter.Type)
-				}).ToImmutableArray()
-			});
-		}
-
 		private static IEnumerable<ExplicitSymbol<T>> GetExplicitSymbols<T>(INamedTypeSymbol typeSymbol, string explicitInterface) where T : ISymbol {
 
+			
 			INamedTypeSymbol currentSymbol = typeSymbol;
 
 			while (currentSymbol != null) {

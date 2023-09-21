@@ -18,6 +18,7 @@ namespace Cat.Network.Generator {
 		public bool IsNullable { get; set; }
 		public string FullyQualifiedTypeName { get; set; }
 		public ImmutableArray<string> GenericArgumentFQNs { get; set; }
+		public bool IsNetworkDataObject { get; set; }
 
 	}
 

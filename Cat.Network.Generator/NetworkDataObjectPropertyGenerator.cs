@@ -27,8 +27,8 @@ namespace Cat.Network.Generator {
 					networkPropertyInfo.LastSetTick = iNetworkDataObject.SerializationContext?.Time ?? 0;
 
 					if (iNetworkDataObject.Parent != null) {{
-						ref {NetworkPropertyInfoFQN} parentNetworkPropertyInfo = iNetworkDataObject.Parent.NetworkProperties[iNetworkDataObject.PropertyIndex];
-						parentNetworkPropertyInfo.LastModifiedTick = iNetworkDataObject.SerializationContext?.Time ?? 0;
+						ref {NetworkPropertyInfoFQN} parentNetworkPropertyInfo = ref iNetworkDataObject.Parent.NetworkProperties[iNetworkDataObject.PropertyIndex];
+						parentNetworkPropertyInfo.LastUpdateTick = iNetworkDataObject.SerializationContext?.Time ?? 0;
 					}}
 
 

@@ -159,9 +159,8 @@ public class CatClient : ISerializationContext {
 
 		EntitiesToDespawn.Clear();
 
-		foreach (NetworkEntity entity in EntitiesMarkedForClean) {
-			INetworkEntity iEntity = entity;
-			iEntity.Clean();
+		foreach (INetworkEntity entity in EntitiesMarkedForClean) {
+			entity.Clean();
 		}
 
 		OutgoingRPCBuffers.Clear();

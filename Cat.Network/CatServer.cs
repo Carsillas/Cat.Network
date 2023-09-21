@@ -142,9 +142,8 @@ public class CatServer : ISerializationContext {
 			EntityStorage.ProcessRelevantEntities(client.ProfileEntity, client);
 		}
 
-		foreach(NetworkEntity entity in EntitiesMarkedForClean) {
-			INetworkEntity iEntity = entity;
-			iEntity.Clean();
+		foreach(INetworkEntity entity in EntitiesMarkedForClean) {
+			entity.Clean();
 		}
 
 		BufferPool.FreeAllBuffers();

@@ -199,14 +199,12 @@ namespace Cat.Network.Generator {
 
 		private static bool TryGetSerialization(ITypeSymbol symbol, string accessPrefix, string name, out string serialization) {
 			return TryGetBuiltInSerialization(symbol, accessPrefix, name, out serialization) ||
-			       TryGetReferenceSerialization(symbol, accessPrefix, name, out serialization) ||
 			       TryGetCompoundSerialization(symbol, accessPrefix, name, out serialization);
 		}
 
 
 		private static bool TryGetDeserialization(ITypeSymbol symbol, string accessPrefix, string name, out string deserialization) {
 			return TryGetBuiltInDeserialization(symbol, accessPrefix, name, out deserialization) ||
-			       TryGetReferenceDeserialization(symbol, accessPrefix, name, out deserialization) ||
 			       TryGetCompoundDeserialization(symbol, accessPrefix, name, out deserialization);
 		}
 
@@ -259,37 +257,73 @@ namespace Cat.Network.Generator {
 		}
 
 
-		private static bool TryGetReferenceSerialization(ITypeSymbol symbol, string accessPrefix, string name, out string serialization) {
-			serialization = null;
-			if (symbol is not INamedTypeSymbol namedTypeSymbol) {
-				return false;
-			}
-
-			bool isNetworkDataObject = IsTypeWithFQN(namedTypeSymbol, NetworkDataObjectFQN);
-
-			if (!isNetworkDataObject) {
-				return false;
-			}
-		}
-
-		private static bool TryGetReferenceDeserialization(ITypeSymbol symbol, string accessPrefix, string name, out string deserialization) {
-			deserialization = null;
-			if (symbol is not INamedTypeSymbol namedTypeSymbol) {
-				return false;
-			}
-
-			bool isNetworkDataObject = IsTypeWithFQN(namedTypeSymbol, NetworkDataObjectFQN);
-
-			if (!isNetworkDataObject) {
-				return false;
-			}
+		public static string GetReferenceSerialization(ITypeSymbol symbol, string name) {
 
 			ScopedStringWriter writer = new ScopedStringWriter();
 
-			using (writer.EnterScope($"if (serializationOptions.MemberSerializationMode == {SerializationOptionsFQN}.Complete)")) { }
+			using (writer.EnterScope($"if (ReferenceEquals({name}, null))")) {
+				writer.AppendLine($"{PropertyBufferName}[0] = (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);");
+			}
 
+			using (writer.EnterScope($"else")) {
+				writer.AppendLine($"{PropertyBufferName}[0] = (byte) 1; {PropertyBufferName} = {PropertyBufferName}.Slice(1);");
 
-			return false;
+				using (writer.EnterScope($"if (serializationOptions.MemberSerializationMode == {MemberSerializationModeFQN}.Complete)")) {
+					writer.AppendLine($"{PropertyBufferName}[0] = (byte) 1; {PropertyBufferName} = {PropertyBufferName}.Slice(1);");
+					writer.AppendBlock(@$"
+						System.Int32 serializedStringLength = {UnicodeFQN}.GetBytes({name}.GetType().AssemblyQualifiedName, {PropertyBufferName}.Slice(4));
+						{BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, serializedStringLength);
+						{PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);
+					");
+				}
+				using (writer.EnterScope($"else")) {
+					writer.AppendLine($"{PropertyBufferName}[0] = (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);");
+				}
+
+				writer.AppendLine($"{PropertyBufferName} = {PropertyBufferName}.Slice((({NetworkSerializableInterfaceFQN}){name}).Serialize(serializationOptions, {PropertyBufferName}));");
+			}
+
+			return writer.ToString();
+		}
+
+		public static string GetReferenceDeserialization(ITypeSymbol symbol, string name) {
+
+			ScopedStringWriter writer = new ScopedStringWriter();
+
+			writer.AppendBlock($@"
+				System.Boolean hasValue = {PropertyBufferName}[0] == 1;
+				{PropertyBufferName} = {PropertyBufferName}.Slice(1);
+				if (hasValue) {{
+					System.Boolean isComplete = {PropertyBufferName}[0] == 1;
+					{PropertyBufferName} = {PropertyBufferName}.Slice(1);
+					
+					{symbol.ToDisplayString(FullyQualifiedFormat)} _{name} = {name};
+					if (isComplete) {{
+						System.Int32 serializedStringLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName});
+						System.String assemblyQualifiedName = {UnicodeFQN}.GetString({PropertyBufferName}.Slice(4, serializedStringLength));
+						{PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);
+						System.Type type = System.Type.GetType(assemblyQualifiedName);
+						
+ 						_{name} = ({symbol.ToDisplayString(FullyQualifiedFormat)}) System.Activator.CreateInstance(type);
+					}}
+
+					System.Int32 referencePropertyLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); 
+					{PropertyBufferName} = {PropertyBufferName}.Slice(4);
+
+					(({NetworkSerializableInterfaceFQN})_{name}).Deserialize(serializationOptions, {PropertyBufferName}.Slice(0, referencePropertyLength));
+					
+					if (!ReferenceEquals({name}, _{name})) {{
+						{name} = _{name};
+					}}					
+				}} else {{
+					{name} = null;
+				}}
+
+			");
+			
+			
+
+			return writer.ToString();
 		}
 
 
@@ -373,7 +407,8 @@ namespace Cat.Network.Generator {
 				IsNullable = IsNullableValueType(type),
 				GenericArgumentFQNs = (type as INamedTypeSymbol)?.TypeArguments
 					.Select(t => t.ToDisplayString(FullyQualifiedFormat)).ToImmutableArray() ?? ImmutableArray<string>.Empty,
-				FullyQualifiedTypeName = type.ToDisplayString(FullyQualifiedFormat)
+				FullyQualifiedTypeName = type.ToDisplayString(FullyQualifiedFormat),
+				IsNetworkDataObject = type is INamedTypeSymbol namedTypeSymbol && IsTypeWithFQN(namedTypeSymbol, NetworkDataObjectFQN)
 			};
 		}
 	}

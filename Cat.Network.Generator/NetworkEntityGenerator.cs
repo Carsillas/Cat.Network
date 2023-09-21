@@ -65,13 +65,24 @@ namespace Cat.Network.Generator {
 		
 		private static IEnumerable<NetworkPropertyData> GetNetworkPropertiesForSymbol(INamedTypeSymbol typeSymbol) {
 			return GetExplicitSymbols<IPropertySymbol>(typeSymbol, NetworkPropertyPrefix)
-			.Select(propertySymbol => new NetworkPropertyData {
-				Declared = propertySymbol.Declared,
-				Name = propertySymbol.Name,
-				TypeInfo = GetTypeInfo(propertySymbol.Symbol.Type),
-				SerializationExpression = GenerateTypeSerialization(propertySymbol.Name, propertySymbol.Symbol.Type),
-				DeserializationExpression = GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type),
-				ExposeEvent = propertySymbol.Symbol.GetAttributes().Any(attributeData => attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) == NetworkPropertyChangedEventAttributeFQN)
+			.Select(propertySymbol => {
+				
+				TypeInfo typeInfo = GetTypeInfo(propertySymbol.Symbol.Type);
+				
+				return new NetworkPropertyData {
+					Declared = propertySymbol.Declared,
+					Name = propertySymbol.Name,
+					TypeInfo = typeInfo,
+					SerializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceSerialization(propertySymbol.Symbol.Type, propertySymbol.Name) :
+						GenerateTypeSerialization(propertySymbol.Name, propertySymbol.Symbol.Type),
+					DeserializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceDeserialization(propertySymbol.Symbol.Type, propertySymbol.Name) :
+						GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type),
+					ExposeEvent = propertySymbol.Symbol.GetAttributes().Any(attributeData =>
+						attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) ==
+						NetworkPropertyChangedEventAttributeFQN)
+				};
 			});
 		}
 
