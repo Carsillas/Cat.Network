@@ -257,7 +257,7 @@ namespace Cat.Network.Generator {
 		}
 
 
-		public static string GetReferenceSerialization(ITypeSymbol symbol, string name) {
+		public static string GetReferenceSerialization(ITypeSymbol symbol, string name, bool complete) {
 
 			ScopedStringWriter writer = new ScopedStringWriter();
 
@@ -268,15 +268,14 @@ namespace Cat.Network.Generator {
 			using (writer.EnterScope($"else")) {
 				writer.AppendLine($"{PropertyBufferName}[0] = (byte) 1; {PropertyBufferName} = {PropertyBufferName}.Slice(1);");
 
-				using (writer.EnterScope($"if (serializationOptions.MemberSerializationMode == {MemberSerializationModeFQN}.Complete)")) {
+				if (complete) {
 					writer.AppendLine($"{PropertyBufferName}[0] = (byte) 1; {PropertyBufferName} = {PropertyBufferName}.Slice(1);");
 					writer.AppendBlock(@$"
 						System.Int32 serializedStringLength = {UnicodeFQN}.GetBytes({name}.GetType().AssemblyQualifiedName, {PropertyBufferName}.Slice(4));
 						{BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, serializedStringLength);
 						{PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);
 					");
-				}
-				using (writer.EnterScope($"else")) {
+				} else {
 					writer.AppendLine($"{PropertyBufferName}[0] = (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);");
 				}
 

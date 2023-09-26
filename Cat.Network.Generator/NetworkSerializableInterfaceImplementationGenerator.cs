@@ -81,7 +81,17 @@ namespace Cat.Network.Generator {
 						writer.AppendLine($"{BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, {i}); contentBuffer = contentBuffer.Slice(4);");
 					}
 
-					writer.AppendBlock(GenerateSerialization(data.SerializationExpression, "contentBuffer"));
+					if (data.PartialSerializationExpression != null) {
+						using (writer.EnterScope($"if (serializationOptions.MemberSerializationMode == Cat.Network.MemberSerializationMode.Complete || iSerializable.NetworkProperties[{i}].LastSetTick >= (iSerializable.SerializationContext?.Time ?? 0))")) {
+							writer.AppendBlock(GenerateSerialization(data.CompleteSerializationExpression, "contentBuffer"));
+						}
+						using (writer.EnterScope("else")) {
+							writer.AppendBlock(GenerateSerialization(data.PartialSerializationExpression, "contentBuffer"));
+						}
+					} else {
+						writer.AppendBlock(GenerateSerialization(data.CompleteSerializationExpression, "contentBuffer"));
+					}
+
 				}
 			}
 
@@ -148,7 +158,7 @@ namespace Cat.Network.Generator {
 					NetworkPropertyData data = propertyDatas[i];
 
 					using (writer.EnterScope($"case {i}:")) {
-						writer.AppendBlock(GenerateDeserialization(data.DeserializationExpression, "indexedPropertyBuffer"));
+						writer.AppendBlock(GenerateDeserialization(data.CompleteDeserializationExpression, "indexedPropertyBuffer"));
 						writer.AppendLine("break;");
 					}
 				}

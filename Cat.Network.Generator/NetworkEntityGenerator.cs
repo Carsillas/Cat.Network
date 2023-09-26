@@ -73,12 +73,16 @@ namespace Cat.Network.Generator {
 					Declared = propertySymbol.Declared,
 					Name = propertySymbol.Name,
 					TypeInfo = typeInfo,
-					SerializationExpression = typeInfo.IsNetworkDataObject ?
-						GetReferenceSerialization(propertySymbol.Symbol.Type, propertySymbol.Name) :
+					CompleteSerializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceSerialization(propertySymbol.Symbol.Type, propertySymbol.Name, true) :
 						GenerateTypeSerialization(propertySymbol.Name, propertySymbol.Symbol.Type),
-					DeserializationExpression = typeInfo.IsNetworkDataObject ?
+					CompleteDeserializationExpression = typeInfo.IsNetworkDataObject ?
 						GetReferenceDeserialization(propertySymbol.Symbol.Type, propertySymbol.Name) :
 						GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type),
+					PartialSerializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceSerialization(propertySymbol.Symbol.Type, propertySymbol.Name, false) : null,
+					PartialDeserializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceDeserialization(propertySymbol.Symbol.Type, propertySymbol.Name) : null,
 					ExposeEvent = propertySymbol.Symbol.GetAttributes().Any(attributeData =>
 						attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) ==
 						NetworkPropertyChangedEventAttributeFQN)
