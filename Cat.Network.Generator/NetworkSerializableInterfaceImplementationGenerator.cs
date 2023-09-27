@@ -73,7 +73,7 @@ namespace Cat.Network.Generator {
 			for (int i = 0; i < classDefinition.NetworkProperties.Length; i++) {
 				NetworkPropertyData data = classDefinition.NetworkProperties[i];
 
-				using (writer.EnterScope($"if (serializationOptions.MemberSelectionMode == {MemberSelectionModeFQN}.All || iSerializable.NetworkProperties[{i}].LastSetTick >= (iSerializable.SerializationContext?.Time ?? 0))")) {
+				using (writer.EnterScope($"if (serializationOptions.MemberSelectionMode == {MemberSelectionModeFQN}.All || iSerializable.NetworkProperties[{i}].LastSetTick >= (iSerializable.SerializationContext?.Time ?? 0) || iSerializable.NetworkProperties[{i}].LastUpdateTick >= (iSerializable.SerializationContext?.Time ?? 0))")) {
 					using (writer.EnterScope($"if (serializationOptions.MemberIdentifierMode == {MemberIdentifierModeFQN}.Name)")) {
 						writer.AppendLine($"System.Int32 lengthStorage = {UnicodeFQN}.GetBytes(iSerializable.NetworkProperties[{i}].Name, contentBuffer.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, lengthStorage); contentBuffer = contentBuffer.Slice(4 + lengthStorage);");
 					}

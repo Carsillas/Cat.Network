@@ -33,6 +33,7 @@ namespace Cat.Network.Generator {
 
 		protected override void GenerateSetter(ScopedStringWriter writer, int propertyIndex, NetworkPropertyData data) {
 			using (writer.EnterScope("set")) {
+
 				writer.AppendBlock($@"
 					{NetworkEntityInterfaceFQN} iEntity = this;
 					ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
@@ -41,6 +42,25 @@ namespace Cat.Network.Generator {
 					var oldValue = (({NetworkPropertyPrefix})this).{data.Name};
 					(({NetworkPropertyPrefix})this).{data.Name} = value;
 				");
+
+				if (data.TypeInfo.IsNetworkDataObject) {
+					writer.AppendBlock($@"
+						if (oldValue != null) {{
+							(({NetworkDataObjectInterfaceFQN})oldValue).Parent = null;
+							(({NetworkDataObjectInterfaceFQN})oldValue).PropertyIndex = -1;
+						}}
+						{NetworkDataObjectInterfaceFQN} newValue = value;
+						if (newValue != null) {{
+							newValue.Parent = this;
+							newValue.PropertyIndex = {propertyIndex};
+						
+							for (int networkPropertyIndex = 0; networkPropertyIndex < newValue.NetworkProperties.Length; networkPropertyIndex++) {{
+								ref {NetworkPropertyInfoFQN} prop = ref newValue.NetworkProperties[networkPropertyIndex];
+								prop.LastSetTick = iEntity.SerializationContext?.Time ?? 0;
+							}}
+						}}
+					");
+				}
 
 				if (data.ExposeEvent) {
 					GenerateEventInvocation(writer, propertyIndex, data);
