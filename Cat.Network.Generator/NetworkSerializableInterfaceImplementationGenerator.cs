@@ -141,7 +141,6 @@ namespace Cat.Network.Generator {
 						System.Int32 propertyIndex = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(propertyContentBuffer); propertyContentBuffer = propertyContentBuffer.Slice(4);
 						System.Int32 propertyLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(propertyContentBuffer); propertyContentBuffer = propertyContentBuffer.Slice(4);
 						ReadIndexedProperty(propertyIndex, propertyContentBuffer.Slice(0, propertyLength));
-						iSerializable.NetworkProperties[propertyIndex].LastSetTick = iSerializable.SerializationContext?.DeserializeDirtiesProperty == true ? iSerializable.SerializationContext?.Time ?? 0 : 0;
 						propertyContentBuffer = propertyContentBuffer.Slice(propertyLength);
 					");
 				}
@@ -159,6 +158,9 @@ namespace Cat.Network.Generator {
 
 					using (writer.EnterScope($"case {i}:")) {
 						writer.AppendBlock(GenerateDeserialization(data.CompleteDeserializationExpression, "indexedPropertyBuffer"));
+						if (!data.TypeInfo.IsNetworkDataObject) {
+							writer.AppendLine($"iSerializable.NetworkProperties[{i}].LastSetTick = iSerializable.SerializationContext?.DeserializeDirtiesProperty == true ? iSerializable.SerializationContext?.Time ?? 0 : 0;");
+						}
 						writer.AppendLine("break;");
 					}
 				}

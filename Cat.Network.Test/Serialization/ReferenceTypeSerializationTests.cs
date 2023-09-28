@@ -38,6 +38,16 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.AreNotSame(testEntityA.Test, testEntityB.Test);
 		Assert.AreSame(testEntityB.Test.GetType(), typeof(CustomNetworkDataObject));
 		Assert.AreEqual(7, ((CustomNetworkDataObject)testEntityB.Test).Test);
+
+
+		testEntityA.Test = null;
+		
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+		
+		Assert.IsNull(testEntityA.Test);
+		Assert.IsNull(testEntityB.Test);
 		
 	}
 	
@@ -90,5 +100,44 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 	}
 	
+	
+	[Test]
+	public void Test_ReferenceTypeNonOwnerModification() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity {
+			Test = new CustomNetworkDataObject {
+				Test = 7
+			}
+		};
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(Server.EntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		ReferenceTypeTestEntity testEntityServer = (ReferenceTypeTestEntity)entityServer;
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		NetworkDataObject networkDataObjectServer = testEntityServer.Test;
+		NetworkDataObject networkDataObjectB = testEntityB.Test;
+		
+		((CustomNetworkDataObject)testEntityB.Test).Test = 8;
+
+		for (int i = 0; i < 3; i++) {
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+		}
+		
+		Assert.AreNotSame(testEntityA.Test, testEntityServer.Test);
+		Assert.AreNotSame(testEntityA.Test, testEntityB.Test);
+		Assert.AreSame(networkDataObjectServer, testEntityServer.Test);
+		Assert.AreSame(networkDataObjectB, testEntityB.Test);
+		Assert.AreEqual(7, ((CustomNetworkDataObject)testEntityServer.Test).Test);
+		Assert.AreEqual(7, ((CustomNetworkDataObject)testEntityB.Test).Test);
+
+	}
 	
 }

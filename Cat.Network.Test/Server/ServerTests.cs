@@ -122,7 +122,32 @@ public class ServerTest : CatNetworkTest {
 
 		Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
 	}
+	
+	[Test]
+	public void Test_NonOwnerModification() {
 
+		TestEntity testEntityA = new TestEntity();
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+		TestEntity testEntityB = (TestEntity)entityB;
+
+		testEntityB.Health = 123;
+
+		for (int i = 0; i < 3; i++) {
+			ClientA.Tick();
+			Server.Tick();
+			ClientB.Tick();
+		}
+
+		Assert.AreEqual(0, testEntityA.Health);
+		Assert.AreEqual(0, testEntityB.Health);
+		
+	}
 
 	[Test]
 	public void Test_ServerDespawn() {
