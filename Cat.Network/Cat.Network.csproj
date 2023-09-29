@@ -11,11 +11,14 @@
         <Title>Cat Network</Title>
         <Authors>Carsillas</Authors>
         <RepositoryUrl>https://github.com/Carsillas/Cat.Network</RepositoryUrl>
-        <Version>0.0.1</Version>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageOutputPath>$(SolutionDir)artifacts</PackageOutputPath>
+        <VersionPrefix>0.0.1</VersionPrefix>
+        <VersionSuffix>$([System.DateTime]::Now.ToString(yyyyMMddHHmm))</VersionSuffix>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Cat.Network.Generator" Version="0.0.1" />
+        <PackageReference Include="Cat.Network.Generator" Version="0.0.1-*" />
     </ItemGroup>
 
 </Project>
