@@ -157,7 +157,7 @@ namespace Cat.Network.Generator {
 					NetworkPropertyData data = propertyDatas[i];
 
 					using (writer.EnterScope($"case {i}:")) {
-						writer.AppendBlock(GenerateDeserialization(data.CompleteDeserializationExpression, "indexedPropertyBuffer"));
+						writer.AppendBlock(GenerateDeserialization(data.DeserializationExpression, "indexedPropertyBuffer"));
 						if (!data.TypeInfo.IsNetworkDataObject) {
 							writer.AppendLine($"iSerializable.NetworkProperties[{i}].LastSetTick = iSerializable.SerializationContext?.DeserializeDirtiesProperty == true ? iSerializable.SerializationContext?.Time ?? 0 : 0;");
 						}

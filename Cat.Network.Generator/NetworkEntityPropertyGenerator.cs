@@ -1,5 +1,7 @@
 using static Cat.Network.Generator.Utils;
 
+// @formatter:csharp_max_line_length 400
+
 namespace Cat.Network.Generator {
 	public class NetworkEntityPropertyGenerator : NetworkSerializablePropertyGenerator {
 		

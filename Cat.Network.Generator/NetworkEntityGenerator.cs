@@ -74,15 +74,13 @@ namespace Cat.Network.Generator {
 					Name = propertySymbol.Name,
 					TypeInfo = typeInfo,
 					CompleteSerializationExpression = typeInfo.IsNetworkDataObject ?
-						GetReferenceSerialization(propertySymbol.Symbol.Type, propertySymbol.Name, true) :
+						GetReferenceSerialization(propertySymbol.Name, propertySymbol.Symbol.Type, true) :
 						GenerateTypeSerialization(propertySymbol.Name, propertySymbol.Symbol.Type),
-					CompleteDeserializationExpression = typeInfo.IsNetworkDataObject ?
-						GetReferenceDeserialization(propertySymbol.Symbol.Type, propertySymbol.Name) :
+					DeserializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type) :
 						GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type),
 					PartialSerializationExpression = typeInfo.IsNetworkDataObject ?
-						GetReferenceSerialization(propertySymbol.Symbol.Type, propertySymbol.Name, false) : null,
-					PartialDeserializationExpression = typeInfo.IsNetworkDataObject ?
-						GetReferenceDeserialization(propertySymbol.Symbol.Type, propertySymbol.Name) : null,
+						GetReferenceSerialization(propertySymbol.Name, propertySymbol.Symbol.Type, false) : null,
 					ExposeEvent = propertySymbol.Symbol.GetAttributes().Any(attributeData =>
 						attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) ==
 						NetworkPropertyChangedEventAttributeFQN)
@@ -97,13 +95,23 @@ namespace Cat.Network.Generator {
 				namedTypeSymbol.IsGenericType &&
 				namedTypeSymbol.TypeArguments.Length == 1 &&
 				namedTypeSymbol.TypeArguments[0] is INamedTypeSymbol)
-			.Select(propertySymbol => new NetworkCollectionData {
-				Declared = propertySymbol.Declared,
-				Name = propertySymbol.Name,
-				CollectionTypeInfo = GetTypeInfo(propertySymbol.Symbol.Type),
-				ItemTypeInfo = GetTypeInfo(((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0]),
-				ItemSerializationExpression = GenerateTypeSerialization("item", ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0]),
-				ItemDeserializationExpression = GenerateTypeDeserialization("item", ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0])
+			.Select(propertySymbol => {
+				ITypeSymbol itemType = ((INamedTypeSymbol)propertySymbol.Symbol.Type).TypeArguments[0];
+				TypeInfo typeInfo = GetTypeInfo(itemType);
+				return new NetworkCollectionData {
+					Declared = propertySymbol.Declared,
+					Name = propertySymbol.Name,
+					CollectionTypeInfo = GetTypeInfo(propertySymbol.Symbol.Type),
+					ItemTypeInfo = typeInfo,
+					CompleteItemSerializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceSerialization("item", itemType, true) :
+						GenerateTypeSerialization("item", itemType),
+					ItemDeserializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceDeserialization("item", itemType) :
+						GenerateTypeDeserialization("item", itemType),
+					PartialItemSerializationExpression = typeInfo.IsNetworkDataObject ?
+						GetReferenceSerialization("item", itemType, false) : null
+				};
 			});
 		}
 

@@ -6,64 +6,46 @@ using System.Security.Cryptography;
 using System.Text;
 using static Cat.Network.Generator.Utils;
 
+// @formatter:csharp_max_line_length 400
+
 namespace Cat.Network.Generator {
 	public static class NetworkEntityCollectionGenerator {
-
 		public static string GenerateNetworkCollectionSource(NetworkEntityClassDefinition classDefinition) {
+			ScopedStringWriter writer = new ScopedStringWriter();
 
-			return $@"
-namespace {classDefinition.Namespace} {{
-	partial class {classDefinition.Name} : {classDefinition.Name}.{NetworkCollectionPrefix} {{
+			using (writer.EnterScope($"namespace {classDefinition.Namespace}")) {
+				using (writer.EnterScope($"partial class {classDefinition.Name} : {classDefinition.Name}.{NetworkCollectionPrefix}")) {
+					GenerateNetworkCollectionInterface(writer, classDefinition);
+					GenerateNetworkCollectionDefinitions(writer, classDefinition);
+				}
+			}
 
-{GenerateNetworkCollectionInterface(classDefinition)}
-{GenerateNetworkCollectionDefinitions(classDefinition)}
-
-	}}
-}}
-";
+			return writer.ToString();
 		}
 
 
-		private static string GenerateNetworkCollectionInterface(NetworkEntityClassDefinition classDefinition) {
+		private static void GenerateNetworkCollectionInterface(ScopedStringWriter writer, NetworkEntityClassDefinition classDefinition) {
 			bool isNetworkEntity = $"{classDefinition.Namespace}.{classDefinition.Name}" == NetworkEntityFQN;
 			string superInterface = isNetworkEntity ? "" : $": {classDefinition.BaseTypeFQN}.{NetworkCollectionPrefix} ";
-			string interfaceKeywords = isNetworkEntity ? "protected interface" : "protected new interface";
-			return $@"
-		{interfaceKeywords} {NetworkCollectionPrefix} {superInterface}{{
-{GenerateInterfaceCollections(classDefinition)}
-		}}
-";
+
+			using (writer.EnterScope($"protected new interface {NetworkCollectionPrefix} {superInterface}")) {
+				GenerateInterfaceCollections(writer, classDefinition);
+			}
 		}
 
-		private static string GenerateInterfaceCollections(NetworkEntityClassDefinition classDefinition) {
-
-			StringBuilder stringBuilder = new StringBuilder();
-
+		private static void GenerateInterfaceCollections(ScopedStringWriter writer, NetworkEntityClassDefinition classDefinition) {
 			foreach (NetworkCollectionData collection in classDefinition.NetworkCollections.Where(collection => collection.Declared)) {
-				stringBuilder.AppendLine($"\t\t\t{collection.InterfaceCollectionDeclaration}");
-				stringBuilder.AppendLine($"\t\t\t{collection.ExposedInterfaceCollectionDeclaration}");
+				writer.AppendLine(collection.InterfaceCollectionDeclaration);
+				writer.AppendLine(collection.ExposedInterfaceCollectionDeclaration);
 			}
-
-			return stringBuilder.ToString();
-
 		}
 
 
-		private static string GenerateNetworkCollectionDefinitions(NetworkEntityClassDefinition classDefinition) {
-
-			StringBuilder stringBuilder = new StringBuilder();
-
-			int declaredPropertiesStartIndex = classDefinition.NetworkProperties.Length - classDefinition.NetworkProperties.Count(property => property.Declared);
-
-			int i = 0;
+		private static void GenerateNetworkCollectionDefinitions(ScopedStringWriter writer, NetworkEntityClassDefinition classDefinition) {
 			foreach (NetworkCollectionData data in classDefinition.NetworkCollections.Where(property => property.Declared)) {
-				stringBuilder.AppendLine($"\t\t{data.ExposedExplicitInterfaceCollectionImplementation}");
-				stringBuilder.AppendLine($"\t\t{data.ExposedInterfaceCollectionImplementation}");
-				i++;
+				writer.AppendLine(data.ExposedExplicitInterfaceCollectionImplementation);
+				writer.AppendLine(data.ExposedInterfaceCollectionImplementation);
 			}
-
-			return stringBuilder.ToString();
 		}
-
 	}
 }

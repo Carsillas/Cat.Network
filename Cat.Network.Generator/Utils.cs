@@ -257,7 +257,7 @@ namespace Cat.Network.Generator {
 		}
 
 
-		public static string GetReferenceSerialization(ITypeSymbol symbol, string name, bool complete) {
+		public static string GetReferenceSerialization(string name, ITypeSymbol symbol, bool complete) {
 
 			ScopedStringWriter writer = new ScopedStringWriter();
 
@@ -285,7 +285,7 @@ namespace Cat.Network.Generator {
 			return writer.ToString();
 		}
 
-		public static string GetReferenceDeserialization(ITypeSymbol symbol, string name) {
+		public static string GetReferenceDeserialization(string name, ITypeSymbol symbol) {
 
 			ScopedStringWriter writer = new ScopedStringWriter();
 

@@ -13,15 +13,20 @@ namespace Cat.Network.Generator {
 		public TypeInfo ItemTypeInfo { get; set; }
 
 
+		public string NetworkListTypeFQN =>
+			ItemTypeInfo.IsNetworkDataObject ? NetworkObjectListFQN : NetworkValueListFQN;
+		
 		public string BackingCollectionName => $"__{Name}";
 		public string InterfaceCollectionDeclaration => $"{CollectionTypeInfo.FullyQualifiedTypeName} {Name} {{ get; }}";
-		public string ExposedInterfaceCollectionDeclaration => $"{NetworkValueListFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {BackingCollectionName} {{ get; set; }}";
-		public string ExposedExplicitInterfaceCollectionImplementation => $"{NetworkValueListFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {NetworkCollectionPrefix}.{BackingCollectionName} {{ get; set; }}";
-		public string ExposedInterfaceCollectionImplementation => $"public {NetworkValueListFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {Name} => (({NetworkCollectionPrefix})this).{BackingCollectionName};";
+		public string ExposedInterfaceCollectionDeclaration => $"{NetworkListTypeFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {BackingCollectionName} {{ get; set; }}";
+		public string ExposedExplicitInterfaceCollectionImplementation => $"{NetworkListTypeFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {NetworkCollectionPrefix}.{BackingCollectionName} {{ get; set; }}";
+		public string ExposedInterfaceCollectionImplementation => $"public {NetworkListTypeFQN}<{ItemTypeInfo.FullyQualifiedTypeName}> {Name} => (({NetworkCollectionPrefix})this).{BackingCollectionName};";
 
 
-		public string ItemSerializationExpression { get; set; }
+		public string CompleteItemSerializationExpression { get; set; }
 		public string ItemDeserializationExpression { get; set; }
 
+		public string PartialItemSerializationExpression { get; set; }
+		
 	}
 }

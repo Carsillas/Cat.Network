@@ -24,6 +24,10 @@ public class CatNetworkTest {
 		(ClientB, ClientBTransport, ProxyManagerB) = AddClient();
 
 
+		Cycle();
+	}
+
+	protected void Cycle() {
 		ClientA.Tick();
 		Server.Tick();
 		ClientB.Tick();
@@ -36,7 +40,7 @@ public class CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 	}
-
+	
 	protected (TestClient, TestTransport, TestProxyManager) AddClient() {
 		TestProxyManager proxyManager = new TestProxyManager();
 		TestClient client = new TestClient(proxyManager);

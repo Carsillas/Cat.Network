@@ -10,9 +10,8 @@ namespace Cat.Network.Generator {
 		public bool ExposeEvent { get; set; }
 		
 		public string CompleteSerializationExpression { get; set; }
-		public string CompleteDeserializationExpression { get; set; }
+		public string DeserializationExpression { get; set; }
 		public string PartialSerializationExpression { get; set; }
-		public string PartialDeserializationExpression { get; set; }
 	}
 
 	public struct TypeInfo {

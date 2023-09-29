@@ -31,7 +31,6 @@ namespace Cat.Network.Generator {
 						parentNetworkPropertyInfo.LastUpdateTick = iNetworkDataObject.SerializationContext?.Time ?? 0;
 					}}
 
-
 					var oldValue = (({NetworkPropertyPrefix})this).{data.Name};
 					(({NetworkPropertyPrefix})this).{data.Name} = value;
 				");
