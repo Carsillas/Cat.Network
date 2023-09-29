@@ -40,6 +40,12 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	public bool Remove(T item) {
 		((INetworkCollection<T>)this).AssertOwner();
 		int index = InternalList.IndexOf(item);
+
+		return RemoveAt(index);
+	}
+	
+	public bool RemoveAt(int index) {
+		((INetworkCollection<T>)this).AssertOwner();
 		
 		if (index >= 0) {
 			InternalList.RemoveAt(index);
@@ -47,8 +53,7 @@ public class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 			if (SerializationContext != null) {
 				((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
 					OperationType = NetworkCollectionOperationType.Remove,
-					Index = index,
-					Value = item
+					Index = index
 				});
 			}
 			return true;

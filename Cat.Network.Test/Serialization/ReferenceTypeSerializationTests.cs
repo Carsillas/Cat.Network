@@ -121,23 +121,120 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 	}
 
 	[Test]
-	public void Test_ReferenceTypeCollectionSerialization() {
+	public void Test_PreExistingCollectionSerialization() {
 		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
 
 		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 10 });
-
-
+		
 		ClientA.Spawn(testEntityA);
 
 		Cycle();
 
-		Assert.IsTrue(Server.EntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
 		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
-		ReferenceTypeTestEntity testEntityServer = (ReferenceTypeTestEntity)entityServer;
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
 		Assert.IsInstanceOf<CustomNetworkDataObject>(testEntityB.Inventory[0]);
 		Assert.AreEqual(10, testEntityB.Inventory[0].Test);
 	}
+	
+	[Test]
+	public void Test_CollectionAdditionSerialization() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+		
+		ClientA.Spawn(testEntityA);
+
+		Cycle();
+
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 10 });
+		
+		Cycle();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		Assert.AreEqual(1, testEntityB.Inventory.Count);
+		Assert.IsInstanceOf<CustomNetworkDataObject>(testEntityB.Inventory[0]);
+		Assert.AreEqual(10, testEntityB.Inventory[0].Test);
+	}
+	
+	[Test]
+	public void Test_CollectionRemovalSerialization() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+		
+		ClientA.Spawn(testEntityA);
+
+		Cycle();
+
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 10 });
+		
+		Cycle();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		Assert.AreEqual(1, testEntityB.Inventory.Count);
+		Assert.IsInstanceOf<CustomNetworkDataObject>(testEntityB.Inventory[0]);
+		Assert.AreEqual(10, testEntityB.Inventory[0].Test);
+		
+		testEntityA.Inventory.RemoveAt(0);
+		
+		Cycle();
+		
+		Assert.AreEqual(0, testEntityB.Inventory.Count);
+	}
+	
+	[Test]
+	public void Test_CollectionClearSerialization() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+		
+		ClientA.Spawn(testEntityA);
+
+		Cycle();
+
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 10 });
+		
+		Cycle();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		Assert.AreEqual(1, testEntityB.Inventory.Count);
+		Assert.IsInstanceOf<CustomNetworkDataObject>(testEntityB.Inventory[0]);
+		Assert.AreEqual(10, testEntityB.Inventory[0].Test);
+		
+		testEntityA.Inventory.Clear();
+		
+		Cycle();
+		
+		Assert.AreEqual(0, testEntityB.Inventory.Count);
+	}
+	
+	[Test]
+	public void Test_CollectionUpdateSerialization() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+		
+		ClientA.Spawn(testEntityA);
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 10 });
+
+		Cycle();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		Assert.AreEqual(1, testEntityB.Inventory.Count);
+		Assert.IsInstanceOf<CustomNetworkDataObject>(testEntityB.Inventory[0]);
+		Assert.AreEqual(10, testEntityB.Inventory[0].Test);
+		CustomNetworkDataObject networkDataObjectB = testEntityB.Inventory[0];
+		
+		testEntityA.Inventory[0].Test = 20;
+		
+		Cycle();
+		
+		Assert.AreEqual(1, testEntityB.Inventory.Count);
+		Assert.IsInstanceOf<CustomNetworkDataObject>(testEntityB.Inventory[0]);
+		Assert.AreSame(networkDataObjectB, testEntityB.Inventory[0]);
+		Assert.AreEqual(20, testEntityB.Inventory[0].Test);
+	}
+	
 }
