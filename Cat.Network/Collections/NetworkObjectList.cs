@@ -30,6 +30,15 @@ public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList wh
 
 	public void MarkForUpdate(int index) {
 		INetworkCollection<T> iNetworkCollection = this;
+
+		if (iNetworkCollection.OperationBuffer.Count > 0) {
+			NetworkCollectionOperation<T> lastOperation = iNetworkCollection.OperationBuffer[^1];
+
+			if (lastOperation.OperationType == NetworkCollectionOperationType.Update &&
+			    lastOperation.Index == index) {
+				return;
+			}
+		}
 		
 		iNetworkCollection.OperationBuffer.Add(new NetworkCollectionOperation<T> {
 			Index = index,

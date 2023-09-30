@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using Cat.Network.Collections;
 using NUnit.Framework;
 
 namespace Cat.Network.Test.Serialization;
@@ -237,6 +238,31 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.AreEqual(20, testEntityB.Inventory[0].Test);
 	}
 
+	
+	[Test]
+	public void Test_CollectionMultipleUpdatesSingleCollectionOperation() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+
+		ClientA.Spawn(testEntityA);
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 10 });
+
+		Cycle();
+
+		testEntityA.Inventory[0].Test = 20;
+		testEntityA.Inventory[0].Test = 20;
+		testEntityA.Inventory[0].Test = 20;
+		testEntityA.Inventory[0].Test = 20;
+		testEntityA.Inventory[0].Test = 20;
+		testEntityA.Inventory[0].Test = 20;
+		testEntityA.Inventory[0].Test = 20;
+
+		INetworkCollection<CustomNetworkDataObject> collection = testEntityA.Inventory;
+		
+		Assert.AreEqual(1, collection.OperationBuffer.Count);
+
+		Cycle();
+	}
+	
 	[Test]
 	public void Test_NetworkDataObjectCannotHaveMultipleOwners() {
 		ReferenceTypeTestEntity testEntityA1 = new ReferenceTypeTestEntity();
