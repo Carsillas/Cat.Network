@@ -27,8 +27,12 @@ namespace Cat.Network.Generator {
 					networkPropertyInfo.LastSetTick = iNetworkDataObject.SerializationContext?.Time ?? 0;
 
 					if (iNetworkDataObject.Parent != null) {{
-						ref {NetworkPropertyInfoFQN} parentNetworkPropertyInfo = ref iNetworkDataObject.Parent.NetworkProperties[iNetworkDataObject.PropertyIndex];
-						parentNetworkPropertyInfo.LastUpdateTick = iNetworkDataObject.SerializationContext?.Time ?? 0;
+						if (iNetworkDataObject.Collection == null) {{
+							ref {NetworkPropertyInfoFQN} parentNetworkPropertyInfo = ref iNetworkDataObject.Parent.NetworkProperties[iNetworkDataObject.PropertyIndex];
+							parentNetworkPropertyInfo.LastUpdateTick = iNetworkDataObject.SerializationContext?.Time ?? 0;
+						}} else {{
+							iNetworkDataObject.Collection.MarkForUpdate(iNetworkDataObject.PropertyIndex);
+						}}
 					}}
 
 					var oldValue = (({NetworkPropertyPrefix})this).{data.Name};

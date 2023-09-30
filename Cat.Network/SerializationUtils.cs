@@ -5,7 +5,7 @@ using System.Text;
 using static Cat.Network.CatServer;
 
 namespace Cat.Network;
-internal static class SerializationUtils {
+public static class SerializationUtils {
 
 	private static Dictionary<Type, string> AssemblyQualifiedTypeNames { get; } = new();
 
@@ -20,7 +20,7 @@ internal static class SerializationUtils {
 		MemberSerializationMode = MemberSerializationMode.Complete
 	};
 
-	public static void ExtractPacketHeader(ReadOnlySpan<byte> buffer, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> contentBuffer) {
+	internal static void ExtractPacketHeader(ReadOnlySpan<byte> buffer, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> contentBuffer) {
 		contentBuffer = Span<byte>.Empty;
 		ReadOnlySpan<byte> bufferCopy = buffer;
 
@@ -42,7 +42,7 @@ internal static class SerializationUtils {
 		}
 	}
 
-	public static int WritePacketHeader(Span<byte> buffer, RequestType requestType, NetworkEntity entity, out Span<byte> contentBuffer) {
+	internal static int WritePacketHeader(Span<byte> buffer, RequestType requestType, NetworkEntity entity, out Span<byte> contentBuffer) {
 
 		Span<byte> bufferCopy = buffer;
 

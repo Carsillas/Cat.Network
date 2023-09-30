@@ -36,6 +36,16 @@ namespace Cat.Network.Generator {
 		protected override void GenerateSetter(ScopedStringWriter writer, int propertyIndex, NetworkPropertyData data) {
 			using (writer.EnterScope("set")) {
 
+
+				if (data.TypeInfo.IsNetworkDataObject) {
+					writer.AppendBlock($@"
+						{NetworkDataObjectInterfaceFQN} newValue = value;
+						if (newValue?.Parent != null) {{
+							throw new System.InvalidOperationException($""nameof({NetworkDataObjectFQN})s may only occupy one networked property or list!"");
+						}}
+					");
+				}
+
 				writer.AppendBlock($@"
 					{NetworkEntityInterfaceFQN} iEntity = this;
 					ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
@@ -51,7 +61,6 @@ namespace Cat.Network.Generator {
 							(({NetworkDataObjectInterfaceFQN})oldValue).Parent = null;
 							(({NetworkDataObjectInterfaceFQN})oldValue).PropertyIndex = -1;
 						}}
-						{NetworkDataObjectInterfaceFQN} newValue = value;
 						if (newValue != null) {{
 							newValue.Parent = this;
 							newValue.PropertyIndex = {propertyIndex};

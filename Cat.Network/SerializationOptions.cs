@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 namespace Cat.Network;
 
 public struct SerializationOptions {
-	public MemberIdentifierMode MemberIdentifierMode { get; init; }
-	public MemberSelectionMode MemberSelectionMode { get; init; }
-	public MemberSerializationMode MemberSerializationMode { get; init; }
+	public MemberIdentifierMode MemberIdentifierMode { get; set; }
+	public MemberSelectionMode MemberSelectionMode { get; set; }
+	public MemberSerializationMode MemberSerializationMode { get; set; }
 }
 
 public enum MemberIdentifierMode : byte {

@@ -30,6 +30,8 @@ namespace Cat.Network.Generator {
 		public const string NetworkDataObjectInterfaceFQN = "Cat.Network.INetworkDataObject";
 		public const string NetworkPropertyInfoFQN = "Cat.Network.NetworkPropertyInfo";
 		public const string SerializationOptionsFQN = "Cat.Network.SerializationOptions";
+		public const string CreateSerializationOptions = "Cat.Network.SerializationUtils.CreateOptions";
+		public const string UpdateSerializationOptions = "Cat.Network.SerializationUtils.UpdateOptions";
 		public const string MemberIdentifierModeFQN = "Cat.Network.MemberIdentifierMode";
 		public const string MemberSelectionModeFQN = "Cat.Network.MemberSelectionMode";
 		public const string MemberSerializationModeFQN = "Cat.Network.MemberSerializationMode";
@@ -279,7 +281,7 @@ namespace Cat.Network.Generator {
 					writer.AppendLine($"{PropertyBufferName}[0] = (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);");
 				}
 
-				writer.AppendLine($"{PropertyBufferName} = {PropertyBufferName}.Slice((({NetworkSerializableInterfaceFQN}){name}).Serialize(serializationOptions, {PropertyBufferName}));");
+				writer.AppendLine($"{PropertyBufferName} = {PropertyBufferName}.Slice((({NetworkSerializableInterfaceFQN}){name}).Serialize({(complete ? CreateSerializationOptions : UpdateSerializationOptions)}, {PropertyBufferName}));");
 			}
 
 			return writer.ToString();

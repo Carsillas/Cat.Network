@@ -5,5 +5,6 @@ public enum NetworkCollectionOperationType : byte {
 	Remove,
 	Set,
 	Update,
+	Swap,
 	Clear
 }
