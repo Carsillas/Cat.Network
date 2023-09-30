@@ -19,7 +19,11 @@ public partial record NetworkDataObject : INetworkDataObject {
 	INetworkEntity INetworkSerializable.Anchor => ((INetworkDataObject)this).Parent?.Anchor;
 	NetworkPropertyInfo[] INetworkSerializable.NetworkProperties { get; set; }
 
-	public NetworkDataObject() {
+	protected NetworkDataObject() {
+		((INetworkSerializable)this).Initialize();
+	}
+	
+	protected NetworkDataObject(NetworkDataObject other) {
 		((INetworkSerializable)this).Initialize();
 	}
 	
