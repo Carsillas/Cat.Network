@@ -238,7 +238,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.AreEqual(20, testEntityB.Inventory[0].Test);
 	}
 
-	
+
 	[Test]
 	public void Test_CollectionMultipleUpdatesSingleCollectionOperation() {
 		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
@@ -257,12 +257,12 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		testEntityA.Inventory[0].Test = 20;
 
 		INetworkCollection<CustomNetworkDataObject> collection = testEntityA.Inventory;
-		
+
 		Assert.AreEqual(1, collection.OperationBuffer.Count);
 
 		Cycle();
 	}
-	
+
 	[Test]
 	public void Test_NetworkDataObjectCannotHaveMultipleOwners() {
 		ReferenceTypeTestEntity testEntityA1 = new ReferenceTypeTestEntity();
@@ -311,5 +311,35 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.AreEqual(10, testEntityB.TestDerived.Test);
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
 		Assert.AreEqual(10, testEntityB.Inventory[0].Test);
+	}
+
+
+	[Test]
+	public void Test_NetworkDataObjectRpcSerialization() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+
+		ClientA.Spawn(testEntityA);
+
+		Cycle();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		testEntityA.ReceivedRPC += OnReceivedRPC;
+
+		bool receivedRpc = false;
+
+		testEntityB.ReferenceRPC(new CustomNetworkDataObject { Test = 15 });
+
+		Cycle();
+		
+		Assert.IsTrue(receivedRpc);
+		
+
+		void OnReceivedRPC(CustomNetworkDataObject obj) {
+			receivedRpc = true;
+			Assert.IsNotNull(obj);
+			Assert.AreEqual(15, obj.Test);
+		}
 	}
 }

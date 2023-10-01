@@ -121,12 +121,19 @@ namespace Cat.Network.Generator {
 				Declared = methodSymbol.Declared,
 				ClassMethodInvocation = methodSymbol.Symbol.ToDisplayString(ClassMethodInvocationFormat),
 				InterfaceMethodDeclaration = methodSymbol.Symbol.ToDisplayString(InterfaceMethodDeclarationFormat),
-				Parameters = methodSymbol.Symbol.Parameters.Select(parameter =>
-				new RPCParameterData {
-					TypeInfo = GetTypeInfo(parameter.Type),
-					ParameterName = parameter.Name,
-					SerializationExpression = GenerateTypeSerialization(parameter.Name, parameter.Type),
-					DeserializationExpression = GenerateTypeDeserialization(parameter.Name, parameter.Type)
+				Parameters = methodSymbol.Symbol.Parameters.Select(parameter => {
+
+					TypeInfo typeInfo = GetTypeInfo(parameter.Type);
+					return new RPCParameterData {
+						TypeInfo = typeInfo,
+						ParameterName = parameter.Name,
+						SerializationExpression = typeInfo.IsNetworkDataObject ?
+							GetReferenceSerialization(parameter.Name, parameter.Type, true) :
+							GenerateTypeSerialization(parameter.Name, parameter.Type),
+						DeserializationExpression = typeInfo.IsNetworkDataObject ?
+							GetReferenceDeserialization(parameter.Name, parameter.Type) : 
+							GenerateTypeDeserialization(parameter.Name, parameter.Type)
+					};
 				}).ToImmutableArray()
 			});
 		}

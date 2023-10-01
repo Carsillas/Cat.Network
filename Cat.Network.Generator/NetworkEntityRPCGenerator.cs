@@ -52,6 +52,7 @@ namespace {classDefinition.Namespace} {{
 			stringBuilder.AppendLine($@"
 		void {NetworkEntityInterfaceFQN}.HandleRPCInvocation({NetworkEntityFQN} instigator, {ReadOnlySpanFQN} buffer) {{
 			
+			{SerializationOptionsFQN} serializationOptions = {CreateSerializationOptions};
 			{ReadOnlySpanFQN} bufferCopy = buffer;
 	
 			System.Int64 methodNameHash = {BinaryPrimitivesFQN}.ReadInt64LittleEndian(bufferCopy.Slice(0, 8));
