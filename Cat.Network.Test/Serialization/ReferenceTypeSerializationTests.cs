@@ -342,4 +342,33 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 			Assert.AreEqual(15, obj.Test);
 		}
 	}
+	
+	
+	
+	[Test]
+	public void Test_NetworkDataObjectNested() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+
+		ClientA.Spawn(testEntityA);
+		CustomNetworkDataObject testNetworkDataObject = new CustomNetworkDataObject { Test = 10 };
+
+		testEntityA.TestNested = new NestedNetworkDataObject();
+
+		Cycle();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		
+		Assert.IsNotNull(testEntityB.TestNested);
+
+		testEntityA.TestNested.NestedProperty = new CustomNetworkDataObject { Test = 15 };
+		
+		Cycle();
+		
+		Assert.IsNotNull(testEntityB.TestNested.NestedProperty);
+		Assert.AreEqual(15, testEntityB.TestNested.NestedProperty.Test);
+
+	}
+	
 }

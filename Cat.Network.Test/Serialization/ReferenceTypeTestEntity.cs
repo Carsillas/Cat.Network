@@ -7,6 +7,7 @@ public partial class ReferenceTypeTestEntity : NetworkEntity {
 		
 	NetworkDataObject NetworkProperty.Test { get; set; }
 	CustomNetworkDataObject NetworkProperty.TestDerived { get; set; }
+	NestedNetworkDataObject NetworkProperty.TestNested { get; set; }
 	
 	List<CustomNetworkDataObject> NetworkCollection.Inventory { get; } = new();
 
