@@ -294,4 +294,67 @@ public class ServerTest : CatNetworkTest {
 	}
 
 
+	[Test]
+	public void Test_EntityOwnershipForfeit() {
+		TestEntity testEntityA = new TestEntity();
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
+		ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+		
+		bool ALostOwnership = false;
+		bool BLostOwnership = false;
+		bool AGainedOwnership = false;
+		bool BGainedOwnership = false;
+
+		ProxyManagerA.ForfeitedOwnership += entity => {
+			ALostOwnership = true;
+		};
+
+		ProxyManagerB.GainedOwnership += entity => {
+			BGainedOwnership = true;
+		};
+		
+
+		ProxyManagerA.GainedOwnership += entity => {
+			AGainedOwnership = true;
+		};
+
+		ProxyManagerB.ForfeitedOwnership += entity => {
+			BLostOwnership = true;
+		};
+		
+		ClientA.Disown(testEntityA, ClientB.ProfileEntity.NetworkID);
+
+		Assert.IsTrue(ALostOwnership);
+		Assert.IsFalse(testEntityA.IsOwner);
+		
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(BGainedOwnership);
+		Assert.IsTrue(entityB.IsOwner);
+		
+		ClientB.Disown(entityB, ClientA.ProfileEntity.NetworkID);
+
+		Assert.IsTrue(BLostOwnership);
+		Assert.IsFalse(entityB.IsOwner);
+		
+		ClientB.Tick();
+		Server.Tick();
+		ClientA.Tick();
+
+		Assert.IsTrue(AGainedOwnership);
+		Assert.IsTrue(testEntityA.IsOwner);
+		
+	}
+
+	
+	
 }

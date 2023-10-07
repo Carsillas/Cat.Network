@@ -45,6 +45,15 @@ internal class RemoteClient : IEntityProcessor {
 		int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.DeleteEntity, entity, out Span<byte> contentBuffer);
 		Transport.SendPacket(OutgoingReliableDataBuffer, headerLength);
 	}
+	
+	public void UnassignEntity(NetworkEntity entity) {
+
+		Server.UnassignIfOwned(ProfileEntity, entity);
+
+		OwnedEntities.Remove(entity);
+		
+		// No packet send, the only way an entity can become unowned is via deletion or forfeiting ownership.
+	}
 
 	internal void RegisterSpawnedEntity(NetworkEntity entity) {
 		InternalRelevantEntities.Add(entity);

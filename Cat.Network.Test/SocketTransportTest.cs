@@ -59,7 +59,7 @@ internal class SocketTransportTest {
 
 	protected async Task<(TestClient, SocketTransport, TestProxyManager)> AddClient() {
 		TestProxyManager proxyManager = new TestProxyManager();
-		TestClient client = new TestClient(proxyManager);
+		TestClient client = new TestClient(proxyManager, new TestProfileEntity());
 
 		Socket clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 		Socket serverSocket = null;
@@ -72,7 +72,7 @@ internal class SocketTransportTest {
 		SocketTransport clientTransport = new SocketTransport(clientSocket);
 		SocketTransport serverTransport = new SocketTransport(serverSocket);
 
-		Server.AddTransport(serverTransport, new TestProfileEntity());
+		Server.AddTransport(serverTransport, client.ProfileEntity);
 		client.Connect(clientTransport);
 
 		return new(client, clientTransport, proxyManager);

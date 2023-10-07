@@ -7,6 +7,7 @@ namespace Cat.Network.Test
     public class TestProxyManager : IProxyManager {
 
 		public event Action<NetworkEntity> GainedOwnership;
+		public event Action<NetworkEntity> ForfeitedOwnership;
 
 		public void Dispose() {
 
@@ -23,5 +24,9 @@ namespace Cat.Network.Test
 		public void OnGainedOwnership(NetworkEntity entity) {
 			GainedOwnership?.Invoke(entity);
 		}
-	}
+
+		public void OnForfeitOwnership(NetworkEntity entity) {
+			ForfeitedOwnership?.Invoke(entity);
+		}
+    }
 }

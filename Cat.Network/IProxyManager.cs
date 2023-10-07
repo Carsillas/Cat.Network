@@ -7,4 +7,5 @@ public interface IProxyManager {
 	void OnEntityDeleted(NetworkEntity entity);
 
 	void OnGainedOwnership(NetworkEntity entity);
+	void OnForfeitOwnership(NetworkEntity entity);
 }

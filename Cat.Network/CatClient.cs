@@ -24,6 +24,7 @@ public class CatClient : ISerializationContext {
 	private Dictionary<Guid, NetworkEntity> Entities { get; } = new();
 	private HashSet<NetworkEntity> EntitiesToSpawn { get; } = new();
 	private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new();
+	private HashSet<(NetworkEntity Entity, Guid NewOwner)> EntitiesToForfeit { get; } = new();
 	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCBuffers { get; } = new();
 
 	private HashSet<INetworkEntity> EntitiesMarkedForClean { get; } = new();
@@ -88,6 +89,22 @@ public class CatClient : ISerializationContext {
 		}
 	}
 
+	public void Disown(NetworkEntity entity, Guid newOwnerProfileID) {
+		
+		if (!entity.IsOwner) {
+			throw new Exception("Cannot disown an entity not owned by this client!");
+		}
+		
+		if (!entity.IsSpawned) {
+			throw new Exception("Cannot disown an entity that is not currently spawned!");
+		}
+		
+		ProxyManager.OnForfeitOwnership(entity);
+		entity.IsOwner = false;
+
+		EntitiesToForfeit.Add((entity, newOwnerProfileID));
+	}
+
 	public bool TryGetEntityByNetworkID(Guid NetworkID, out NetworkEntity entity) {
 		return Entities.TryGetValue(NetworkID, out entity);
 	}
@@ -117,6 +134,16 @@ public class CatClient : ISerializationContext {
 
 	private void ProcessOutgoingPackets() {
 
+		foreach (var forfeit in EntitiesToForfeit) {
+			int headerLength = WritePacketHeader(OutgoingReliableDataBuffer, RequestType.AssignOwner, forfeit.Entity, out Span<byte> contentBuffer);
+			int contentLength = 16;
+			forfeit.NewOwner.TryWriteBytes(contentBuffer.Slice(0, 16));
+			
+			Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
+		}
+		
+		EntitiesToForfeit.Clear();
+
 		foreach (NetworkEntity entity in Entities.Values) {
 			INetworkEntity iEntity = entity;
 
@@ -131,14 +158,12 @@ public class CatClient : ISerializationContext {
 
 					Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
 				}
-
+				
 			} else {
 				SendOutgoingRpcs(entity);
 			}
 		}
-
-
-
+		
 		foreach (NetworkEntity entity in EntitiesToSpawn) {
 			INetworkEntity iEntity = entity;
 
@@ -166,7 +191,6 @@ public class CatClient : ISerializationContext {
 		OutgoingRPCBuffers.Clear();
 		BufferPool.FreeAllBuffers();
 		BufferPool.FreeAllPools();
-
 	}
 
 	private void SendOutgoingRpcs(NetworkEntity entity) {

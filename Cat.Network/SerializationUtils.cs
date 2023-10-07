@@ -40,6 +40,10 @@ public static class SerializationUtils {
 			bufferCopy = bufferCopy.Slice(4);
 			contentBuffer = bufferCopy.Slice(0, contentLength);
 		}
+
+		if (requestType == RequestType.AssignOwner) {
+			contentBuffer = bufferCopy.Slice(0, 16);
+		}
 	}
 
 	internal static int WritePacketHeader(Span<byte> buffer, RequestType requestType, NetworkEntity entity, out Span<byte> contentBuffer) {

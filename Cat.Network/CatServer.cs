@@ -49,7 +49,7 @@ public class CatServer : ISerializationContext {
 
 				switch (requestType) {
 					case RequestType.AssignOwner:
-						Console.WriteLine($"Invalid network request type: {requestType}");
+						HandleAssignOwnerEntityRequest(remoteClient, networkID, content);
 						break;
 					case RequestType.CreateEntity:
 						HandleCreateEntityRequest(remoteClient, networkID, type, content);
@@ -73,7 +73,7 @@ public class CatServer : ISerializationContext {
 			}
 		}
 	}
-
+	
 	public void RemoveTransport(ITransport transport) {
 
 		RemoteClient client = Clients.FirstOrDefault(c => c.Transport == transport);
@@ -149,6 +149,19 @@ public class CatServer : ISerializationContext {
 		BufferPool.FreeAllBuffers();
 		BufferPool.FreeAllPools();
 		OutgoingRPCBuffers.Clear();
+	}
+	
+	private void HandleAssignOwnerEntityRequest(RemoteClient remoteClient, Guid networkID, ReadOnlySpan<byte> contentBuffer) {
+		Guid newOwner = new Guid(contentBuffer.Slice(0, 16));
+		
+		if (EntityStorage.TryGetEntityByNetworkID(networkID, out NetworkEntity entity) && // entity exists and
+		    EntityStorage.TryGetEntityByNetworkID(newOwner, out NetworkEntity newOwnerProfile) && // new owner exists and
+		    Owners.TryGetValue(entity, out NetworkEntity ownerProfile) && remoteClient.ProfileEntity == ownerProfile) { // current owner is the instigator of this packet
+			// no need to check if the entity is un-owned, only owners can forfeit ownership
+			
+			remoteClient.UnassignEntity(entity);
+			AssignIfOwnerless(newOwnerProfile, entity);
+		}
 	}
 
 	private void HandleCreateEntityRequest(RemoteClient remoteClient, Guid networkID, Type type, ReadOnlySpan<byte> content) {

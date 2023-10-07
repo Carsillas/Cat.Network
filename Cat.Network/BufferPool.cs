@@ -41,7 +41,7 @@ internal class BufferPool {
 			pool = CreatePool();
 			HeldPools.Add(pool);
 		} else {
-			pool = FreePools[FreePools.Count - 1];
+			pool = FreePools[^1];
 			FreePools.RemoveAt(FreePools.Count - 1);
 			HeldPools.Add(pool);
 		}

@@ -22,8 +22,7 @@ public class CatNetworkTest {
 
 		(ClientA, ClientATransport, ProxyManagerA) = AddClient();
 		(ClientB, ClientBTransport, ProxyManagerB) = AddClient();
-
-
+		
 		Cycle();
 	}
 
@@ -43,13 +42,13 @@ public class CatNetworkTest {
 	
 	protected (TestClient, TestTransport, TestProxyManager) AddClient() {
 		TestProxyManager proxyManager = new TestProxyManager();
-		TestClient client = new TestClient(proxyManager);
+		TestClient client = new TestClient(proxyManager, new TestProfileEntity());
 		TestTransport clientTransport = new TestTransport();
 		TestTransport serverTransport = new TestTransport();
 
 		clientTransport.Remote = serverTransport;
 		serverTransport.Remote = clientTransport;
-		Server.AddTransport(clientTransport, new TestProfileEntity());
+		Server.AddTransport(clientTransport, client.ProfileEntity);
 		client.Connect(serverTransport);
 
 		return new(client, clientTransport, proxyManager);

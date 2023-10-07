@@ -7,7 +7,10 @@ using System.Threading.Tasks;
 namespace Cat.Network.Test;
 public class TestClient : CatClient {
 	
-	public TestClient(IProxyManager proxyManager) : base(proxyManager) { }
+	public TestProfileEntity ProfileEntity { get; }
 
+	public TestClient(IProxyManager proxyManager, TestProfileEntity profileEntity) : base(proxyManager) {
+		ProfileEntity = profileEntity;
+	}
 
 }
