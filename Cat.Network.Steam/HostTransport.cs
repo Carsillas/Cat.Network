@@ -5,22 +5,24 @@ using System.Text;
 
 namespace Cat.Network.Steam {
 	public class HostTransport : ITransport {
-		private Queue<RequestBuffer> Messages { get; } = new Queue<RequestBuffer>();
+		private ConcurrentQueue<byte[]> Messages { get; } = new();
 		public HostTransport Remote { get; set; }
 
-		public void SendPacket(RequestBuffer bytes) {
-			Remote.Messages.Enqueue(bytes);
+		private bool TryReadPacket(out byte[] bytes) {
+			return Messages.TryDequeue(out bytes);
 		}
 
-		public bool TryReadPacket(out byte[] bytes) {
-			bytes = null;
-			if (Messages.TryDequeue(out RequestBuffer buffer)) {
-				bytes = new byte[buffer.ByteCount];
-				Buffer.BlockCopy(buffer.Buffer, 0, bytes, 0, buffer.ByteCount);
+		public void SendPacket(byte[] buffer, int count) {
+			byte[] copy = new byte[count];
+			Buffer.BlockCopy(buffer, 0, copy, 0, count);
+			Remote.Messages.Enqueue(copy);
+		}
 
-				return true;
+		public void ReadIncomingPackets(PacketProcessor packetProcessor) {
+			while(TryReadPacket(out byte[] bytes)) {
+				packetProcessor?.Invoke(bytes);
 			}
-			return false;
+
 		}
 	}
 }

@@ -6,19 +6,15 @@ using System.Text;
 
 namespace Cat.Network.Steam {
 	internal class SteamTransport : ITransport {
-		private ConcurrentQueue<byte[]> Packets { get; } = new ConcurrentQueue<byte[]>();
 		public Connection Connection { get; set; }
 
-		public void DeliverPacket(byte[] bytes) {
-			Packets.Enqueue(bytes);
+		public void ReadIncomingPackets(PacketProcessor packetProcessor) {
+			throw new NotImplementedException();
 		}
 
-		public void SendPacket(RequestBuffer request) {
-			Connection.SendMessage(request.Buffer, 0, request.ByteCount, SendType.Reliable);
+		public void SendPacket(byte[] buffer, int count) {
+			Connection.SendMessage(buffer, 0, count, SendType.Reliable);
 		}
 
-		public bool TryReadPacket(out byte[] bytes) {
-			return Packets.TryDequeue(out bytes);
-		}
 	}
 }

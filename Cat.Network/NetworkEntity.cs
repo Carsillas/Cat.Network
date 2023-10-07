@@ -1,21 +1,28 @@
 ﻿using System;
 
-namespace Cat.Network {
-	public partial class NetworkEntity : IEquatable<NetworkEntity>
-	{
-		public Guid NetworkID { get; internal set; }
-		internal NetworkEntitySerializer Serializer { get; }
+namespace Cat.Network;
 
-		public NetworkProperty<bool> DestroyWithOwner { get; } = new NetworkProperty<bool>();
+public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
+		
+	public Guid NetworkID { get; internal set; }
+	public bool IsOwner { get; internal set; } = true;
+	public bool IsSpawned { get; internal set; }
 
-		public bool IsOwner { get; internal set; }
+	bool NetworkProperty.DestroyWithOwner { get; set; }
+	
+	ISerializationContext INetworkEntity.SerializationContext { get; set; }
+	
+	NetworkPropertyInfo[] INetworkSerializable.NetworkProperties { get; set; }
+	int INetworkEntity.LastDirtyTick { get; set; }
 
-		public NetworkEntity() {
-			Serializer = new NetworkEntitySerializer(this);
-		}
-
-		public bool Equals(NetworkEntity other) {
-			return NetworkID == other.NetworkID;
-		}
+	protected NetworkEntity() {
+		((INetworkEntity)this).Initialize();
 	}
+
+	public bool Equals(NetworkEntity other) {
+		return NetworkID == other.NetworkID;
+	}
+
 }
+
+

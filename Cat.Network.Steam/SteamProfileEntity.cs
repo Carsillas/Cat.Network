@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Cat.Network.Steam {
-	public class SteamProfileEntity : NetworkEntity {
+namespace Cat.Network.Steam
+{
+    public partial class SteamProfileEntity : NetworkEntity {
 
-		public NetworkProperty<ulong> Id { get; } = new NetworkProperty<ulong>();
-		public NetworkProperty<string> Name { get; } = new NetworkProperty<string>();
+		ulong NetworkProperty.Id { get; set; }
+		string NetworkProperty.Name { get; set; }
 
 	}
 }

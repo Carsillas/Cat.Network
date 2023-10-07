@@ -1,9 +1,0 @@
-{
-	"name": "com.cat.network",
-	"displayName": "Cat.Network",
-	"version": "1.0.0",
-	"unity": "2019.4",
-	"description": "Client authoritative networking solution",
-	"author": "Carsillas",
-	"dependencies": { }
-}

@@ -15,7 +15,7 @@ namespace Cat.Network.Steam {
 
 		private bool ContinuationSet { get; set; } = false;
 		private Action Continuation { get; set; }
-		private object LockObject { get; } = new object();
+		private object LockObject { get; } = new();
 
 
 		public SteamAwaitable(Steam steam, Task task) {

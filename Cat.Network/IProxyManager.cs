@@ -1,12 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Cat.Network {
-	public interface IProxyManager : IDisposable {
-		void OnEntityCreated(NetworkEntity entity);
-		void OnEntityDeleted(NetworkEntity entity);
+namespace Cat.Network;
 
-		void OnGainedOwnership(NetworkEntity entity);
-	}
+public interface IProxyManager {
+	void OnEntityCreated(NetworkEntity entity);
+	void OnEntityDeleted(NetworkEntity entity);
+
+	void OnGainedOwnership(NetworkEntity entity);
+	void OnForfeitOwnership(NetworkEntity entity);
 }

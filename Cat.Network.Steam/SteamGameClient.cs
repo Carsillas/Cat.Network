@@ -7,7 +7,7 @@ using System.Text;
 using FacepunchClient = Steamworks.SteamClient;
 
 namespace Cat.Network.Steam {
-	public abstract class SteamGameClient : Client, IConnectionManager {
+	public abstract class SteamGameClient : CatClient, IConnectionManager, IDisposable {
 		private ConnectionManager ConnectionManager { get; set; }
 		private SteamTransport Transport { get; }
 
@@ -21,9 +21,10 @@ namespace Cat.Network.Steam {
 			clientTransport.Remote = serverTransport;
 			serverTransport.Remote = clientTransport;
 
-			SteamProfileEntity profileEntity = new SteamProfileEntity();
-			profileEntity.Name.Value = FacepunchClient.Name;
-			profileEntity.Id.Value = FacepunchClient.SteamId.Value;
+			SteamProfileEntity profileEntity = new SteamProfileEntity {
+				Name = FacepunchClient.Name,
+				Id = FacepunchClient.SteamId.Value
+			};
 
 			server.AddTransport(clientTransport, profileEntity);
 			Connect(serverTransport);
@@ -39,14 +40,14 @@ namespace Cat.Network.Steam {
 			}
 		}
 
-		protected override void PreTick() {
-			base.PreTick();
+
+		protected override void PreExecute() {
+			base.PreExecute();
 
 			ConnectionManager?.Receive();
 		}
 
-		public override void Dispose() {
-			base.Dispose();
+		public void Dispose() {
 			ConnectionManager?.Close();
 			ConnectionManager = null;
 		}
@@ -65,9 +66,9 @@ namespace Cat.Network.Steam {
 		}
 
 		void IConnectionManager.OnMessage(IntPtr data, int size, long messageNum, long recvTime, int channel) {
-			byte[] packet = new byte[size];
-			Marshal.Copy(data, packet, 0, size);
-			Transport.DeliverPacket(packet);
+			unsafe {
+				//DeliverPacket(new ReadOnlySpan<byte>((byte*)data, size));
+			}
 		}
 
 	}

@@ -1,24 +1,18 @@
 ﻿using NUnit.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Cat.Network.Test;
 public class CatNetworkTest {
+	public TestServer Server { get; set; }
+	public TestEntityStorage ServerEntityStorage { get; set; }
 
-	protected TestServer Server { get; set; }
-	protected TestEntityStorage ServerEntityStorage { get; set; }
+	public TestClient ClientA { get; set; }
+	public TestClient ClientB { get; set; }
 
-	protected Client ClientA { get; set; }
-	protected Client ClientB { get; set; }
+	public TestTransport ClientATransport { get; set; }
+	public TestTransport ClientBTransport { get; set; }
 
-	protected TestTransport ClientATransport { get; set; }
-	protected TestTransport ClientBTransport { get; set; }
-
-	protected TestProxyManager ProxyManagerA { get; set; }
-	protected TestProxyManager ProxyManagerB { get; set; }
+	public TestProxyManager ProxyManagerA { get; set; }
+	public TestProxyManager ProxyManagerB { get; set; }
 
 
 	[SetUp]
@@ -28,17 +22,33 @@ public class CatNetworkTest {
 
 		(ClientA, ClientATransport, ProxyManagerA) = AddClient();
 		(ClientB, ClientBTransport, ProxyManagerB) = AddClient();
+		
+		Cycle();
 	}
 
-	protected (Client, TestTransport, TestProxyManager) AddClient() {
+	protected void Cycle() {
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+	}
+	
+	protected (TestClient, TestTransport, TestProxyManager) AddClient() {
 		TestProxyManager proxyManager = new TestProxyManager();
-		Client client = new Client(proxyManager);
+		TestClient client = new TestClient(proxyManager, new TestProfileEntity());
 		TestTransport clientTransport = new TestTransport();
 		TestTransport serverTransport = new TestTransport();
 
 		clientTransport.Remote = serverTransport;
 		serverTransport.Remote = clientTransport;
-		Server.AddTransport(clientTransport, new TestProfileEntity());
+		Server.AddTransport(clientTransport, client.ProfileEntity);
 		client.Connect(serverTransport);
 
 		return new(client, clientTransport, proxyManager);

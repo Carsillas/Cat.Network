@@ -1,15 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Cat.Network {
-	public interface IEntityStorage {
-		void RegisterEntity(NetworkEntity entity);
-		void UnregisterEntity(Guid entityNetworkID);
+namespace Cat.Network;
 
-		bool TryGetEntityByNetworkID(Guid entityNetworkID, out NetworkEntity entity);
+public interface IEntityStorage {
 
-		HashSet<NetworkEntity> GetRelevantEntities(NetworkEntity entity);
+	void Initialize(CatServer server);
+	
+	void RegisterEntity(NetworkEntity entity);
+	void UnregisterEntity(Guid entityNetworkID);
 
-	}
+	bool TryGetEntityByNetworkID(Guid entityNetworkID, out NetworkEntity entity);
+
+	void ProcessRelevantEntities(NetworkEntity profileEntity, IEntityProcessor processor);
 }

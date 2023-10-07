@@ -1,61 +1,24 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <DebugType>embedded</DebugType>
+        <EmbedAllSources>true</EmbedAllSources>
+        <DebugSymbols>true</DebugSymbols>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="CodeGen\Deserialize.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Deserialize.tt</DependentUpon>
-    </None>
-  </ItemGroup>
+    <PropertyGroup>
+        <Title>Cat Network</Title>
+        <Authors>Carsillas</Authors>
+        <RepositoryUrl>https://github.com/Carsillas/Cat.Network</RepositoryUrl>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageOutputPath>$(SolutionDir)artifacts</PackageOutputPath>
+        <VersionPrefix>0.0.1</VersionPrefix>
+        <VersionSuffix>$([System.DateTime]::Now.ToString(yyyyMMddHHmm))</VersionSuffix>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="7.0.0-preview.2.22152.2" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="CodeGen\Deserialize.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>Deserialize.cs</LastGenOutput>
-    </None>
-    <None Update="CodeGen\Multicast.tt">
-      <LastGenOutput>Multicast.cs</LastGenOutput>
-      <Generator>TextTemplatingFileGenerator</Generator>
-    </None>
-    <None Update="CodeGen\RPC.tt">
-      <Generator>TextTemplatingFileGenerator</Generator>
-      <LastGenOutput>RPC.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
-  </ItemGroup>
-
-  <ItemGroup>
-		<Compile Update="CodeGen\Deserialize.cs">
-		  <DesignTime>True</DesignTime>
-		  <AutoGen>True</AutoGen>
-		  <DependentUpon>Deserialize.tt</DependentUpon>
-		</Compile>
-		<Compile Update="CodeGen\Multicast.cs">
-			<DesignTime>True</DesignTime>
-			<AutoGen>True</AutoGen>
-			<DependentUpon>Multicast.tt</DependentUpon>
-		</Compile>
-		<Compile Update="CodeGen\RPC.cs">
-			<DesignTime>True</DesignTime>
-			<AutoGen>True</AutoGen>
-			<DependentUpon>RPC.tt</DependentUpon>
-		</Compile>
-  </ItemGroup>
-
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /Y &quot;$(TargetDir)$(ProjectName).dll&quot; &quot;$(SolutionDir)Cat.Network.UnityPackage\Plugins\$(ProjectName).dll&quot;" />
-  </Target>
+    <ItemGroup>
+        <PackageReference Include="Cat.Network.Generator" Version="0.0.1-*" />
+    </ItemGroup>
 
 </Project>

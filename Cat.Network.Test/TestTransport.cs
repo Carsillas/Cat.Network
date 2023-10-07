@@ -1,25 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace Cat.Network.Test {
 	public class TestTransport : ITransport {
-		private Queue<RequestBuffer> Messages { get; } = new Queue<RequestBuffer>();
+
+		BufferPool BufferPool { get; } = new();
+		public Queue<byte[]> Messages { get; } = new();
 		public TestTransport Remote { get; set; }
 
-		public void SendPacket(RequestBuffer bytes) {
-			Remote.Messages.Enqueue(bytes);
-		}
-
-		public bool TryReadPacket(out byte[] bytes) {
-			bytes = null;
-			if (Messages.TryDequeue(out RequestBuffer buffer)) {
-				bytes = new byte[buffer.ByteCount];
-				Buffer.BlockCopy(buffer.Buffer, 0, bytes, 0, buffer.ByteCount);
-
-				return true;
+		public void ReadIncomingPackets(PacketProcessor packetProcessor) {
+			foreach (byte[] packet in Messages) {
+				packetProcessor?.Invoke(packet);
 			}
-			return false;
+			Messages.Clear();
+			BufferPool.FreeAllBuffers();
 		}
+
+		public void SendPacket(byte[] buffer, int count) {
+			byte[] copy = Remote.BufferPool.RentBuffer();
+			Buffer.BlockCopy(buffer, 0, copy, 0, count);
+			Remote.Messages.Enqueue(copy);
+		}
+
 	}
 }

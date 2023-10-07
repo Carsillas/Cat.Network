@@ -2,11 +2,14 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Cat.Network {
-	public interface ITransport {
-		void SendPacket(RequestBuffer request);
+namespace Cat.Network;
 
-		bool TryReadPacket(out byte[] bytes);
+public delegate void PacketProcessor(ReadOnlySpan<byte> packet);
 
-	}
+public interface ITransport {
+
+	void ReadIncomingPackets(PacketProcessor packetProcessor);
+
+	void SendPacket(byte[] buffer, int count);
+		
 }
