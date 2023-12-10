@@ -13,7 +13,7 @@ namespace Cat.Network;
 public class CatClient : ISerializationContext {
 
 	private ITransport Transport { get; set; }
-	private ILogger Logger { get; }
+	protected ILogger Logger { get; }
 	public IProxyManager ProxyManager { get; }
 
 	bool ISerializationContext.DeserializeDirtiesProperty => false;

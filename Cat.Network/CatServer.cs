@@ -10,7 +10,7 @@ using static Cat.Network.SerializationUtils;
 namespace Cat.Network;
 
 public class CatServer : ISerializationContext {
-	private ILogger Logger { get; }
+	protected ILogger Logger { get; }
 	public IEntityStorage EntityStorage { get; }
 	bool ISerializationContext.DeserializeDirtiesProperty => true;
 
