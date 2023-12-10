@@ -50,25 +50,25 @@ public partial class SerializationTestEntity : NetworkEntity {
 		}
 	}
 
-	public bool RPCInvoked { get; private set; }
+	public bool RpcInvoked { get; private set; }
 
-	void RPC.TestRPC(bool BooleanParam, byte ByteParam, short ShortParam, int IntParam, long LongParam, ushort UShortParam, uint UIntParam, ulong ULongParam, string StringParam) {
-		Assert.AreEqual(BooleanProperty, BooleanParam);
-		Assert.AreEqual(ByteProperty, ByteParam);
-		Assert.AreEqual(ShortProperty, ShortParam);
-		Assert.AreEqual(IntProperty, IntParam);
-		Assert.AreEqual(LongProperty, LongParam);
-		Assert.AreEqual(UShortProperty, UShortParam);
-		Assert.AreEqual(UIntProperty, UIntParam);
-		Assert.AreEqual(ULongProperty, ULongParam);
-		Assert.AreEqual(StringProperty, StringParam);
+	void RPC.TestRpc(bool booleanParam, byte byteParam, short shortParam, int intParam, long longParam, ushort uShortParam, uint uIntParam, ulong uLongParam, string stringParam) {
+		Assert.AreEqual(BooleanProperty, booleanParam);
+		Assert.AreEqual(ByteProperty, byteParam);
+		Assert.AreEqual(ShortProperty, shortParam);
+		Assert.AreEqual(IntProperty, intParam);
+		Assert.AreEqual(LongProperty, longParam);
+		Assert.AreEqual(UShortProperty, uShortParam);
+		Assert.AreEqual(UIntProperty, uIntParam);
+		Assert.AreEqual(ULongProperty, uLongParam);
+		Assert.AreEqual(StringProperty, stringParam);
 
-		RPCInvoked = true;
+		RpcInvoked = true;
 	}
 
 
-	void RPC.TestMemoryRPC(bool BooleanParam, byte ByteParam, short ShortParam, int IntParam, long LongParam, ushort UShortParam, uint UIntParam, ulong ULongParam) {
-		(ByteProperty, ShortProperty) = ((byte)ShortParam, ByteParam);
+	void RPC.TestMemoryRpc(bool booleanParam, byte byteParam, short shortParam, int intParam, long longParam, ushort uShortParam, uint uIntParam, ulong uLongParam) {
+		(ByteProperty, ShortProperty) = ((byte)shortParam, byteParam);
 	}
 
 	void RPC.TestTransformSerialization(Transform transform) {

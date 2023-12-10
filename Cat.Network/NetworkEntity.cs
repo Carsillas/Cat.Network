@@ -4,7 +4,7 @@ namespace Cat.Network;
 
 public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 		
-	public Guid NetworkID { get; internal set; }
+	public Guid NetworkId { get; internal set; }
 	public bool IsOwner { get; internal set; } = true;
 	public bool IsSpawned { get; internal set; }
 
@@ -20,7 +20,7 @@ public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 	}
 
 	public bool Equals(NetworkEntity other) {
-		return NetworkID == other.NetworkID;
+		return NetworkId == other.NetworkId;
 	}
 
 }

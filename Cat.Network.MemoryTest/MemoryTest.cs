@@ -36,7 +36,7 @@ public class MemoryTest {
 		Test.Server.Tick();
 		Test.ClientB.Tick();
 
-		Test.ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+		Test.ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB);
 
 		TestEntity = (SerializationTestEntity)entityB;
 	}
@@ -44,9 +44,9 @@ public class MemoryTest {
 
 	[Benchmark]
 	[IterationCount(15)]
-	public void ExecuteRPCAndTick() {
+	public void ExecuteRpcAndTick() {
 		for(int i = 0; i < 100; i++) {
-			TestEntity.TestMemoryRPC(
+			TestEntity.TestMemoryRpc(
 				TestEntity.BooleanProperty,
 				TestEntity.ByteProperty,
 				TestEntity.ShortProperty,

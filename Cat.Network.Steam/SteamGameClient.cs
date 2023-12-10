@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Extensions.Logging;
 using FacepunchClient = Steamworks.SteamClient;
 
 namespace Cat.Network.Steam {
@@ -14,7 +15,7 @@ namespace Cat.Network.Steam {
 		public ConnectionStatus? Status => Transport?.Connection.QuickStatus() ?? null;
 		public string DetailedStatus => Transport?.Connection.DetailedStatus() ?? null;
 
-		public SteamGameClient(SteamGameServer server, IProxyManager proxyManager) : base(proxyManager) {
+		public SteamGameClient(SteamGameServer server, ILogger logger, IProxyManager proxyManager) : base(logger, proxyManager) {
 			HostTransport clientTransport = new HostTransport();
 			HostTransport serverTransport = new HostTransport();
 
@@ -30,7 +31,7 @@ namespace Cat.Network.Steam {
 			Connect(serverTransport);
 		}
 
-		public SteamGameClient(ulong targetSteamId, IProxyManager proxyManager) : base(proxyManager) {
+		public SteamGameClient(ulong targetSteamId, ILogger logger, IProxyManager proxyManager) : base(logger, proxyManager) {
 			if (FacepunchClient.SteamId != targetSteamId) {
 				Transport = new SteamTransport();
 				ConnectionManager = SteamNetworkingSockets.ConnectRelay<ConnectionManager>(targetSteamId);

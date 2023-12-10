@@ -69,8 +69,8 @@ internal class SocketTransportTest {
 			Task.Run(async () => { serverSocket = await ListenSocket.AcceptAsync(); })
 			);
 
-		SocketTransport clientTransport = new SocketTransport(clientSocket);
-		SocketTransport serverTransport = new SocketTransport(serverSocket);
+		SocketTransport clientTransport = new SocketTransport(null, clientSocket);
+		SocketTransport serverTransport = new SocketTransport(null, serverSocket);
 
 		Server.AddTransport(serverTransport, client.ProfileEntity);
 		client.Connect(clientTransport);
@@ -90,10 +90,10 @@ internal class SocketTransportTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer));
 		Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		Assert.AreEqual(testEntityA.GetType(), entityB.GetType());
 
 		TestEntity testEntityServer = (TestEntity)entityServer;
@@ -108,8 +108,8 @@ internal class SocketTransportTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsFalse(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
-		Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
+		Assert.IsFalse(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out _));
+		Assert.IsFalse(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out _));
 
 	}
 

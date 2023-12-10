@@ -6,7 +6,7 @@ public interface ISerializationContext {
 	bool DeserializeDirtiesProperty { get; }
 	int Time { get; }
 
-	Span<byte> RentRPCBuffer(NetworkEntity entity);
+	Span<byte> RentRpcBuffer(NetworkEntity entity);
 
 	internal List<byte[]> GetOutgoingRpcs(NetworkEntity entity);
 

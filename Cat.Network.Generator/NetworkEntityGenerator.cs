@@ -37,7 +37,7 @@ namespace Cat.Network.Generator {
 						MetadataName = symbol.MetadataName,
 						NetworkProperties = GetNetworkPropertiesForSymbol(symbol).Reverse().ToImmutableArray(),
 						NetworkCollections = GetNetworkCollectionsForSymbol(symbol).Reverse().ToImmutableArray(),
-						RPCs = GetRPCsForSymbol(symbol).ToImmutableArray(),
+						Rpcs = GetRpcsForSymbol(symbol).ToImmutableArray(),
 					};
 
 				}
@@ -56,7 +56,7 @@ namespace Cat.Network.Generator {
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkProperties", propertyGenerator.GenerateNetworkPropertySource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
-			c.AddSource($"{source.Namespace}.{source.MetadataName}.RPCs", NetworkEntityRPCGenerator.GenerateRPCSource(source)));
+			c.AddSource($"{source.Namespace}.{source.MetadataName}.RPCs", NetworkEntityRpcGenerator.GenerateRpcSource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
 			c.AddSource($"{source.Namespace}.{source.MetadataName}.NetworkCollections", NetworkEntityCollectionGenerator.GenerateNetworkCollectionSource(source)));
 			context.RegisterSourceOutput(allNetworkEntities, (c, source) =>
@@ -115,26 +115,74 @@ namespace Cat.Network.Generator {
 			});
 		}
 
-		private static IEnumerable<RPCMethodData> GetRPCsForSymbol(INamedTypeSymbol typeSymbol) {
-			return GetExplicitSymbols<IMethodSymbol>(typeSymbol, RPCPrefix)
-			.Select(methodSymbol => new RPCMethodData {
-				Declared = methodSymbol.Declared,
-				ClassMethodInvocation = methodSymbol.Symbol.ToDisplayString(ClassMethodInvocationFormat),
-				InterfaceMethodDeclaration = methodSymbol.Symbol.ToDisplayString(InterfaceMethodDeclarationFormat),
-				Parameters = methodSymbol.Symbol.Parameters.Select(parameter => {
+		private static IEnumerable<RpcMethodData> GetRpcsForSymbol(INamedTypeSymbol typeSymbol) {
+			return GetExplicitSymbols<IMethodSymbol>(typeSymbol, RpcPrefix)
+			.Select(methodSymbol => {
 
+				var parameters = methodSymbol.Symbol.Parameters.Select(parameter => {
 					TypeInfo typeInfo = GetTypeInfo(parameter.Type);
-					return new RPCParameterData {
+
+					RpcParameterAttribute? specialAttribute = null;
+
+					foreach (var attributeData in parameter.GetAttributes()) {
+						string attributeTypeFqn = attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat);
+
+						if (attributeTypeFqn == ClientParameterAttributeFQN) {
+							specialAttribute = RpcParameterAttribute.Client;
+							break;
+						}
+						
+						if (attributeTypeFqn == InstigatorParameterAttributeFQN) {
+							specialAttribute = RpcParameterAttribute.Instigator;
+							break;
+						}
+					}
+					
+					return new RpcParameterData {
 						TypeInfo = typeInfo,
+						SpecialAttribute = specialAttribute,
 						ParameterName = parameter.Name,
-						SerializationExpression = typeInfo.IsNetworkDataObject ?
-							GetReferenceSerialization(parameter.Name, parameter.Type, true) :
-							GenerateTypeSerialization(parameter.Name, parameter.Type),
-						DeserializationExpression = typeInfo.IsNetworkDataObject ?
-							GetReferenceDeserialization(parameter.Name, parameter.Type) : 
-							GenerateTypeDeserialization(parameter.Name, parameter.Type)
+						SerializationExpression = typeInfo.IsNetworkDataObject
+							? GetReferenceSerialization(parameter.Name, parameter.Type, true)
+							: GenerateTypeSerialization(parameter.Name, parameter.Type),
+						DeserializationExpression = typeInfo.IsNetworkDataObject
+							? GetReferenceDeserialization(parameter.Name, parameter.Type)
+							: GenerateTypeDeserialization(parameter.Name, parameter.Type)
 					};
-				}).ToImmutableArray()
+				}).ToImmutableArray();
+
+				string returnType = methodSymbol.Symbol.ReturnsVoid
+					? "void"
+					: methodSymbol.Symbol.ReturnType.ToDisplayString(FullyQualifiedFormat);
+
+				ImmutableArray<RpcParameterData> classMethodParameters =
+					parameters.Where(parameter => parameter.SpecialAttribute == null).ToImmutableArray();
+				
+				string interfaceInvocationParameters = string.Join(", ", parameters.Select(
+					p => {
+						if (p.SpecialAttribute == RpcParameterAttribute.Client) {
+							return $"(({NetworkEntityInterfaceFQN})this).SerializationContext as {p.TypeInfo.FullyQualifiedTypeName}";
+						}
+
+						if (p.SpecialAttribute == RpcParameterAttribute.Instigator) {
+							return "instigatorId";
+						}
+
+						return $"{p.ParameterName}";
+				}));
+				
+				string interfaceMethodInvocation = $@"{methodSymbol.Name}({interfaceInvocationParameters})";
+				string classMethodDeclaration = $"{returnType} {methodSymbol.Name}({string.Join(", ", classMethodParameters.Select(p => $"{p.TypeInfo.FullyQualifiedTypeName} {p.ParameterName}"))})";
+				
+				return new RpcMethodData {
+					Declared = methodSymbol.Declared,
+					ClassMethodDeclaration = classMethodDeclaration,
+					InterfaceMethodDeclaration = methodSymbol.Symbol.ToDisplayString(InterfaceMethodDeclarationFormat),
+					InterfaceMethodInvocation = interfaceMethodInvocation,
+					InterfaceParameters = parameters,
+					ClassParameters = classMethodParameters
+				};
+				
 			});
 		}
 

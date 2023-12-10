@@ -18,10 +18,10 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer));
 		Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		Assert.AreEqual(testEntityA.GetType(), entityB.GetType());
 
 		TestEntity testEntityServer = (TestEntity)entityServer;
@@ -36,8 +36,8 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsFalse(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
-		Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out _));
+		Assert.IsFalse(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out _));
+		Assert.IsFalse(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out _));
 
 	}
 
@@ -77,7 +77,7 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+		ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB);
 
 		Assert.IsTrue(AGainedOwnership);
 		Assert.IsFalse(BGainedOwnership);
@@ -120,7 +120,7 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsFalse(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 	}
 	
 	[Test]
@@ -133,7 +133,7 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+		ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB);
 		TestEntity testEntityB = (TestEntity)entityB;
 
 		testEntityB.Health = 123;
@@ -158,18 +158,18 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer));
 
-		Assert.IsTrue(ClientA.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityA));
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientA.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityA));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		Server.Despawn(entityServer);
 
 		Server.Tick();
 		ClientA.Tick();
 		ClientB.Tick();
 
-		Assert.IsFalse(ClientA.TryGetEntityByNetworkID(testEntityA.NetworkID, out entityA));
-		Assert.IsFalse(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out entityB));
+		Assert.IsFalse(ClientA.TryGetEntityByNetworkId(testEntityA.NetworkId, out entityA));
+		Assert.IsFalse(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out entityB));
 
 	}
 
@@ -186,7 +186,7 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+		ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB);
 		TestEntity testEntityB = (TestEntity)entityB;
 
 
@@ -202,7 +202,7 @@ public class ServerTest : CatNetworkTest {
 		ClientB.Tick();
 		ClientC.Tick();
 
-		ClientC.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityC);
+		ClientC.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityC);
 		TestEntity testEntityC = (TestEntity)entityC;
 
 		Assert.AreEqual(100, testEntityB.Health);
@@ -249,7 +249,7 @@ public class ServerTest : CatNetworkTest {
 
 
 	[Test]
-	public void Test_EntityRPC() {
+	public void Test_EntityRpc() {
 		TestEntity testEntityA = new TestEntity {
 			Health = 123
 		};
@@ -260,10 +260,10 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
+		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer));
 		Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		Assert.AreEqual(testEntityA.GetType(), entityB.GetType());
 
 		TestEntity testEntityServer = (TestEntity)entityServer;
@@ -293,6 +293,46 @@ public class ServerTest : CatNetworkTest {
 
 	}
 
+	[Test]
+	public void Test_EntityRpcAutoParameters() {
+		TestEntity testEntityA = new TestEntity {
+			Health = 123
+		};
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer));
+		Assert.AreEqual(testEntityA.GetType(), entityServer.GetType());
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
+		Assert.AreEqual(testEntityA.GetType(), entityB.GetType());
+
+		TestEntity testEntityServer = (TestEntity)entityServer;
+		TestEntity testEntityB = (TestEntity)entityB;
+
+		bool callbackExecuted = false;
+
+		testEntityA.VerifyAutoParameters += (client, guid) => {
+			Assert.AreSame(ClientA, client);
+			Assert.AreEqual(guid, ClientB.ProfileEntity.NetworkId);
+			
+			callbackExecuted = true;
+		};
+
+		testEntityB.VerifyAutoParametersRpc();
+		
+		ClientB.Tick();
+		Server.Tick();
+		ClientA.Tick();
+
+		Assert.IsTrue(callbackExecuted);
+
+	}
+
 
 	[Test]
 	public void Test_EntityOwnershipForfeit() {
@@ -304,8 +344,8 @@ public class ServerTest : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		ServerEntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer);
-		ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB);
+		ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer);
+		ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB);
 		
 		bool ALostOwnership = false;
 		bool BLostOwnership = false;
@@ -329,7 +369,7 @@ public class ServerTest : CatNetworkTest {
 			BLostOwnership = true;
 		};
 		
-		ClientA.Disown(testEntityA, ClientB.ProfileEntity.NetworkID);
+		ClientA.Disown(testEntityA, ClientB.ProfileEntity.NetworkId);
 
 		Assert.IsTrue(ALostOwnership);
 		Assert.IsFalse(testEntityA.IsOwner);
@@ -341,7 +381,7 @@ public class ServerTest : CatNetworkTest {
 		Assert.IsTrue(BGainedOwnership);
 		Assert.IsTrue(entityB.IsOwner);
 		
-		ClientB.Disown(entityB, ClientA.ProfileEntity.NetworkID);
+		ClientB.Disown(entityB, ClientA.ProfileEntity.NetworkId);
 
 		Assert.IsTrue(BLostOwnership);
 		Assert.IsFalse(entityB.IsOwner);

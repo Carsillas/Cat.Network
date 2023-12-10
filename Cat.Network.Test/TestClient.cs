@@ -9,7 +9,7 @@ public class TestClient : CatClient {
 	
 	public TestProfileEntity ProfileEntity { get; }
 
-	public TestClient(IProxyManager proxyManager, TestProfileEntity profileEntity) : base(proxyManager) {
+	public TestClient(IProxyManager proxyManager, TestProfileEntity profileEntity) : base(null, proxyManager) {
 		ProfileEntity = profileEntity;
 	}
 

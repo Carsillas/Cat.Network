@@ -35,7 +35,7 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
 
 
@@ -69,7 +69,7 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
 
 		Assert.AreEqual(testEntityA.StringProperty, testEntityB.StringProperty);
@@ -77,7 +77,7 @@ public class SerializationTests : CatNetworkTest {
 
 
 		for (int i = 0; i < 10; i++) {
-			testEntityB.TestMemoryRPC(
+			testEntityB.TestMemoryRpc(
 				testEntityB.BooleanProperty,
 				testEntityB.ByteProperty,
 				testEntityB.ShortProperty,
@@ -113,7 +113,7 @@ public class SerializationTests : CatNetworkTest {
 
 
 	[Test]
-	public void Test_RPCSerialization() {
+	public void Test_RpcSerialization() {
 		SerializationTestEntity testEntityA = new SerializationTestEntity {
 			BooleanProperty = true,
 			ByteProperty = 10,
@@ -136,10 +136,10 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
 
-		testEntityB.TestRPC(
+		testEntityB.TestRpc(
 			testEntityB.BooleanProperty,
 			testEntityB.ByteProperty,
 			testEntityB.ShortProperty,
@@ -163,8 +163,8 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientA.Tick();
 
-		Assert.IsTrue(testEntityA.RPCInvoked);
-		Assert.IsFalse(testEntityB.RPCInvoked);
+		Assert.IsTrue(testEntityA.RpcInvoked);
+		Assert.IsFalse(testEntityB.RpcInvoked);
 	}
 
 
@@ -178,7 +178,7 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
 
 
@@ -227,7 +227,7 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out entityB));
 		Assert.AreNotSame(testEntityB, entityB); // testEntityA was respawned, should not be the same instance
 		testEntityB = (SerializationTestEntity)entityB;
 
@@ -245,7 +245,7 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
 
 
@@ -288,7 +288,7 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		SerializationTestEntity testEntityB = (SerializationTestEntity)entityB;
 
 		bool eventInvokedA = false;

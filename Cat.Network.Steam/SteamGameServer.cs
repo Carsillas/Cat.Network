@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 namespace Cat.Network.Steam {
 	public class SteamGameServer : CatServer, ISocketManager, IDisposable {
@@ -12,7 +13,7 @@ namespace Cat.Network.Steam {
 		private SocketManager SocketManager { get; set; }
 		private Dictionary<uint, Client> ConnectedClients { get; } = new();
 
-		public SteamGameServer(IEntityStorage entityStorage) : base(entityStorage) {
+		public SteamGameServer(ILogger logger, IEntityStorage entityStorage) : base(logger, entityStorage) {
 			SocketManager = SteamNetworkingSockets.CreateRelaySocket<SocketManager>();
 			SocketManager.Interface = this;
 		}

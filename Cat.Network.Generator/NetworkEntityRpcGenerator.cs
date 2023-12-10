@@ -8,29 +8,29 @@ using static Cat.Network.Generator.Utils;
 
 
 namespace Cat.Network.Generator {
-	public static class NetworkEntityRPCGenerator {
+	public static class NetworkEntityRpcGenerator {
 
-		public static string GenerateRPCSource(NetworkEntityClassDefinition classDefinition) {
+		public static string GenerateRpcSource(NetworkEntityClassDefinition classDefinition) {
 			return $@"
 
 namespace {classDefinition.Namespace} {{
-	partial class {classDefinition.Name} : {NetworkEntityInterfaceFQN}, {classDefinition.Name}.{RPCPrefix} {{
+	partial class {classDefinition.Name} : {NetworkEntityInterfaceFQN}, {classDefinition.Name}.{RpcPrefix} {{
 
-{GenerateRPCInterface(classDefinition)}
-{GenerateClassRPCs(classDefinition)}
-{GenerateRPCHandler(classDefinition)}
+{GenerateRpcInterface(classDefinition)}
+{GenerateClassRpcs(classDefinition)}
+{GenerateRpcHandler(classDefinition)}
 
 	}}
 }}
 ";
 		}
 
-		private static string GenerateRPCInterface(NetworkEntityClassDefinition classDefinition) {
+		private static string GenerateRpcInterface(NetworkEntityClassDefinition classDefinition) {
 			bool isNetworkEntity = $"{classDefinition.Namespace}.{classDefinition.Name}" == NetworkEntityFQN;
-			string superInterface = isNetworkEntity ? "" : $": {classDefinition.BaseTypeFQN}.{RPCPrefix} ";
+			string superInterface = isNetworkEntity ? "" : $": {classDefinition.BaseTypeFQN}.{RpcPrefix} ";
 			string interfaceKeywords = isNetworkEntity ? "public interface" : "public new interface";
 			return $@"
-		{interfaceKeywords} {RPCPrefix} {superInterface}{{
+		{interfaceKeywords} {RpcPrefix} {superInterface}{{
 {GenerateInterfaceMethods(classDefinition)}
 		}}
 ";
@@ -39,18 +39,18 @@ namespace {classDefinition.Namespace} {{
 		private static string GenerateInterfaceMethods(NetworkEntityClassDefinition classDefinition) {
 			StringBuilder stringBuilder = new StringBuilder();
 
-			foreach (RPCMethodData method in classDefinition.RPCs.Where(rpc => rpc.Declared)) {
+			foreach (RpcMethodData method in classDefinition.Rpcs.Where(rpc => rpc.Declared)) {
 				stringBuilder.AppendLine($"\t\t\t{method.InterfaceMethodDeclaration};");
 			}
 
 			return stringBuilder.ToString();
 		}
 
-		private static string GenerateRPCHandler(NetworkEntityClassDefinition classDefinition) {
+		private static string GenerateRpcHandler(NetworkEntityClassDefinition classDefinition) {
 			StringBuilder stringBuilder = new StringBuilder();
 
 			stringBuilder.AppendLine($@"
-		void {NetworkEntityInterfaceFQN}.HandleRPCInvocation({NetworkEntityFQN} instigator, {ReadOnlySpanFQN} buffer) {{
+		void {NetworkEntityInterfaceFQN}.HandleRpcInvocation({GuidFQN} instigatorId, {ReadOnlySpanFQN} buffer) {{
 			
 			{SerializationOptionsFQN} serializationOptions = {CreateSerializationOptions};
 			{ReadOnlySpanFQN} bufferCopy = buffer;
@@ -58,14 +58,14 @@ namespace {classDefinition.Namespace} {{
 			System.Int64 methodNameHash = {BinaryPrimitivesFQN}.ReadInt64LittleEndian(bufferCopy.Slice(0, 8));
 			bufferCopy = bufferCopy.Slice(8);
 			switch (methodNameHash) {{
-{string.Join("\n", classDefinition.RPCs.Select(rpc => GenerateCase(rpc)))}
+{string.Join("\n", classDefinition.Rpcs.Select(rpc => GenerateCase(rpc)))}
 			}}
 
 		}}");
 
 			return stringBuilder.ToString();
 
-			string GenerateCase(RPCMethodData method) {
+			string GenerateCase(RpcMethodData method) {
 
 				using MD5 md5 = MD5.Create();
 
@@ -74,7 +74,7 @@ namespace {classDefinition.Namespace} {{
 
 				return $@"
 				case {methodNameHashTruncated}L: {{ // {method.InterfaceMethodDeclaration}
-{string.Join("\n", method.Parameters.Select(parameter => $@"
+{string.Join("\n", method.ClassParameters.Select(parameter => $@"
 						{parameter.TypeInfo.FullyQualifiedTypeName} {parameter.ParameterName} = default;
 						{{
 							System.Int32 lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
@@ -83,7 +83,7 @@ namespace {classDefinition.Namespace} {{
 							bufferCopy = bufferCopy.Slice(lengthStorage);
 						}}
 "))}
-						{method.ClassMethodInvocation};
+						(({RpcPrefix})this).{method.InterfaceMethodInvocation};
 						break;
 					}}
 ";
@@ -92,20 +92,21 @@ namespace {classDefinition.Namespace} {{
 
 		}
 
-		private static string GenerateClassRPCs(NetworkEntityClassDefinition classDefinition) {
+		private static string GenerateClassRpcs(NetworkEntityClassDefinition classDefinition) {
 
 			StringBuilder rpcStringBuilder = new StringBuilder();
 
-			foreach (RPCMethodData method in classDefinition.RPCs.Where(rpc => rpc.Declared)) {
+			foreach (RpcMethodData method in classDefinition.Rpcs.Where(rpc => rpc.Declared)) {
 				rpcStringBuilder.AppendLine($@"
-		public {method.InterfaceMethodDeclaration} {{
+		public {method.ClassMethodDeclaration} {{
 
 			if (IsOwner) {{ 
-				(({RPCPrefix})this).{method.ClassMethodInvocation};
+				{GuidFQN} instigatorId = default;
+				(({RpcPrefix})this).{method.InterfaceMethodInvocation};
 			}} else {{
 
 				var serializationContext = (({NetworkEntityInterfaceFQN})this).SerializationContext;
-				{SpanFQN} buffer = serializationContext.RentRPCBuffer(this);
+				{SpanFQN} buffer = serializationContext.RentRpcBuffer(this);
 				{SpanFQN} bufferCopy = buffer.Slice(4);
 
 {GenerateSerialization()}
@@ -117,7 +118,7 @@ namespace {classDefinition.Namespace} {{
 
 				string GenerateSerialization() {
 					StringBuilder serializationStringBuilder = new StringBuilder();
-
+					
 					using MD5 md5 = MD5.Create();
 
 					byte[] hashBytes = md5.ComputeHash(Encoding.Unicode.GetBytes(method.InterfaceMethodDeclaration));
@@ -125,7 +126,7 @@ namespace {classDefinition.Namespace} {{
 
 					serializationStringBuilder.AppendLine($"\t\t\t\t{BinaryPrimitivesFQN}.WriteInt64LittleEndian(bufferCopy, {methodNameHashTruncated}L); bufferCopy = bufferCopy.Slice(8);");
 
-					foreach (RPCParameterData rpcParameterData in method.Parameters) {
+					foreach (RpcParameterData rpcParameterData in method.ClassParameters) {
 						string serialization = Utils.GenerateSerialization(rpcParameterData.SerializationExpression, "bufferCopy");
 
 						serializationStringBuilder.AppendLine($"\t\t\t\t{serialization}");

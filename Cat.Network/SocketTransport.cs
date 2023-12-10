@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Cat.Network;
 
@@ -15,13 +16,15 @@ public class SocketTransport : ITransport, IDisposable {
 		Success
 	}
 
+	private ILogger Logger { get; }
 	private Socket Socket { get; }
 	private byte[] ReceiveBuffer { get; } = new byte[1_000_000];
 
 	IEnumerator<NetworkReadState> ReceiveEnumerator { get; }
 
 
-	public SocketTransport(Socket socket) {
+	public SocketTransport(ILogger logger, Socket socket) {
+		Logger = logger;
 		Socket = socket;
 		ReceiveEnumerator = ReadAvailablePackets();
 	}
@@ -82,13 +85,13 @@ public class SocketTransport : ITransport, IDisposable {
 				packetSize = BinaryPrimitives.ReadInt32LittleEndian(ReceiveBuffer);
 
 			} catch (Exception e) {
-				Console.WriteLine(e);
+				Logger.LogError(e, "Exception occurred while reading packet!");
 				Dispose();
 				yield break;
 			}
 
 			if (packetSize > ReceiveBuffer.Length) {	
-				Console.WriteLine("Packet size too large! Size: " + packetSize);
+				Logger.LogError("Encountered a packet with extreme size: {Size} bytes.", packetSize);
 				Dispose();
 				yield break;
 			}
@@ -117,6 +120,7 @@ public class SocketTransport : ITransport, IDisposable {
 
 
 	public void Dispose() {
+		Logger.LogInformation("Disconnecting from {Remote}", Socket.RemoteEndPoint);
 		Socket.Dispose();
 	}
 }

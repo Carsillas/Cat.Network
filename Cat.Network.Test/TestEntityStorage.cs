@@ -14,15 +14,15 @@ namespace Cat.Network.Test {
 		}
 
 		public void RegisterEntity(NetworkEntity entity) {
-			Entities.Add(entity.NetworkID, entity);
+			Entities.Add(entity.NetworkId, entity);
 		}
 
-		public void UnregisterEntity(Guid entityNetworkID) {
-			Entities.Remove(entityNetworkID, out NetworkEntity entity);
+		public void UnregisterEntity(Guid entityNetworkId) {
+			Entities.Remove(entityNetworkId, out NetworkEntity entity);
 		}
 
-		public bool TryGetEntityByNetworkID(Guid entityNetworkID, out NetworkEntity entity) {
-			return Entities.TryGetValue(entityNetworkID, out entity);
+		public bool TryGetEntityByNetworkId(Guid entityNetworkId, out NetworkEntity entity) {
+			return Entities.TryGetValue(entityNetworkId, out entity);
 		}
 
 		public void ProcessRelevantEntities(NetworkEntity profileEntity, IEntityProcessor processor) {

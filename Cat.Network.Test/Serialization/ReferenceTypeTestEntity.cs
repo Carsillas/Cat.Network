@@ -11,10 +11,10 @@ public partial class ReferenceTypeTestEntity : NetworkEntity {
 	
 	List<CustomNetworkDataObject> NetworkCollection.Inventory { get; } = new();
 
-	public event Action<CustomNetworkDataObject> ReceivedRPC;
+	public event Action<CustomNetworkDataObject> ReceivedRpc;
 	
-	void RPC.ReferenceRPC(CustomNetworkDataObject ndo) {
-		ReceivedRPC?.Invoke(ndo);
+	void RPC.ReferenceRpc(CustomNetworkDataObject ndo) {
+		ReceivedRpc?.Invoke(ndo);
 	}
 
 }

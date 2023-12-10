@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Logging;
 using static Cat.Network.CatServer;
 using static Cat.Network.SerializationUtils;
 
@@ -12,6 +13,7 @@ namespace Cat.Network;
 public class CatClient : ISerializationContext {
 
 	private ITransport Transport { get; set; }
+	private ILogger Logger { get; }
 	public IProxyManager ProxyManager { get; }
 
 	bool ISerializationContext.DeserializeDirtiesProperty => false;
@@ -19,18 +21,19 @@ public class CatClient : ISerializationContext {
 
 	private BufferPool BufferPool { get; } = new();
 
-	private byte[] OutgoingReliableDataBuffer = new byte[1_000_000];
+	private byte[] OutgoingReliableDataBuffer { get; } = new byte[1_000_000];
 
 	private Dictionary<Guid, NetworkEntity> Entities { get; } = new();
 	private HashSet<NetworkEntity> EntitiesToSpawn { get; } = new();
 	private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new();
 	private HashSet<(NetworkEntity Entity, Guid NewOwner)> EntitiesToForfeit { get; } = new();
-	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRPCBuffers { get; } = new();
+	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRpcBuffers { get; } = new();
 
 	private HashSet<INetworkEntity> EntitiesMarkedForClean { get; } = new();
 
 
-	public CatClient(IProxyManager proxyManager) {
+	public CatClient(ILogger logger, IProxyManager proxyManager) {
+		Logger = logger;
 		ProxyManager = proxyManager;
 		CachedPacketProcessor = ProcessPacket;
 	}
@@ -45,7 +48,7 @@ public class CatClient : ISerializationContext {
 			throw new Exception("Cannot spawn an already spawned entity!");
 		}
 
-		entity.NetworkID = Guid.NewGuid();
+		entity.NetworkId = Guid.NewGuid();
 		entity.IsOwner = true;
 		entity.IsSpawned = true;
 
@@ -58,7 +61,7 @@ public class CatClient : ISerializationContext {
 		INetworkEntity iEntity = entity;
 		iEntity.SerializationContext = this;
 
-		Entities.Add(entity.NetworkID, entity);
+		Entities.Add(entity.NetworkId, entity);
 		EntitiesToSpawn.Add(entity);
 
 		ProxyManager.OnEntityCreated(entity);
@@ -77,7 +80,7 @@ public class CatClient : ISerializationContext {
 		}
 
 		ProxyManager.OnEntityDeleted(entity);
-		Entities.Remove(entity.NetworkID);
+		Entities.Remove(entity.NetworkId);
 
 		entity.IsSpawned = false;
 
@@ -89,7 +92,7 @@ public class CatClient : ISerializationContext {
 		}
 	}
 
-	public void Disown(NetworkEntity entity, Guid newOwnerProfileID) {
+	public void Disown(NetworkEntity entity, Guid newOwnerProfileId) {
 		
 		if (!entity.IsOwner) {
 			throw new Exception("Cannot disown an entity not owned by this client!");
@@ -102,11 +105,11 @@ public class CatClient : ISerializationContext {
 		ProxyManager.OnForfeitOwnership(entity);
 		entity.IsOwner = false;
 
-		EntitiesToForfeit.Add((entity, newOwnerProfileID));
+		EntitiesToForfeit.Add((entity, newOwnerProfileId));
 	}
 
-	public bool TryGetEntityByNetworkID(Guid NetworkID, out NetworkEntity entity) {
-		return Entities.TryGetValue(NetworkID, out entity);
+	public bool TryGetEntityByNetworkId(Guid networkId, out NetworkEntity entity) {
+		return Entities.TryGetValue(networkId, out entity);
 	}
 
 	protected virtual void PreExecute() {
@@ -188,7 +191,7 @@ public class CatClient : ISerializationContext {
 			entity.Clean();
 		}
 
-		OutgoingRPCBuffers.Clear();
+		OutgoingRpcBuffers.Clear();
 		BufferPool.FreeAllBuffers();
 		BufferPool.FreeAllPools();
 	}
@@ -199,10 +202,10 @@ public class CatClient : ISerializationContext {
 		if(outgoingRpcs != null) {
 			foreach (byte[] rpc in outgoingRpcs) {
 
-				const int ClientRpcHeaderLength = 17;
-				const int ClientRpcContentLengthSlot = 4;
-				int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, ClientRpcHeaderLength, 4));
-				Transport.SendPacket(rpc, length + ClientRpcHeaderLength + ClientRpcContentLengthSlot);
+				const int clientRpcHeaderLength = 17;
+				const int clientRpcContentLengthSlot = 4;
+				int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, clientRpcHeaderLength, 4));
+				Transport.SendPacket(rpc, length + clientRpcHeaderLength + clientRpcContentLengthSlot);
 			}
 		}
 	}
@@ -211,36 +214,35 @@ public class CatClient : ISerializationContext {
 
 	private void ProcessPacket(ReadOnlySpan<byte> packet) {
 		try {
-			ExtractPacketHeader(packet, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> content);
+			ExtractPacketHeader(packet, out RequestType requestType, out Guid networkId, out Type type, out ReadOnlySpan<byte> content);
 
 			switch (requestType) {
 				case RequestType.AssignOwner:
-					HandleAssignOwnerRequest(networkID);
+					HandleAssignOwnerRequest(networkId);
 					break;
 				case RequestType.CreateEntity:
-					HandleCreateEntityRequest(networkID, type, content);
+					HandleCreateEntityRequest(networkId, type, content);
 					break;
 				case RequestType.UpdateEntity:
-					HandleUpdateEntityRequest(networkID, content);
+					HandleUpdateEntityRequest(networkId, content);
 					break;
 				case RequestType.DeleteEntity:
-					HandleDeleteEntityRequest(networkID);
+					HandleDeleteEntityRequest(networkId);
 					break;
 				case RequestType.RPC:
-					HandleRPCEntityRequest(networkID, content);
+					HandleRpcEntityRequest(networkId, content);
 					break;
 				default:
-					Console.WriteLine($"Unknown network request type: {requestType}");
+					Logger?.LogError($"Unknown network request type: {requestType}");
 					break;
 			}
 		} catch (Exception e) {
-			Console.Error.WriteLine(e.Message);
-			Console.Error.WriteLine(e.StackTrace);
+			Logger?.LogError(e, "Exception occurred while handling a network packet on the client!");
 		}
 	}
 
-	private void HandleCreateEntityRequest(Guid networkID, Type type, ReadOnlySpan<byte> content) {
-		if (Entities.TryGetValue(networkID, out NetworkEntity existingEntity)) {
+	private void HandleCreateEntityRequest(Guid networkId, Type type, ReadOnlySpan<byte> content) {
+		if (Entities.TryGetValue(networkId, out NetworkEntity existingEntity)) {
 			if (!existingEntity.IsOwner) {
 				throw new Exception("Received create entity request for an entity that already exists!");
 			}
@@ -251,18 +253,18 @@ public class CatClient : ISerializationContext {
 		INetworkEntity iEntity = entity;
 
 		iEntity.SerializationContext = this;
-		entity.NetworkID = networkID;
+		entity.NetworkId = networkId;
 		entity.IsOwner = false;
 		entity.IsSpawned = true;
 
 		iEntity.Deserialize(CreateOptions, content);
 
-		Entities[networkID] = entity;
+		Entities[networkId] = entity;
 		ProxyManager.OnEntityCreated(entity);
 	}
 
-	private void HandleUpdateEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
-		if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
+	private void HandleUpdateEntityRequest(Guid networkId, ReadOnlySpan<byte> content) {
+		if (Entities.TryGetValue(networkId, out NetworkEntity entity)) {
 			if (entity.IsOwner) {
 				return;
 			}
@@ -271,8 +273,8 @@ public class CatClient : ISerializationContext {
 		}
 	}
 
-	private void HandleDeleteEntityRequest(Guid networkID) {
-		if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
+	private void HandleDeleteEntityRequest(Guid networkId) {
+		if (Entities.TryGetValue(networkId, out NetworkEntity entity)) {
 			entity.IsSpawned = false;
 
 			INetworkEntity iEntity = entity;
@@ -280,37 +282,35 @@ public class CatClient : ISerializationContext {
 			ProxyManager.OnEntityDeleted(entity);
 		}
 
-		Entities.Remove(networkID);
+		Entities.Remove(networkId);
 	}
 
-	private void HandleRPCEntityRequest(Guid networkID, ReadOnlySpan<byte> content) {
-		if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
+	private void HandleRpcEntityRequest(Guid networkId, ReadOnlySpan<byte> content) {
+		if (Entities.TryGetValue(networkId, out NetworkEntity entity)) {
 			INetworkEntity iEntity = entity;
 
 			Guid instigatorId = new Guid(content.Slice(0, 16));
 			content = content.Slice(16);
 
-			Entities.TryGetValue(instigatorId, out NetworkEntity instigator);
-
-			iEntity.HandleRPCInvocation(instigator, content);
+			iEntity.HandleRpcInvocation(instigatorId, content);
 		}
 	}
 
-	private void HandleAssignOwnerRequest(Guid networkID) {
-		if (Entities.TryGetValue(networkID, out NetworkEntity entity)) {
+	private void HandleAssignOwnerRequest(Guid networkId) {
+		if (Entities.TryGetValue(networkId, out NetworkEntity entity)) {
 			entity.IsOwner = true;
 			ProxyManager.OnGainedOwnership(entity);
 		}
 	}
 
-	Span<byte> ISerializationContext.RentRPCBuffer(NetworkEntity entity) {
+	Span<byte> ISerializationContext.RentRpcBuffer(NetworkEntity entity) {
 		byte[] buffer = BufferPool.RentBuffer();
 
 		WritePacketHeader(buffer, RequestType.RPC, entity, out Span<byte> contentBuffer);
 
-		if(!OutgoingRPCBuffers.TryGetValue(entity, out List<byte[]> rpcs)) {
+		if(!OutgoingRpcBuffers.TryGetValue(entity, out List<byte[]> rpcs)) {
 			rpcs = BufferPool.RentPool();
-			OutgoingRPCBuffers.Add(entity, rpcs);
+			OutgoingRpcBuffers.Add(entity, rpcs);
 		}
 
 		rpcs.Add(buffer);
@@ -319,7 +319,7 @@ public class CatClient : ISerializationContext {
 	}
 
 	List<byte[]> ISerializationContext.GetOutgoingRpcs(NetworkEntity entity) {
-		if (OutgoingRPCBuffers.TryGetValue(entity, out List<byte[]> buffers)) {
+		if (OutgoingRpcBuffers.TryGetValue(entity, out List<byte[]> buffers)) {
 			return buffers;
 		}
 		return null;

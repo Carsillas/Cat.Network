@@ -14,7 +14,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.IsNull(testEntityA.Test);
@@ -55,8 +55,8 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Cycle();
 
 		Assert.IsTrue(
-			Server.EntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+			Server.EntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityServer = (ReferenceTypeTestEntity)entityServer;
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
@@ -101,8 +101,8 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Cycle();
 
 		Assert.IsTrue(
-			Server.EntityStorage.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityServer));
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+			Server.EntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityServer = (ReferenceTypeTestEntity)entityServer;
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
@@ -131,7 +131,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
@@ -151,7 +151,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
@@ -171,7 +171,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
@@ -197,7 +197,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
@@ -220,7 +220,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
@@ -284,7 +284,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA1.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA1.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.AreEqual(10, testEntityB.TestDerived.Test);
@@ -305,7 +305,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA1.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA1.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		Assert.AreEqual(10, testEntityB.TestDerived.Test);
@@ -322,21 +322,21 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
-		testEntityA.ReceivedRPC += OnReceivedRPC;
+		testEntityA.ReceivedRpc += OnReceivedRpc;
 
 		bool receivedRpc = false;
 
-		testEntityB.ReferenceRPC(new CustomNetworkDataObject { Test = 15 });
+		testEntityB.ReferenceRpc(new CustomNetworkDataObject { Test = 15 });
 
 		Cycle();
 		
 		Assert.IsTrue(receivedRpc);
 		
 
-		void OnReceivedRPC(CustomNetworkDataObject obj) {
+		void OnReceivedRpc(CustomNetworkDataObject obj) {
 			receivedRpc = true;
 			Assert.IsNotNull(obj);
 			Assert.AreEqual(15, obj.Test);
@@ -356,7 +356,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 
 		Cycle();
 
-		Assert.IsTrue(ClientB.TryGetEntityByNetworkID(testEntityA.NetworkID, out NetworkEntity entityB));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
 		

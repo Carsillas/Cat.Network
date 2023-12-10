@@ -7,9 +7,9 @@ public interface IEntityStorage {
 	void Initialize(CatServer server);
 	
 	void RegisterEntity(NetworkEntity entity);
-	void UnregisterEntity(Guid entityNetworkID);
+	void UnregisterEntity(Guid entityNetworkId);
 
-	bool TryGetEntityByNetworkID(Guid entityNetworkID, out NetworkEntity entity);
+	bool TryGetEntityByNetworkId(Guid entityNetworkId, out NetworkEntity entity);
 
 	void ProcessRelevantEntities(NetworkEntity profileEntity, IEntityProcessor processor);
 }

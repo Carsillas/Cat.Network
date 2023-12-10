@@ -20,13 +20,13 @@ public static class SerializationUtils {
 		MemberSerializationMode = MemberSerializationMode.Complete
 	};
 
-	internal static void ExtractPacketHeader(ReadOnlySpan<byte> buffer, out RequestType requestType, out Guid networkID, out Type type, out ReadOnlySpan<byte> contentBuffer) {
+	internal static void ExtractPacketHeader(ReadOnlySpan<byte> buffer, out RequestType requestType, out Guid networkId, out Type type, out ReadOnlySpan<byte> contentBuffer) {
 		contentBuffer = Span<byte>.Empty;
 		ReadOnlySpan<byte> bufferCopy = buffer;
 
 		requestType = (RequestType)bufferCopy[0];
 		bufferCopy = bufferCopy.Slice(1);
-		networkID = new Guid(bufferCopy.Slice(0, 16));
+		networkId = new Guid(bufferCopy.Slice(0, 16));
 		bufferCopy = bufferCopy.Slice(16);
 		type = null;
 
@@ -52,7 +52,7 @@ public static class SerializationUtils {
 
 		bufferCopy[0] = (byte) requestType;
 		bufferCopy = bufferCopy.Slice(1);
-		entity.NetworkID.TryWriteBytes(bufferCopy.Slice(0, 16));
+		entity.NetworkId.TryWriteBytes(bufferCopy.Slice(0, 16));
 		bufferCopy = bufferCopy.Slice(16);
 		
 		if (requestType == RequestType.CreateEntity) {
