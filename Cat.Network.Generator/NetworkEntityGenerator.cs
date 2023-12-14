@@ -141,7 +141,7 @@ namespace Cat.Network.Generator {
 					return new RpcParameterData {
 						TypeInfo = typeInfo,
 						SpecialAttribute = specialAttribute,
-						ParameterName = parameter.Name,
+						Name = parameter.Name,
 						SerializationExpression = typeInfo.IsNetworkDataObject
 							? GetReferenceSerialization(parameter.Name, parameter.Type, true)
 							: GenerateTypeSerialization(parameter.Name, parameter.Type),
@@ -168,19 +168,20 @@ namespace Cat.Network.Generator {
 							return "instigatorId";
 						}
 
-						return $"{p.ParameterName}";
+						return $"{p.Name}";
 				}));
 				
-				string interfaceMethodInvocation = $@"{methodSymbol.Name}({interfaceInvocationParameters})";
-				string classMethodDeclaration = $"{returnType} {methodSymbol.Name}({string.Join(", ", classMethodParameters.Select(p => $"{p.TypeInfo.FullyQualifiedTypeName} {p.ParameterName}"))})";
-				
+				string classMethodDeclaration = $"{returnType} {methodSymbol.Name}({string.Join(", ", classMethodParameters.Select(p => $"{p.TypeInfo.FullyQualifiedTypeName} {p.Name}"))})";
+
 				return new RpcMethodData {
+					Name = methodSymbol.Name,
 					Declared = methodSymbol.Declared,
 					ClassMethodDeclaration = classMethodDeclaration,
 					InterfaceMethodDeclaration = methodSymbol.Symbol.ToDisplayString(InterfaceMethodDeclarationFormat),
-					InterfaceMethodInvocation = interfaceMethodInvocation,
+					InterfaceMethodInvocationParameters = interfaceInvocationParameters,
 					InterfaceParameters = parameters,
-					ClassParameters = classMethodParameters
+					ClassParameters = classMethodParameters,
+					IsAutoEvent = methodSymbol.Symbol.GetAttributes().Any(attribute => attribute.AttributeClass.ToDisplayString(FullyQualifiedFormat) == AutoEventAttributeFQN)
 				};
 				
 			});

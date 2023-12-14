@@ -49,6 +49,7 @@ namespace Cat.Network.Generator {
 
 		public const string ClientParameterAttributeFQN = "Cat.Network.ClientAttribute";
 		public const string InstigatorParameterAttributeFQN = "Cat.Network.InstigatorAttribute";
+		public const string AutoEventAttributeFQN = "Cat.Network.AutoEventAttribute";
 
 
 		public const string NetworkCollectionInterfaceFQN = "Cat.Network.Collections.INetworkCollection";

@@ -316,7 +316,7 @@ public class ServerTest : CatNetworkTest {
 
 		bool callbackExecuted = false;
 
-		testEntityA.VerifyAutoParameters += (client, guid) => {
+		testEntityA.OnVerifyAutoParametersRpc += (sender, client, guid) => {
 			Assert.AreSame(ClientA, client);
 			Assert.AreEqual(guid, ClientB.ProfileEntity.NetworkId);
 			

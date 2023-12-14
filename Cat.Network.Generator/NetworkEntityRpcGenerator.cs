@@ -19,11 +19,13 @@ namespace {classDefinition.Namespace} {{
 {GenerateRpcInterface(classDefinition)}
 {GenerateClassRpcs(classDefinition)}
 {GenerateRpcHandler(classDefinition)}
+{GenerateRpcEvents(classDefinition)}
 
 	}}
 }}
 ";
 		}
+
 
 		private static string GenerateRpcInterface(NetworkEntityClassDefinition classDefinition) {
 			bool isNetworkEntity = $"{classDefinition.Namespace}.{classDefinition.Name}" == NetworkEntityFQN;
@@ -36,10 +38,26 @@ namespace {classDefinition.Namespace} {{
 ";
 		}
 
+		private static string GenerateRpcEvents(NetworkEntityClassDefinition classDefinition) {
+			StringBuilder stringBuilder = new StringBuilder();
+
+			foreach (RpcMethodData method in classDefinition.Rpcs.Where(rpc => rpc.Declared)) {
+				if (method.IsAutoEvent) {
+					stringBuilder.AppendLine($"\t\tpublic event {RpcPrefix}.{method.Name}Delegate On{method.Name};");
+				}
+			}
+			
+			return stringBuilder.ToString();
+		}
+		
+		
 		private static string GenerateInterfaceMethods(NetworkEntityClassDefinition classDefinition) {
 			StringBuilder stringBuilder = new StringBuilder();
 
 			foreach (RpcMethodData method in classDefinition.Rpcs.Where(rpc => rpc.Declared)) {
+				if (method.IsAutoEvent) {
+					stringBuilder.AppendLine($"\t\t\tpublic delegate void {method.Name}Delegate({method.GetDelegateDefinitionParameters(classDefinition)});");
+				}
 				stringBuilder.AppendLine($"\t\t\t{method.InterfaceMethodDeclaration};");
 			}
 
@@ -75,7 +93,7 @@ namespace {classDefinition.Namespace} {{
 				return $@"
 				case {methodNameHashTruncated}L: {{ // {method.InterfaceMethodDeclaration}
 {string.Join("\n", method.ClassParameters.Select(parameter => $@"
-						{parameter.TypeInfo.FullyQualifiedTypeName} {parameter.ParameterName} = default;
+						{parameter.TypeInfo.FullyQualifiedTypeName} {parameter.Name} = default;
 						{{
 							System.Int32 lengthStorage = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(bufferCopy);
 							bufferCopy = bufferCopy.Slice(4);
@@ -83,7 +101,9 @@ namespace {classDefinition.Namespace} {{
 							bufferCopy = bufferCopy.Slice(lengthStorage);
 						}}
 "))}
-						(({RpcPrefix})this).{method.InterfaceMethodInvocation};
+						(({RpcPrefix})this).{method.Name}({method.InterfaceMethodInvocationParameters});
+						{(method.IsAutoEvent ? $"On{method.Name}?.Invoke({method.DelegateInvocationParameters});" : string.Empty)}
+
 						break;
 					}}
 ";
@@ -102,7 +122,8 @@ namespace {classDefinition.Namespace} {{
 
 			if (IsOwner) {{ 
 				{GuidFQN} instigatorId = default;
-				(({RpcPrefix})this).{method.InterfaceMethodInvocation};
+				(({RpcPrefix})this).{method.Name}({method.InterfaceMethodInvocationParameters});
+				{(method.IsAutoEvent ? $"On{method.Name}?.Invoke({method.DelegateInvocationParameters});" : string.Empty)}
 			}} else {{
 
 				var serializationContext = (({NetworkEntityInterfaceFQN})this).SerializationContext;

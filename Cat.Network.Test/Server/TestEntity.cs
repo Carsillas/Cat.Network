@@ -10,10 +10,10 @@ public partial class TestEntity : NetworkEntity {
 		Health += amount;
 	}
 
-	public event Action<CatClient, Guid> VerifyAutoParameters;
 	
+	[AutoEvent]
 	void RPC.VerifyAutoParametersRpc([Client] CatClient client, [Instigator] Guid instigatorId) {
-		VerifyAutoParameters?.Invoke(client, instigatorId);
+		
 	}
 
 }
