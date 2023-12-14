@@ -44,6 +44,7 @@ namespace {classDefinition.Namespace} {{
 			foreach (RpcMethodData method in classDefinition.Rpcs.Where(rpc => rpc.Declared)) {
 				if (method.IsAutoEvent) {
 					stringBuilder.AppendLine($"\t\tpublic event {RpcPrefix}.{method.Name}Delegate On{method.Name};");
+					stringBuilder.AppendLine($"\t\tvoid {RpcPrefix}.RaiseOn{method.Name}({method.GetDelegateDefinitionParameters(classDefinition)}) => On{method.Name}?.Invoke({method.DelegateInvocationParameters});");
 				}
 			}
 			
@@ -57,6 +58,8 @@ namespace {classDefinition.Namespace} {{
 			foreach (RpcMethodData method in classDefinition.Rpcs.Where(rpc => rpc.Declared)) {
 				if (method.IsAutoEvent) {
 					stringBuilder.AppendLine($"\t\t\tpublic delegate void {method.Name}Delegate({method.GetDelegateDefinitionParameters(classDefinition)});");
+					stringBuilder.AppendLine($"\t\t\tevent {method.Name}Delegate On{method.Name};");
+					stringBuilder.AppendLine($"\t\t\tvoid RaiseOn{method.Name}({method.GetDelegateDefinitionParameters(classDefinition)});");
 				}
 				stringBuilder.AppendLine($"\t\t\t{method.InterfaceMethodDeclaration};");
 			}
@@ -102,7 +105,7 @@ namespace {classDefinition.Namespace} {{
 						}}
 "))}
 						(({RpcPrefix})this).{method.Name}({method.InterfaceMethodInvocationParameters});
-						{(method.IsAutoEvent ? $"On{method.Name}?.Invoke({method.DelegateInvocationParameters});" : string.Empty)}
+						{(method.IsAutoEvent ? $"(({RpcPrefix})this).RaiseOn{method.Name}({method.DelegateInvocationParameters});" : string.Empty)}
 
 						break;
 					}}
@@ -123,7 +126,7 @@ namespace {classDefinition.Namespace} {{
 			if (IsOwner) {{ 
 				{GuidFQN} instigatorId = default;
 				(({RpcPrefix})this).{method.Name}({method.InterfaceMethodInvocationParameters});
-				{(method.IsAutoEvent ? $"On{method.Name}?.Invoke({method.DelegateInvocationParameters});" : string.Empty)}
+				{(method.IsAutoEvent ? $"(({RpcPrefix})this).RaiseOn{method.Name}({method.DelegateInvocationParameters});" : string.Empty)}
 			}} else {{
 
 				var serializationContext = (({NetworkEntityInterfaceFQN})this).SerializationContext;
