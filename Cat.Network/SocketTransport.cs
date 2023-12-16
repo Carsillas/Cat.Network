@@ -78,9 +78,9 @@ public class SocketTransport : ITransport, IDisposable {
 			int packetSize;
 			try {
 				//Read packet size
-				int HeaderBytesRead = 0;
-				while (HeaderBytesRead < 4) {
-					HeaderBytesRead += Socket.Receive(ReceiveBuffer, HeaderBytesRead, 4 - HeaderBytesRead, SocketFlags.None);
+				int headerBytesRead = 0;
+				while (headerBytesRead < 4) {
+					headerBytesRead += Socket.Receive(ReceiveBuffer, headerBytesRead, 4 - headerBytesRead, SocketFlags.None);
 				}
 				packetSize = BinaryPrimitives.ReadInt32LittleEndian(ReceiveBuffer);
 
