@@ -36,11 +36,6 @@ public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList wh
 		item.Collection = null;
 	}
 
-	protected override void OnItemReplaced(int index, T previousItem, T newItem) {
-		OnItemRemoved(previousItem);
-		OnItemAdded(newItem);
-	}
-
 	public void MarkForUpdate(int index) {
 		INetworkCollection<T> iNetworkCollection = this;
 

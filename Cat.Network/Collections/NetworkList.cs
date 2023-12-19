@@ -42,10 +42,6 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 		
 	}
 
-	protected virtual void OnItemReplaced(int index, T previousItem, T newItem) {
-		
-	}
-	
 	public void Add(T item) {
 		((INetworkCollection<T>)this).AssertOwner();
 		AssertValidAddition(item);
