@@ -17,10 +17,11 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	private ISerializationContext SerializationContext => ((INetworkEntity)Owner).SerializationContext;
 	List<NetworkCollectionOperation<T>> INetworkCollection<T>.OperationBuffer { get; } = new();
 
-	public delegate void CollectionChangedEvent(NetworkList<T> sender, int index, T item);
+	public delegate void CollectionChangedEvent(NetworkList<T> sender, int index);
 	
 	public event CollectionChangedEvent ItemAdded;
 	public event CollectionChangedEvent ItemRemoved;
+	public event CollectionChangedEvent IndexChanged;
 	
 	
 	internal NetworkList(NetworkEntity owner, List<T> list) {
@@ -48,16 +49,19 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 		
 		InternalList.Add(item);
 		OnItemAdded(item);
-		ItemAdded?.Invoke(this, InternalList.Count - 1, item);
+		ItemAdded?.Invoke(this, InternalList.Count - 1);
+		IndexChanged?.Invoke(this, InternalList.Count - 1);
 
-		if(SerializationContext != null) {
-			SerializationContext.MarkForClean(Owner);
-			((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
-				OperationType = NetworkCollectionOperationType.Add,
-				Index = InternalList.Count - 1,
-				Value = item
-			});
+		if (SerializationContext == null) {
+			return;
 		}
+
+		SerializationContext.MarkForClean(Owner);
+		((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
+			OperationType = NetworkCollectionOperationType.Add,
+			Index = InternalList.Count - 1,
+			Value = item
+		});
 	}
 
 	public bool Remove(T item) {
@@ -69,34 +73,45 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	
 	public bool RemoveAt(int index) {
 		((INetworkCollection<T>)this).AssertOwner();
-		
-		if (index >= 0 && index < InternalList.Count) {
-			T item = InternalList[index];
-			InternalList.RemoveAt(index);
-			OnItemRemoved(item);
-			ItemRemoved?.Invoke(this, index, item);
-			SerializationContext.MarkForClean(Owner);
-			if (SerializationContext != null) {
-				((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
-					OperationType = NetworkCollectionOperationType.Remove,
-					Index = index
-				});
-			}
-			return true;
+
+		if (index < 0 || index >= InternalList.Count) {
+			return false;
 		}
 
-		return false;
+		T item = InternalList[index];
+		InternalList.RemoveAt(index);
+		OnItemRemoved(item);
+		ItemRemoved?.Invoke(this, index);
+
+		if (IndexChanged?.GetInvocationList().Length > 0) {
+			for (int i = index; i < InternalList.Count; i++) {
+				IndexChanged?.Invoke(this, i);
+			}
+		}
+			
+		SerializationContext.MarkForClean(Owner);
+		if (SerializationContext != null) {
+			((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
+				OperationType = NetworkCollectionOperationType.Remove,
+				Index = index
+			});
+		}
+		return true;
+
 	}
 	
 	public void Clear() {
 		((INetworkCollection<T>)this).AssertOwner();
 		InternalList.Clear();
-		if (SerializationContext != null) {
-			SerializationContext.MarkForClean(Owner);
-			((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
-				OperationType = NetworkCollectionOperationType.Clear
-			});
+		
+		if (SerializationContext == null) {
+			return;
 		}
+
+		SerializationContext.MarkForClean(Owner);
+		((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
+			OperationType = NetworkCollectionOperationType.Clear
+		});
 	}
 
 	public bool Contains(T item) {
@@ -117,18 +132,19 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 			InternalList[index] = value;
 			
 			OnItemRemoved(previousValue);
-			ItemRemoved?.Invoke(this, index, previousValue);
 			OnItemAdded(value);
-			ItemAdded?.Invoke(this, index, value);
+			IndexChanged?.Invoke(this, index);
 
-			if (SerializationContext != null) {
-				SerializationContext.MarkForClean(Owner);
-				((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
-					OperationType = NetworkCollectionOperationType.Set,
-					Index = index,
-					Value = value
-				});
+			if (SerializationContext == null) {
+				return;
 			}
+
+			SerializationContext.MarkForClean(Owner);
+			((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
+				OperationType = NetworkCollectionOperationType.Set,
+				Index = index,
+				Value = value
+			});
 		}
 	}
 
