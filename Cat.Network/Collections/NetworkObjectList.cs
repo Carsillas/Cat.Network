@@ -13,19 +13,32 @@ public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList wh
 	public NetworkObjectList(NetworkEntity owner, List<T> list) : base(owner, list) { }
 
 	protected override void AssertValidAddition(T item) {
-		if (item.Parent != null) {
+		if (item?.Parent != null) {
 			throw new InvalidOperationException($"{nameof(NetworkDataObject)}s may only occupy one networked property or list!");
 		}
 	}
 
 	protected override void OnItemAdded(T item) {
+		if (item == null) {
+			return;
+		}
+
 		item.Parent = Owner;
 		item.Collection = this;
 	}
 
 	protected override void OnItemRemoved(T item) {
+		if (item == null) {
+			return;
+		}
+		
 		item.Parent = null;
 		item.Collection = null;
+	}
+
+	protected override void OnItemReplaced(int index, T previousItem, T newItem) {
+		OnItemRemoved(previousItem);
+		OnItemAdded(newItem);
 	}
 
 	public void MarkForUpdate(int index) {

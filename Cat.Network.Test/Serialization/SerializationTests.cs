@@ -236,6 +236,55 @@ public class SerializationTests : CatNetworkTest {
 	}
 
 	[Test]
+	public void Test_NetworkDataObjectCollectionSerialization() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity {	};
+
+		ClientA.Spawn(testEntityA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+
+		testEntityA.Inventory.Add(null);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		CollectionAssert.AreEqual(testEntityA.Inventory, testEntityB.Inventory);
+
+		CustomNetworkDataObject itemA = new CustomNetworkDataObject();
+		
+		testEntityA.Inventory.Add(itemA);
+		testEntityA.Inventory[1] = null;
+		testEntityA.Inventory.Add(itemA);
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+		
+		// testEntityA.MyInts.Clear();
+		// testEntityA.MyInts.Add(4);
+		// testEntityA.MyInts.Add(46);
+		// testEntityA.MyInts.Add(35235);
+		// testEntityA.MyInts[2] = 4;
+
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+
+		Assert.IsNull(testEntityB.Inventory[0]);
+		Assert.IsNull(testEntityB.Inventory[1]);
+		Assert.AreEqual(0, testEntityB.Inventory[2].Test);
+
+	}
+
+	
+	[Test]
 	public void Test_NullableSerialization() {
 		SerializationTestEntity testEntityA = new SerializationTestEntity { NullableIntProperty = 14 };
 

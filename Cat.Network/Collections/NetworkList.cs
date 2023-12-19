@@ -16,9 +16,12 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	
 	private ISerializationContext SerializationContext => ((INetworkEntity)Owner).SerializationContext;
 	List<NetworkCollectionOperation<T>> INetworkCollection<T>.OperationBuffer { get; } = new();
+
+	public delegate void CollectionChangedEvent(NetworkList<T> sender, int index, T item);
 	
-	public event Action<T> ItemAdded;
-	public event Action<T> ItemRemoved;
+	public event CollectionChangedEvent ItemAdded;
+	public event CollectionChangedEvent ItemRemoved;
+	
 	
 	internal NetworkList(NetworkEntity owner, List<T> list) {
 		Owner = owner;
@@ -31,13 +34,25 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 		
 	}
 	
+	protected virtual void OnItemAdded(T item) {
+		
+	}
+	
+	protected virtual void OnItemRemoved(T item) {
+		
+	}
+
+	protected virtual void OnItemReplaced(int index, T previousItem, T newItem) {
+		
+	}
+	
 	public void Add(T item) {
 		((INetworkCollection<T>)this).AssertOwner();
 		AssertValidAddition(item);
 		
 		InternalList.Add(item);
 		OnItemAdded(item);
-		ItemAdded?.Invoke(item);
+		ItemAdded?.Invoke(this, InternalList.Count - 1, item);
 
 		if(SerializationContext != null) {
 			SerializationContext.MarkForClean(Owner);
@@ -47,10 +62,6 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 				Value = item
 			});
 		}
-	}
-
-	protected virtual void OnItemAdded(T item) {
-		
 	}
 
 	public bool Remove(T item) {
@@ -67,7 +78,7 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 			T item = InternalList[index];
 			InternalList.RemoveAt(index);
 			OnItemRemoved(item);
-			ItemRemoved?.Invoke(item);
+			ItemRemoved?.Invoke(this, index, item);
 			SerializationContext.MarkForClean(Owner);
 			if (SerializationContext != null) {
 				((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
@@ -79,10 +90,6 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 		}
 
 		return false;
-	}
-
-	protected virtual void OnItemRemoved(T item) {
-		
 	}
 	
 	public void Clear() {
@@ -110,7 +117,13 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 		}
 		set {
 			((INetworkCollection<T>)this).AssertOwner();
+			T previousValue = InternalList[index];
 			InternalList[index] = value;
+			
+			OnItemRemoved(previousValue);
+			ItemRemoved?.Invoke(this, index, previousValue);
+			OnItemAdded(value);
+			ItemAdded?.Invoke(this, index, value);
 
 			if (SerializationContext != null) {
 				SerializationContext.MarkForClean(Owner);
