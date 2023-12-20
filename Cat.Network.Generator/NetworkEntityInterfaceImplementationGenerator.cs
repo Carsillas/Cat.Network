@@ -75,6 +75,12 @@ namespace Cat.Network.Generator {
 									{GenerateSerialization(data.CompleteItemSerializationExpression, "contentBuffer")}
 									break;
 								}}
+								case {NetworkCollectionOperationTypeFQN}.Swap: {{
+									contentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Swap; contentBuffer = contentBuffer.Slice(1);	
+									{BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, operation.Index); contentBuffer = contentBuffer.Slice(4);
+									{BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, operation.SwapIndex); contentBuffer = contentBuffer.Slice(4);
+									break;
+								}}
 								case {NetworkCollectionOperationTypeFQN}.Update: {{
 									contentBuffer[0] = (System.Byte){NetworkCollectionOperationTypeFQN}.Update; contentBuffer = contentBuffer.Slice(1);	
 									{BinaryPrimitivesFQN}.WriteInt32LittleEndian(contentBuffer, operation.Index); contentBuffer = contentBuffer.Slice(4);
@@ -119,7 +125,7 @@ namespace Cat.Network.Generator {
 					using (writer.EnterScope("switch (operationType)")) {
 						writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Add: {{
-								System.Int32 itemLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
+								System.Int32 itemLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 								
 								{data.ItemTypeInfo.FullyQualifiedTypeName} item = default;
 								{GenerateDeserialization(data.ItemDeserializationExpression, "collectionContentBuffer")}
@@ -159,7 +165,7 @@ namespace Cat.Network.Generator {
 						writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Set: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
-								System.Int32 itemLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
+								System.Int32 itemLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
 								{data.ItemTypeInfo.FullyQualifiedTypeName} item = default;
 								{GenerateDeserialization(data.ItemDeserializationExpression, "collectionContentBuffer")}
@@ -180,7 +186,28 @@ namespace Cat.Network.Generator {
 								break;
 							}}
 						");
+						
+						writer.AppendBlock($@"
+							case {NetworkCollectionOperationTypeFQN}.Swap: {{
+								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
+								System.Int32 swapIndex = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
+								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
+									iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
+									operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
+										OperationType = {NetworkCollectionOperationTypeFQN}.Swap,
+										Index = index,
+										SwapIndex = swapIndex
+									}});
+								}}
+
+								{data.ItemTypeInfo.FullyQualifiedTypeName} item = (({NetworkCollectionPrefix})this).{data.Name}[index];
+								(({NetworkCollectionPrefix})this).{data.Name}[index] = (({NetworkCollectionPrefix})this).{data.Name}[swapIndex];
+								(({NetworkCollectionPrefix})this).{data.Name}[swapIndex] = item;
+								break;
+							}}
+						");
+						
 						writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Clear: {{
 
@@ -199,7 +226,7 @@ namespace Cat.Network.Generator {
 						writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Update: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
-								System.Int32 itemLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
+								System.Int32 itemLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
 								{data.ItemTypeInfo.FullyQualifiedTypeName} item = (({NetworkCollectionPrefix})this).{data.Name}[index];
 								{GenerateDeserialization(data.ItemDeserializationExpression, "collectionContentBuffer")}

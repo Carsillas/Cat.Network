@@ -147,6 +147,36 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 			});
 		}
 	}
+	
+	public void Swap(int indexA, int indexB) {
+		((INetworkCollection<T>)this).AssertOwner();
+		
+		if (indexA < 0 || indexA >= InternalList.Count) {
+			throw new IndexOutOfRangeException($"{nameof(indexA)} out of range: {indexA}");
+		}
+		if (indexB < 0 || indexB >= InternalList.Count) {
+			throw new IndexOutOfRangeException($"{nameof(indexB)} out of range: {indexB}");
+		}
+
+		T item = InternalList[indexA];
+		InternalList[indexA] = InternalList[indexB];
+		InternalList[indexB] = item;
+		
+		InternalList.Add(item);
+		IndexChanged?.Invoke(this, indexA);
+		IndexChanged?.Invoke(this, indexB);
+
+		if (SerializationContext == null) {
+			return;
+		}
+
+		SerializationContext.MarkForClean(Owner);
+		((INetworkCollection<T>)this).OperationBuffer.Add(new NetworkCollectionOperation<T> {
+			OperationType = NetworkCollectionOperationType.Swap,
+			Index = indexA,
+			SwapIndex = indexB
+		});
+	}
 
 	public List<T>.Enumerator GetEnumerator() {
 		return InternalList.GetEnumerator();

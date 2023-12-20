@@ -267,20 +267,19 @@ public class SerializationTests : CatNetworkTest {
 		Server.Tick();
 		ClientB.Tick();
 		
-		// testEntityA.MyInts.Clear();
-		// testEntityA.MyInts.Add(4);
-		// testEntityA.MyInts.Add(46);
-		// testEntityA.MyInts.Add(35235);
-		// testEntityA.MyInts[2] = 4;
-
-		ClientA.Tick();
-		Server.Tick();
-		ClientB.Tick();
-
 		Assert.IsNull(testEntityB.Inventory[0]);
 		Assert.IsNull(testEntityB.Inventory[1]);
 		Assert.AreEqual(0, testEntityB.Inventory[2].Test);
-
+		
+		testEntityA.Inventory.Swap(1, 2);
+		
+		ClientA.Tick();
+		Server.Tick();
+		ClientB.Tick();
+		
+		Assert.IsNull(testEntityB.Inventory[0]);
+		Assert.AreEqual(0, testEntityB.Inventory[1].Test);
+		Assert.IsNull(testEntityB.Inventory[2]);
 	}
 
 	
