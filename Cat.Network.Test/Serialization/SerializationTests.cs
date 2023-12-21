@@ -280,6 +280,8 @@ public class SerializationTests : CatNetworkTest {
 		Assert.IsNull(testEntityB.Inventory[0]);
 		Assert.AreEqual(0, testEntityB.Inventory[1].Test);
 		Assert.IsNull(testEntityB.Inventory[2]);
+		
+		Assert.AreEqual(3, testEntityB.Inventory.Count);
 	}
 
 	
