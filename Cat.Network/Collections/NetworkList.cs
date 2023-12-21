@@ -158,11 +158,8 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 			throw new IndexOutOfRangeException($"{nameof(indexB)} out of range: {indexB}");
 		}
 
-		T item = InternalList[indexA];
-		InternalList[indexA] = InternalList[indexB];
-		InternalList[indexB] = item;
-		
-		InternalList.Add(item);
+		(InternalList[indexA], InternalList[indexB]) = (InternalList[indexB], InternalList[indexA]);
+
 		IndexChanged?.Invoke(this, indexA);
 		IndexChanged?.Invoke(this, indexB);
 
