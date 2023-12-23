@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using static Cat.Network.SerializationUtils;
 
@@ -22,7 +23,7 @@ public class CatServer : ISerializationContext {
 
 
 	// TODO maybe use ConditionalWeakTable here? Ideally IEntityStorage is the only holder of entities
-	private Dictionary<NetworkEntity, NetworkEntity> Owners { get; } = new();
+	private ConditionalWeakTable<NetworkEntity, NetworkEntity> Owners { get; } = new();
 	private HashSet<INetworkEntity> EntitiesMarkedForClean { get; } = new();
 
 
@@ -182,7 +183,7 @@ public class CatServer : ISerializationContext {
 			|| currentOwnerProfileEntity == null // owner is null or
 			|| !EntityStorage.TryGetEntityByNetworkId(currentOwnerProfileEntity.NetworkId, out NetworkEntity registeredCurrentOwner)) { // the owner is not registered (client disconnect?)
 			currentOwnerProfileEntity = profileEntity;
-			Owners[entity] = profileEntity;
+			Owners.AddOrUpdate(entity, profileEntity);
 		}
 
 		return profileEntity == currentOwnerProfileEntity;
