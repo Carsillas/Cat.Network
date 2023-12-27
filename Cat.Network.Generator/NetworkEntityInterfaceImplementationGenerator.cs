@@ -149,7 +149,7 @@ namespace Cat.Network.Generator {
 							case {NetworkCollectionOperationTypeFQN}.Remove: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
-								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
+								if (iSerializable.SerializationContext?.DeserializeDirtiesProperty == true) {{
 									iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 									operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 										OperationType = {NetworkCollectionOperationTypeFQN}.Remove,
@@ -172,7 +172,7 @@ namespace Cat.Network.Generator {
 
 								collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
 
-								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
+								if (iSerializable.SerializationContext?.DeserializeDirtiesProperty == true) {{
 									iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 									operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 										OperationType = {NetworkCollectionOperationTypeFQN}.Set,
@@ -192,7 +192,7 @@ namespace Cat.Network.Generator {
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 								System.Int32 swapIndex = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
-								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
+								if (iSerializable.SerializationContext?.DeserializeDirtiesProperty == true) {{
 									iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 									operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 										OperationType = {NetworkCollectionOperationTypeFQN}.Swap,
@@ -211,7 +211,7 @@ namespace Cat.Network.Generator {
 						writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Clear: {{
 
-								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
+								if (iSerializable.SerializationContext?.DeserializeDirtiesProperty == true) {{
 									iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 									operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 										OperationType = {NetworkCollectionOperationTypeFQN}.Clear
@@ -233,7 +233,7 @@ namespace Cat.Network.Generator {
 
 								collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
 
-								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
+								if (iSerializable.SerializationContext?.DeserializeDirtiesProperty == true) {{
 									iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 									operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 										OperationType = {NetworkCollectionOperationTypeFQN}.Update,

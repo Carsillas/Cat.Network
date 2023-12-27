@@ -146,11 +146,8 @@ public class CatServer : ISerializationContext {
 				
 		NetworkEntity entity = (NetworkEntity)Activator.CreateInstance(type);
 		INetworkEntity iEntity = entity;
-
 		
-		iEntity.SerializationContext = this;
 		entity.NetworkId = networkId;
-		
 		iEntity.Deserialize(CreateOptions, content);
 
 		return entity;
