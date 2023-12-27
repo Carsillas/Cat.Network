@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers.Binary;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using static Cat.Network.CatServer;
 
@@ -14,11 +15,44 @@ public static class SerializationUtils {
 		MemberSelectionMode = MemberSelectionMode.Dirty,
 		MemberSerializationMode = MemberSerializationMode.Partial
 	};
+	
 	public static SerializationOptions CreateOptions { get; } = new() {
 		MemberIdentifierMode = MemberIdentifierMode.Index,
 		MemberSelectionMode = MemberSelectionMode.All,
 		MemberSerializationMode = MemberSerializationMode.Complete
 	};
+	
+	private static SerializationOptions SaveOptions { get; } = new() {
+		MemberIdentifierMode = MemberIdentifierMode.Index,
+		MemberSelectionMode = MemberSelectionMode.All,
+		MemberSerializationMode = MemberSerializationMode.Complete
+	};
+
+	
+	public static int Serialize(NetworkEntity entity, Span<byte> buffer) {
+		INetworkEntity iEntity = entity;
+		int headerLength = WritePacketHeader(buffer, RequestType.CreateEntity, entity, out Span<byte> contentBuffer);
+		int contentLength = iEntity.Serialize(SaveOptions, contentBuffer);
+
+		return headerLength + contentLength;
+	}
+	
+	public static NetworkEntity Deserialize(ReadOnlySpan<byte> buffer) {
+		ExtractPacketHeader(buffer, out RequestType requestType, out Guid networkId, out Type type, out ReadOnlySpan<byte> content);
+
+		if (requestType != RequestType.CreateEntity) {
+			throw new InvalidDataException($"{nameof(buffer)} contains malformed data!");
+		}
+				
+		NetworkEntity entity = (NetworkEntity)Activator.CreateInstance(type);
+		INetworkEntity iEntity = entity;
+		
+		entity.NetworkId = networkId;
+		iEntity.Deserialize(SaveOptions, content);
+
+		return entity;
+	}
+	
 
 	internal static void ExtractPacketHeader(ReadOnlySpan<byte> buffer, out RequestType requestType, out Guid networkId, out Type type, out ReadOnlySpan<byte> contentBuffer) {
 		contentBuffer = Span<byte>.Empty;

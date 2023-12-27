@@ -81,9 +81,9 @@ public class SerializationTests : CatNetworkTest {
 		ClientA.Spawn(testEntityA);
 
 		byte[] buffer = new byte[10_000];
-		int contentLength = Server.Serialize(testEntityA, buffer);
+		int contentLength = SerializationUtils.Serialize(testEntityA, buffer);
 
-		NetworkEntity deserializedEntity = Server.Deserialize(new ReadOnlySpan<byte>(buffer, 0, contentLength));
+		NetworkEntity deserializedEntity = SerializationUtils.Deserialize(new ReadOnlySpan<byte>(buffer, 0, contentLength));
 		Assert.IsInstanceOf<SerializationTestEntity>(deserializedEntity);
 		SerializationTestEntity deserializedTestEntity = (SerializationTestEntity)deserializedEntity;
 		

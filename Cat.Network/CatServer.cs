@@ -129,30 +129,6 @@ public class CatServer : ISerializationContext {
 		((INetworkEntity)entity).SerializationContext = null;
 	}
 
-	public int Serialize(NetworkEntity entity, Span<byte> buffer) {
-		INetworkEntity iEntity = entity;
-		int headerLength = WritePacketHeader(buffer, RequestType.CreateEntity, entity, out Span<byte> contentBuffer);
-		int contentLength = iEntity.Serialize(CreateOptions, contentBuffer);
-
-		return headerLength + contentLength;
-	}
-	
-	public NetworkEntity Deserialize(ReadOnlySpan<byte> buffer) {
-		ExtractPacketHeader(buffer, out RequestType requestType, out Guid networkId, out Type type, out ReadOnlySpan<byte> content);
-
-		if (requestType != RequestType.CreateEntity) {
-			throw new InvalidDataException($"{nameof(buffer)} contains malformed data!");
-		}
-				
-		NetworkEntity entity = (NetworkEntity)Activator.CreateInstance(type);
-		INetworkEntity iEntity = entity;
-		
-		entity.NetworkId = networkId;
-		iEntity.Deserialize(CreateOptions, content);
-
-		return entity;
-	}
-	
 	protected virtual void PreExecute() {
 
 	}
