@@ -13,6 +13,8 @@ namespace Cat.Network;
 public class CatServer : ISerializationContext {
 	protected ILogger Logger { get; }
 	public IEntityStorage EntityStorage { get; }
+	private bool IsDeserializing { get; set; }
+	bool ISerializationContext.IsDeserializing => IsDeserializing;
 	bool ISerializationContext.DeserializeDirtiesProperty => true;
 
 	public int Time { get; private set; }
@@ -47,16 +49,28 @@ public class CatServer : ISerializationContext {
 		void ProcessPacket(ReadOnlySpan<byte> packet) {
 			try {
 				ExtractPacketHeader(packet, out RequestType requestType, out Guid networkId, out Type type, out ReadOnlySpan<byte> content);
-
+				
 				switch (requestType) {
 					case RequestType.AssignOwner:
 						HandleAssignOwnerEntityRequest(remoteClient, networkId, content);
 						break;
 					case RequestType.CreateEntity:
-						HandleCreateEntityRequest(remoteClient, networkId, type, content);
+						try {
+							IsDeserializing = true;
+							HandleCreateEntityRequest(remoteClient, networkId, type, content);
+						}
+						finally {
+							IsDeserializing = false;
+						}
 						break;
 					case RequestType.UpdateEntity:
-						HandleUpdateEntityRequest(remoteClient, networkId, content);
+						try {
+							IsDeserializing = true;
+							HandleUpdateEntityRequest(remoteClient, networkId, content);
+						}
+						finally {
+							IsDeserializing = false;
+						}
 						break;
 					case RequestType.DeleteEntity:
 						HandleDeleteEntityRequest(remoteClient, networkId);
@@ -92,7 +106,15 @@ public class CatServer : ISerializationContext {
 
 
 	public void Spawn(NetworkEntity entity, NetworkEntity ownerProfileEntity = null) {
-		entity.NetworkId = Guid.NewGuid();
+		if (entity.NetworkId == default) {
+			entity.NetworkId = Guid.NewGuid();
+		}
+		
+		foreach (ref NetworkPropertyInfo prop in ((INetworkEntity)entity).NetworkProperties.AsSpan()) {
+			prop.LastSetTick = Time;
+			prop.LastUpdateTick = Time;
+		}
+		
 		((INetworkEntity)entity).SerializationContext = this;
 		EntityStorage.RegisterEntity(entity);
 
@@ -107,6 +129,33 @@ public class CatServer : ISerializationContext {
 		((INetworkEntity)entity).SerializationContext = null;
 	}
 
+	public int Serialize(NetworkEntity entity, Span<byte> buffer) {
+		INetworkEntity iEntity = entity;
+		int headerLength = WritePacketHeader(buffer, RequestType.CreateEntity, entity, out Span<byte> contentBuffer);
+		int contentLength = iEntity.Serialize(CreateOptions, contentBuffer);
+
+		return headerLength + contentLength;
+	}
+	
+	public NetworkEntity Deserialize(ReadOnlySpan<byte> buffer) {
+		ExtractPacketHeader(buffer, out RequestType requestType, out Guid networkId, out Type type, out ReadOnlySpan<byte> content);
+
+		if (requestType != RequestType.CreateEntity) {
+			throw new InvalidDataException($"{nameof(buffer)} contains malformed data!");
+		}
+				
+		NetworkEntity entity = (NetworkEntity)Activator.CreateInstance(type);
+		INetworkEntity iEntity = entity;
+
+		
+		iEntity.SerializationContext = this;
+		entity.NetworkId = networkId;
+		
+		iEntity.Deserialize(CreateOptions, content);
+
+		return entity;
+	}
+	
 	protected virtual void PreExecute() {
 
 	}

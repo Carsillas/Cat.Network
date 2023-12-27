@@ -57,6 +57,76 @@ public class SerializationTests : CatNetworkTest {
 
 	}
 
+	
+	[Test]
+	public void Test_RawSerializeDeserialize() {
+		SerializationTestEntity testEntityA = new SerializationTestEntity {
+			BooleanProperty = true,
+			ByteProperty = 10,
+			ShortProperty = 20,
+			IntProperty = 30,
+			LongProperty = 40,
+			UShortProperty = 50,
+			UIntProperty = 60,
+			ULongProperty = 70,
+			FloatProperty = 123.456f,
+			DoubleProperty = 789.123,
+			StringProperty = WowString,
+			EnumProperty = CustomEnum.Test1,
+			GuidProperty = Guid.NewGuid(),
+			NullableGuidProperty = Guid.NewGuid(),
+			VectorProperty = new Vector3(1, 2, 3)
+		};
+
+		ClientA.Spawn(testEntityA);
+
+		byte[] buffer = new byte[10_000];
+		int contentLength = Server.Serialize(testEntityA, buffer);
+
+		NetworkEntity deserializedEntity = Server.Deserialize(new ReadOnlySpan<byte>(buffer, 0, contentLength));
+		
+		Assert.IsInstanceOf<SerializationTestEntity>(deserializedEntity);
+
+		SerializationTestEntity deserializedTestEntity = (SerializationTestEntity)deserializedEntity;
+		
+		Assert.AreEqual(testEntityA.NetworkId, deserializedTestEntity.NetworkId);
+		Server.Spawn(deserializedTestEntity);
+		Assert.AreEqual(testEntityA.NetworkId, deserializedTestEntity.NetworkId);
+		
+		ClientA.Despawn(testEntityA);
+		
+		Assert.AreEqual(testEntityA.BooleanProperty, deserializedTestEntity.BooleanProperty);
+		Assert.AreEqual(testEntityA.ByteProperty, deserializedTestEntity.ByteProperty);
+		Assert.AreEqual(testEntityA.ShortProperty, deserializedTestEntity.ShortProperty);
+		Assert.AreEqual(testEntityA.IntProperty, deserializedTestEntity.IntProperty);
+		Assert.AreEqual(testEntityA.LongProperty, deserializedTestEntity.LongProperty);
+		Assert.AreEqual(testEntityA.UShortProperty, deserializedTestEntity.UShortProperty);
+		Assert.AreEqual(testEntityA.UIntProperty, deserializedTestEntity.UIntProperty);
+		Assert.AreEqual(testEntityA.ULongProperty, deserializedTestEntity.ULongProperty);
+		Assert.AreEqual(testEntityA.FloatProperty, deserializedTestEntity.FloatProperty);
+		Assert.AreEqual(testEntityA.DoubleProperty, deserializedTestEntity.DoubleProperty);
+		Assert.AreEqual(testEntityA.StringProperty, deserializedTestEntity.StringProperty);
+		Assert.AreEqual(testEntityA.EnumProperty, deserializedTestEntity.EnumProperty);
+		Assert.AreEqual(testEntityA.GuidProperty, deserializedTestEntity.GuidProperty);
+		Assert.AreEqual(testEntityA.NullableGuidProperty, deserializedTestEntity.NullableGuidProperty);
+		Assert.AreEqual(testEntityA.VectorProperty, deserializedTestEntity.VectorProperty);
+		
+		Server.Tick();
+		// Expecting a create entity request and an assign owner entity request
+		Assert.AreEqual(2, ClientATransport.Remote.Messages.Count);
+		
+		ClientA.Tick();
+		Assert.AreEqual(0, ClientATransport.Messages.Count);
+		
+		Server.Tick();
+		Assert.AreEqual(0, ClientATransport.Remote.Messages.Count);
+		
+		ClientA.Tick();
+		Assert.AreEqual(0, ClientATransport.Messages.Count);
+		
+	}
+
+	
 	[Test]
 	public void Test_NetworkPropertySetCount() {
 		SerializationTestEntity testEntityA = new SerializationTestEntity {

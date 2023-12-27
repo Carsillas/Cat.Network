@@ -49,8 +49,12 @@ namespace Cat.Network.Generator {
 				writer.AppendBlock($@"
 					{NetworkEntityInterfaceFQN} iEntity = this;
 					ref {NetworkPropertyInfoFQN} networkPropertyInfo = ref iEntity.NetworkProperties[{propertyIndex}];
-					iEntity.LastDirtyTick = iEntity.SerializationContext?.Time ?? 0;
-					networkPropertyInfo.LastSetTick = iEntity.SerializationContext?.Time ?? 0;
+
+					if (iEntity.SerializationContext?.IsDeserializing == false || iEntity.SerializationContext?.DeserializeDirtiesProperty == true) {{
+						iEntity.LastDirtyTick = iEntity.SerializationContext.Time;
+						networkPropertyInfo.LastSetTick = iEntity.SerializationContext.Time;
+					}}
+
 					var oldValue = (({NetworkPropertyPrefix})this).{data.Name};
 					(({NetworkPropertyPrefix})this).{data.Name} = value;
 				");
@@ -65,9 +69,11 @@ namespace Cat.Network.Generator {
 							newValue.Parent = this;
 							newValue.PropertyIndex = {propertyIndex};
 						
-							for (int networkPropertyIndex = 0; networkPropertyIndex < newValue.NetworkProperties.Length; networkPropertyIndex++) {{
-								ref {NetworkPropertyInfoFQN} prop = ref newValue.NetworkProperties[networkPropertyIndex];
-								prop.LastSetTick = iEntity.SerializationContext?.Time ?? 0;
+							if (iEntity.SerializationContext?.IsDeserializing == false || iEntity.SerializationContext?.DeserializeDirtiesProperty == true) {{
+								for (int networkPropertyIndex = 0; networkPropertyIndex < newValue.NetworkProperties.Length; networkPropertyIndex++) {{
+									ref {NetworkPropertyInfoFQN} prop = ref newValue.NetworkProperties[networkPropertyIndex];
+									prop.LastSetTick = iEntity.SerializationContext.Time;
+								}}
 							}}
 						}}
 					");

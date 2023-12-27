@@ -241,6 +241,7 @@ public class ServerTest : CatNetworkTest {
 		Assert.AreEqual(1, ClientATransport.Messages.Count);
 		Assert.AreEqual(1, ClientBTransport.Remote.Messages.Count);
 
+
 		Server.Tick();
 		Assert.AreEqual(0, ClientATransport.Messages.Count);
 		Assert.AreEqual(2, ClientBTransport.Remote.Messages.Count);

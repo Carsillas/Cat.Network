@@ -15,8 +15,11 @@ public class CatClient : ISerializationContext {
 	private ITransport Transport { get; set; }
 	protected ILogger Logger { get; }
 	public IProxyManager ProxyManager { get; }
-
+	private bool IsDeserializing { get; set; }
+	bool ISerializationContext.IsDeserializing => IsDeserializing;
 	bool ISerializationContext.DeserializeDirtiesProperty => false;
+
+
 	public int Time { get; private set; }
 
 	private BufferPool BufferPool { get; } = new();
@@ -51,12 +54,6 @@ public class CatClient : ISerializationContext {
 		entity.NetworkId = Guid.NewGuid();
 		entity.IsOwner = true;
 		entity.IsSpawned = true;
-
-
-		foreach (ref NetworkPropertyInfo prop in ((INetworkEntity)entity).NetworkProperties.AsSpan()) {
-			prop.LastSetTick = Time;
-			prop.LastUpdateTick = Time;
-		}
 
 		INetworkEntity iEntity = entity;
 		iEntity.SerializationContext = this;
@@ -131,7 +128,7 @@ public class CatClient : ISerializationContext {
 		Time++;
 	}
 
-	private void ProcessIncomingPackets() {
+	private void ProcessIncomingPackets() { 
 		Transport.ReadIncomingPackets(CachedPacketProcessor);
 	}
 
@@ -221,10 +218,22 @@ public class CatClient : ISerializationContext {
 					HandleAssignOwnerRequest(networkId);
 					break;
 				case RequestType.CreateEntity:
-					HandleCreateEntityRequest(networkId, type, content);
+					try {
+						IsDeserializing = true;
+						HandleCreateEntityRequest(networkId, type, content);
+					}
+					finally {
+						IsDeserializing = false;
+					}
 					break;
 				case RequestType.UpdateEntity:
-					HandleUpdateEntityRequest(networkId, content);
+					try {
+						IsDeserializing = true;
+						HandleUpdateEntityRequest(networkId, content);
+					}
+					finally {
+						IsDeserializing = false;
+					}
 					break;
 				case RequestType.DeleteEntity:
 					HandleDeleteEntityRequest(networkId);
