@@ -51,9 +51,12 @@ namespace Cat.Network.Generator {
 			int i = 0;
 			foreach (NetworkPropertyData data in classDefinition.NetworkProperties.Where(property => property.Declared)) {
 				int propertyIndex = declaredPropertiesStartIndex + i;
-				
+
 				GenerateAdditionalPropertyDefinition(writer, classDefinition, data);
 				
+				foreach (string forwardedAttribute in data.ForwardedAttributes) {
+					writer.AppendLine($"[{forwardedAttribute}]");
+				}
 				using (writer.EnterScope($"public {data.TypeInfo.FullyQualifiedTypeName} {data.Name}")) {
 					GenerateGetter(writer, propertyIndex, data);
 					GenerateSetter(writer, propertyIndex, data);

@@ -7,6 +7,8 @@ namespace Cat.Network.Generator {
 
 		public string Template { get; }
 		public string[] Keys { get; }
+		
+		public bool IsReference { get; set; }
 
 		public StringTemplate(string template, params string[] keys) {
 			Template = template;

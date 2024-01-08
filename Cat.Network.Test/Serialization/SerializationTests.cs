@@ -2,6 +2,7 @@ using System;
 using Cat.Network.Test.Server;
 using NUnit.Framework;
 using System.Buffers.Binary;
+using System.Collections.Immutable;
 using System.Numerics;
 
 namespace Cat.Network.Test.Serialization;
@@ -26,7 +27,8 @@ public class SerializationTests : CatNetworkTest {
 			EnumProperty = CustomEnum.Test1,
 			GuidProperty = Guid.NewGuid(),
 			NullableGuidProperty = Guid.NewGuid(),
-			VectorProperty = new Vector3(1, 2, 3)
+			VectorProperty = new Vector3(1, 2, 3),
+			ImmutableArrayProperty = ImmutableArray.Create<byte>(1, 2, 3, 4, 5, 6, 7, 8, 9, 0)
 		};
 
 		ClientA.Spawn(testEntityA);
@@ -54,6 +56,8 @@ public class SerializationTests : CatNetworkTest {
 		Assert.AreEqual(testEntityA.GuidProperty, testEntityB.GuidProperty);
 		Assert.AreEqual(testEntityA.NullableGuidProperty, testEntityB.NullableGuidProperty);
 		Assert.AreEqual(testEntityA.VectorProperty, testEntityB.VectorProperty);
+		
+		CollectionAssert.AreEqual(testEntityA.ImmutableArrayProperty, testEntityB.ImmutableArrayProperty);
 
 	}
 
@@ -71,7 +75,7 @@ public class SerializationTests : CatNetworkTest {
 			ULongProperty = 70,
 			FloatProperty = 123.456f,
 			DoubleProperty = 789.123,
-			StringProperty = WowString,
+			StringProperty = null,
 			EnumProperty = CustomEnum.Test1,
 			GuidProperty = Guid.NewGuid(),
 			NullableGuidProperty = Guid.NewGuid(),

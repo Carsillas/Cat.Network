@@ -47,6 +47,7 @@ namespace Cat.Network.Generator {
 		public const string RpcPrefix = "RPC";
 		public const string RpcPrefixAndDot = RpcPrefix + ".";
 
+		public const string ForwardedAttributeFQN = "Cat.Network.ForwardedAttribute";
 		public const string ClientParameterAttributeFQN = "Cat.Network.ClientAttribute";
 		public const string InstigatorParameterAttributeFQN = "Cat.Network.InstigatorAttribute";
 		public const string AutoEventAttributeFQN = "Cat.Network.AutoEventAttribute";
@@ -73,11 +74,12 @@ namespace Cat.Network.Generator {
 			{ "System.Single", new StringTemplate($"{BinaryPrimitivesFQN}.WriteSingleLittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name") },
 			{ "System.Double", new StringTemplate($"{BinaryPrimitivesFQN}.WriteDoubleLittleEndian({PropertyBufferName}, {{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name") },
 			{ "System.Boolean", new StringTemplate($"{PropertyBufferName}[0] = {{name}} ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name") },
-			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {UnicodeFQN}.GetBytes({{name}}, {PropertyBufferName}.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, serializedStringLength); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") },
-			{ "System.Guid", new StringTemplate($"{{name}}.TryWriteBytes({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(16);", "name") }
+			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {UnicodeFQN}.GetBytes({{name}}, {PropertyBufferName}.Slice(4)); {BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, serializedStringLength); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") { IsReference = true } },
+			{ "System.Guid", new StringTemplate($"{{name}}.TryWriteBytes({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(16);", "name") },
+			{ "System.Collections.Immutable.ImmutableArray<System.Byte>", new StringTemplate($"{PropertyBufferName}[0] = ({{name}}.IsDefault ? (byte) 0 : (byte) 1); {PropertyBufferName} = {PropertyBufferName}.Slice(1); if (!{{name}}.IsDefault) {{ {BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, {{name}}.Length); {PropertyBufferName} = {PropertyBufferName}.Slice(4); {{name}}.CopyTo({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice({{name}}.Length); }}", "name") }
 		};
 
-		private static Dictionary<string, StringTemplate> DeserializationTemplates { get; } = new Dictionary<string, StringTemplate>() {
+		private static Dictionary<string, StringTemplate> DeserializationTemplates { get; } = new() {
 			{ "System.Byte", new StringTemplate($"{{name}} = {PropertyBufferName}[0]; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name") },
 			{ "System.Int16", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadInt16LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);", "name") },
 			{ "System.Int32", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name") },
@@ -88,13 +90,14 @@ namespace Cat.Network.Generator {
 			{ "System.Single", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadSingleLittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name") },
 			{ "System.Double", new StringTemplate($"{{name}} = {BinaryPrimitivesFQN}.ReadDoubleLittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name") },
 			{ "System.Boolean", new StringTemplate($"{{name}} = {PropertyBufferName}[0] == 1; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name") },
-			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); {{name}} = {UnicodeFQN}.GetString({PropertyBufferName}.Slice(4, serializedStringLength)); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") },
-			{ "System.Guid", new StringTemplate($"{{name}} = new System.Guid({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(16);", "name") }
+			{ "System.String", new StringTemplate($"System.Int32 serializedStringLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); {{name}} = {UnicodeFQN}.GetString({PropertyBufferName}.Slice(4, serializedStringLength)); {PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);", "name") { IsReference = true } },
+			{ "System.Guid", new StringTemplate($"{{name}} = new System.Guid({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(16);", "name") },
+			{ "System.Collections.Immutable.ImmutableArray<System.Byte>", new StringTemplate($"if ({PropertyBufferName}[0] == 1) {{ {PropertyBufferName} = {PropertyBufferName}.Slice(1); System.Int32 immutableArrayLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(4); {{name}} = System.Collections.Immutable.ImmutableArray.Create<byte>({PropertyBufferName}.Slice(0, immutableArrayLength)); {PropertyBufferName} = {PropertyBufferName}.Slice(immutableArrayLength); }} else {{ {{name}} = default; }}", "name") }
 		};
 
 
 		private static Dictionary<SpecialType, StringTemplate> EnumSerializationTemplates { get; } =
-			new Dictionary<SpecialType, StringTemplate>() {
+			new() {
 				{ SpecialType.System_Byte, new StringTemplate($"{PropertyBufferName}[0] = (System.Byte){{name}}; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name") },
 				{ SpecialType.System_Int16, new StringTemplate($"{BinaryPrimitivesFQN}.WriteInt16LittleEndian({PropertyBufferName}, (System.Int16){{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);", "name") },
 				{ SpecialType.System_Int32, new StringTemplate($"{BinaryPrimitivesFQN}.WriteInt32LittleEndian({PropertyBufferName}, (System.Int32){{name}}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name") },
@@ -105,7 +108,7 @@ namespace Cat.Network.Generator {
 			};
 
 		private static Dictionary<SpecialType, StringTemplate> EnumDeserializationTemplates { get; } =
-			new Dictionary<SpecialType, StringTemplate>() {
+			new() {
 				{ SpecialType.System_Byte, new StringTemplate($"{{name}} = ({{enumFQN}}){PropertyBufferName}[0]; {PropertyBufferName} = {PropertyBufferName}.Slice(1);", "name", "enumFQN") },
 				{ SpecialType.System_Int16, new StringTemplate($"{{name}} = ({{enumFQN}}){BinaryPrimitivesFQN}.ReadInt16LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(2);", "name", "enumFQN") },
 				{ SpecialType.System_Int32, new StringTemplate($"{{name}} = ({{enumFQN}}){BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(4);", "name", "enumFQN") },
@@ -115,22 +118,20 @@ namespace Cat.Network.Generator {
 				{ SpecialType.System_UInt64, new StringTemplate($"{{name}} = ({{enumFQN}}){BinaryPrimitivesFQN}.ReadUInt64LittleEndian({PropertyBufferName}); {PropertyBufferName} = {PropertyBufferName}.Slice(8);", "name", "enumFQN") }
 			};
 
-		private static StringTemplate SerializationTemplateWrapper = new StringTemplate($"{{ {SpanFQN} {PropertyBufferName} = {{bufferName}}.Slice(4); {{serializationExpression}} System.Int32 lengthStorage = {{bufferName}}.Slice(4).Length - {PropertyBufferName}.Length; {BinaryPrimitivesFQN}.WriteInt32LittleEndian({{bufferName}}, lengthStorage); {{bufferName}} = {{bufferName}}.Slice(4 + lengthStorage); }}", "bufferName", "serializationExpression");
-		private static StringTemplate DeserializationTemplateWrapper = new StringTemplate($"{{ {ReadOnlySpanFQN} {PropertyBufferName} = {{bufferName}}; {{serializationTemplate}} }}", "bufferName", "serializationTemplate");
-		private static StringTemplate NullableSerializationTemplate = new StringTemplate($"{PropertyBufferName}[0] = {{propertyName}}.HasValue ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1); if ({{propertyName}}.HasValue) {{ {{serializationExpression}} }}", "propertyName", "serializationExpression");
-		private static StringTemplate NullableDeserializationTemplate = new StringTemplate($"if ({PropertyBufferName}[0] == 1) {{ {PropertyBufferName} = {PropertyBufferName}.Slice(1); {{deserializationExpression}} }} else {{ {{propertyName}} = null; }}", "propertyName", "deserializationExpression");
-
-
+		private static StringTemplate SerializationTemplateWrapper = new($"{{ {SpanFQN} {PropertyBufferName} = {{bufferName}}.Slice(4); {{serializationExpression}} System.Int32 lengthStorage = {{bufferName}}.Slice(4).Length - {PropertyBufferName}.Length; {BinaryPrimitivesFQN}.WriteInt32LittleEndian({{bufferName}}, lengthStorage); {{bufferName}} = {{bufferName}}.Slice(4 + lengthStorage); }}", "bufferName", "serializationExpression");
+		private static StringTemplate DeserializationTemplateWrapper = new($"{{ {ReadOnlySpanFQN} {PropertyBufferName} = {{bufferName}}; {{serializationTemplate}} }}", "bufferName", "serializationTemplate");
+		private static StringTemplate NullableSerializationTemplate = new($"{PropertyBufferName}[0] = {{propertyName}}.HasValue ? (byte) 1 : (byte) 0; {PropertyBufferName} = {PropertyBufferName}.Slice(1); if ({{propertyName}}.HasValue) {{ {{serializationExpression}} }}", "propertyName", "serializationExpression");
+		private static StringTemplate NullableDeserializationTemplate = new($"if ({PropertyBufferName}[0] == 1) {{ {PropertyBufferName} = {PropertyBufferName}.Slice(1); {{deserializationExpression}} }} else {{ {{propertyName}} = null; }}", "propertyName", "deserializationExpression");
+		private static StringTemplate NullableReferenceSerializationTemplate = new($"{PropertyBufferName}[0] = ({{propertyName}} != null ? (byte) 1 : (byte) 0); {PropertyBufferName} = {PropertyBufferName}.Slice(1); if ({{propertyName}} != null) {{ {{serializationExpression}} }}", "propertyName", "serializationExpression");
+		private static StringTemplate NullableReferenceDeserializationTemplate = new($"if ({PropertyBufferName}[0] == 1) {{ {PropertyBufferName} = {PropertyBufferName}.Slice(1); {{deserializationExpression}} }} else {{ {{propertyName}} = null; }}", "propertyName", "deserializationExpression");
+		
 		public static string GenerateSerialization(string serializationExpression, string bufferName) {
 			serializationExpression = SerializationTemplateWrapper.Apply(bufferName, serializationExpression);
-
-
 			return serializationExpression;
 		}
 
 		public static string GenerateDeserialization(string deserializationExpression, string bufferName) {
 			deserializationExpression = DeserializationTemplateWrapper.Apply(bufferName, deserializationExpression);
-
 			return deserializationExpression;
 		}
 
@@ -229,6 +230,10 @@ namespace Cat.Network.Generator {
 				serialization = serializationTemplate.Apply(accessName);
 			} else if (SerializationTemplates.TryGetValue(serializationType.ToDisplayString(FullyQualifiedFormat), out serializationTemplate)) {
 				serialization = serializationTemplate.Apply(accessName);
+
+				if (serializationTemplate.IsReference) {
+					serialization = NullableReferenceSerializationTemplate.Apply(name, serialization);
+				}
 			}
 
 			if (serialization != null) {
@@ -253,6 +258,10 @@ namespace Cat.Network.Generator {
 				deserialization = deserializationTemplate.Apply(accessName, serializationType.ToDisplayString(FullyQualifiedFormat));
 			} else if (DeserializationTemplates.TryGetValue(serializationType.ToDisplayString(FullyQualifiedFormat), out deserializationTemplate)) {
 				deserialization = deserializationTemplate.Apply(accessName);
+				
+				if (deserializationTemplate.IsReference) {
+					deserialization = NullableReferenceDeserializationTemplate.Apply(name, deserialization);
+				}
 			}
 
 			if (deserialization != null) {
@@ -345,7 +354,7 @@ namespace Cat.Network.Generator {
 			ScopedStringWriter writer = new ScopedStringWriter();
 
 			using (writer.EnterScope()) {
-				writer.AppendLine($"// {name}");
+				writer.AppendLine($"// {name} : {symbol.ToDisplayString(FullyQualifiedFormat)}");
 
 				foreach (ISymbol member in memberSymbols) {
 					ITypeSymbol memberType = (member as IFieldSymbol)?.Type ?? (member as IPropertySymbol)?.Type;

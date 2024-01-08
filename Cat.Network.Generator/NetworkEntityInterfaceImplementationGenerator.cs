@@ -132,7 +132,7 @@ namespace Cat.Network.Generator {
 
 								collectionContentBuffer = collectionContentBuffer.Slice(itemLength);
 
-								if (iSerializable.SerializationContext.DeserializeDirtiesProperty) {{
+								if (iSerializable.SerializationContext?.DeserializeDirtiesProperty == true) {{
 									iSerializable.SerializationContext.MarkForClean(iSerializable.Anchor);
 									operationBuffer.Add(new {NetworkCollectionOperationFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}> {{
 										OperationType = {NetworkCollectionOperationTypeFQN}.Add,

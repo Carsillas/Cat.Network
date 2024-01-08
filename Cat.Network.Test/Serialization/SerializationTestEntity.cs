@@ -1,6 +1,7 @@
 ﻿using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -39,6 +40,7 @@ public partial class SerializationTestEntity : NetworkEntity {
 
 	List<int> NetworkCollection.MyInts { get; } = new();
 
+	ImmutableArray<byte> NetworkProperty.ImmutableArrayProperty { get; set; }
 
 	public int StringSetCount { get; private set; }
 	private string BackingString { get; set; }
