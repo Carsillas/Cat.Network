@@ -28,7 +28,6 @@ public static class SerializationUtils {
 		MemberSerializationMode = MemberSerializationMode.Complete
 	};
 
-	
 	public static int Serialize(NetworkEntity entity, Span<byte> buffer) {
 		INetworkEntity iEntity = entity;
 		int headerLength = WritePacketHeader(buffer, RequestType.CreateEntity, entity, out Span<byte> contentBuffer);

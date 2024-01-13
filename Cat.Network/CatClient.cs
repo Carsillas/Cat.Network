@@ -46,7 +46,6 @@ public class CatClient : ISerializationContext {
 	}
 
 	public void Spawn(NetworkEntity entity) {
-
 		if (entity.IsSpawned) {
 			throw new Exception("Cannot spawn an already spawned entity!");
 		}
@@ -103,6 +102,10 @@ public class CatClient : ISerializationContext {
 		entity.IsOwner = false;
 
 		EntitiesToForfeit.Add((entity, newOwnerProfileId));
+	}
+
+	public IEnumerable<NetworkEntity> GetEntities() {
+		return Entities.Values;
 	}
 
 	public bool TryGetEntityByNetworkId(Guid networkId, out NetworkEntity entity) {
