@@ -24,11 +24,13 @@ public partial record NetworkDataObject : INetworkDataObject {
 	}
 	
 	protected NetworkDataObject(NetworkDataObject other) {
+		// This implementation is what prevents the declared properties from being copied over
+		// to the new instance upon cloning, NetworkProperties for example.
 		((INetworkSerializable)this).Initialize();
 	}
 
 	public virtual bool Equals(NetworkDataObject other) {
-		return true;
+		return other != null;
 	}
 
 	public override int GetHashCode() => 0;

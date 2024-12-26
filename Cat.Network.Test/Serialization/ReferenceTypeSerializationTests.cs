@@ -302,7 +302,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		testEntityA1.TestDerived = testNetworkDataObject with { };
 		testEntityA2.Inventory.Add(testNetworkDataObject with { });
 		testEntityA2.TestDerived = testNetworkDataObject with { };
-
+		
 		Cycle();
 
 		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA1.NetworkId, out NetworkEntity entityB));
@@ -311,6 +311,26 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.AreEqual(10, testEntityB.TestDerived.Test);
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
 		Assert.AreEqual(10, testEntityB.Inventory[0].Test);
+	}
+	
+	
+	[Test]
+	public void Test_NetworkDataObjectCopy2() {
+
+		ReferenceTypeTestEntity testEntity1 = new ReferenceTypeTestEntity();
+		ReferenceTypeTestEntity testEntity2 = new ReferenceTypeTestEntity();
+		
+		testEntity1.Test = new CustomNetworkDataObject { Test = 10 };
+		testEntity2.Test = testEntity1.Test with { };
+		
+		INetworkDataObject t1 = testEntity1.Test;
+		INetworkDataObject t2 = testEntity2.Test;
+
+		Assert.AreNotSame(t1.NetworkProperties, t2.NetworkProperties);
+		Assert.AreNotSame(t1.Anchor, t2.Anchor);
+		Assert.AreNotSame(t1.Parent, t2.Parent);
+		Assert.AreNotSame(t1.PropertyIndex, t2.PropertyIndex);
+		
 	}
 
 
