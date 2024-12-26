@@ -26,6 +26,12 @@ public partial record NetworkDataObject : INetworkDataObject {
 	protected NetworkDataObject(NetworkDataObject other) {
 		((INetworkSerializable)this).Initialize();
 	}
-	
+
+	public virtual bool Equals(NetworkDataObject other) {
+		return true;
+	}
+
+	public override int GetHashCode() => 0;
+
 }
 
