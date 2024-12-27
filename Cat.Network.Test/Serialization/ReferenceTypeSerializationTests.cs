@@ -384,6 +384,57 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.AreEqual(testEntityA.Inventory[3].Test, testEntityB.Inventory[3].Test);
 	}
 
+	
+	[Test]
+	public void Test_NetworkDataObjectNestedValueUpdate() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+
+		testEntityA.TestNested = new NestedNetworkDataObject {
+			NestedProperty = new CustomNetworkDataObject {
+				Test = 10
+			}
+		};
+		
+		ClientA.Spawn(testEntityA);
+
+		Cycle();
+
+		ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB);
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		Assert.AreEqual(10, testEntityB.TestNested.NestedProperty.Test);
+		
+		testEntityA.TestNested.NestedProperty.Test = 20;
+		
+		Cycle();
+		
+		Assert.AreEqual(20, testEntityB.TestNested.NestedProperty.Test);
+	}
+	
+	
+	[Test]
+	public void Test_NetworkDataObjectPropertyChangedEvent() {
+
+		CustomNetworkDataObject test = new CustomNetworkDataObject {
+			Test = 10
+		};
+
+		int called = 0;
+
+		
+		test.TestChanged += (sender, args) => {
+			called++;
+			Assert.AreEqual(10, args.PreviousValue);
+			Assert.AreEqual(20, args.CurrentValue);
+		};
+
+		test.Test = 20;
+		
+		Assert.AreEqual(1, called);
+		
+	}
+
+	
 
 	[Test]
 	public void Test_NetworkDataObjectRpcSerialization() {
