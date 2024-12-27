@@ -18,13 +18,14 @@ public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList wh
 		}
 	}
 
-	protected override void OnItemAdded(T item) {
+	protected override void OnItemAdded(T item, int index) {
 		if (item == null) {
 			return;
 		}
 
 		item.Parent = Owner;
 		item.Collection = this;
+		item.PropertyIndex = index;
 	}
 
 	protected override void OnItemRemoved(T item) {
@@ -34,6 +35,7 @@ public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList wh
 		
 		item.Parent = null;
 		item.Collection = null;
+		item.PropertyIndex = -1;
 	}
 
 	public void MarkForUpdate(int index) {

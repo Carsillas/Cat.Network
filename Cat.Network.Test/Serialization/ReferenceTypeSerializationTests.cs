@@ -302,7 +302,7 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		testEntityA1.TestDerived = testNetworkDataObject with { };
 		testEntityA2.Inventory.Add(testNetworkDataObject with { });
 		testEntityA2.TestDerived = testNetworkDataObject with { };
-		
+
 		Cycle();
 
 		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA1.NetworkId, out NetworkEntity entityB));
@@ -312,17 +312,16 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.AreEqual(1, testEntityB.Inventory.Count);
 		Assert.AreEqual(10, testEntityB.Inventory[0].Test);
 	}
-	
-	
+
+
 	[Test]
 	public void Test_NetworkDataObjectCopy2() {
-
 		ReferenceTypeTestEntity testEntity1 = new ReferenceTypeTestEntity();
 		ReferenceTypeTestEntity testEntity2 = new ReferenceTypeTestEntity();
-		
+
 		testEntity1.Test = new CustomNetworkDataObject { Test = 10 };
 		testEntity2.Test = testEntity1.Test with { };
-		
+
 		INetworkDataObject t1 = testEntity1.Test;
 		INetworkDataObject t2 = testEntity2.Test;
 
@@ -330,7 +329,59 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.AreNotSame(t1.Anchor, t2.Anchor);
 		Assert.AreNotSame(t1.Parent, t2.Parent);
 		Assert.AreNotSame(t1.PropertyIndex, t2.PropertyIndex);
+	}
+
+
+	[Test]
+	public void Test_NetworkDataObjectCopy3() {
+		ReferenceTypeTestEntity testEntity1 = new ReferenceTypeTestEntity();
+		ReferenceTypeTestEntity testEntity2 = new ReferenceTypeTestEntity();
+
+		CustomNetworkDataObject dataObject = new CustomNetworkDataObject { Test = 10 };
+		testEntity1.Test = dataObject;
+
+		CustomNetworkDataObject copy = dataObject with { };
+
+		testEntity2.Inventory.Add(copy);
+		copy.Test = 20;
+
+		testEntity1.Test = null;
+		testEntity2.Inventory.Add(dataObject);
+		dataObject.Test = 20;
+	}
+
+	[Test]
+	public void Test_NetworkDataObjectCollectionUpdateValue() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 1 });
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 2 });
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 3 });
+		testEntityA.Inventory.Add(new CustomNetworkDataObject { Test = 4 });
 		
+		ClientA.Spawn(testEntityA);
+
+		Cycle();
+
+		ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB);
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+
+		Assert.AreEqual(testEntityA.Inventory[0].Test, testEntityB.Inventory[0].Test);
+		Assert.AreEqual(testEntityA.Inventory[1].Test, testEntityB.Inventory[1].Test);
+		Assert.AreEqual(testEntityA.Inventory[2].Test, testEntityB.Inventory[2].Test);
+		Assert.AreEqual(testEntityA.Inventory[3].Test, testEntityB.Inventory[3].Test);
+
+		testEntityA.Inventory[0].Test = 10;
+		testEntityA.Inventory[1].Test = 20;
+		testEntityA.Inventory[2].Test = 30;
+		testEntityA.Inventory[3].Test = 40;
+		
+		Cycle();
+		
+		Assert.AreEqual(testEntityA.Inventory[0].Test, testEntityB.Inventory[0].Test);
+		Assert.AreEqual(testEntityA.Inventory[1].Test, testEntityB.Inventory[1].Test);
+		Assert.AreEqual(testEntityA.Inventory[2].Test, testEntityB.Inventory[2].Test);
+		Assert.AreEqual(testEntityA.Inventory[3].Test, testEntityB.Inventory[3].Test);
 	}
 
 
@@ -352,9 +403,9 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		testEntityB.ReferenceRpc(new CustomNetworkDataObject { Test = 15 });
 
 		Cycle();
-		
+
 		Assert.IsTrue(receivedRpc);
-		
+
 
 		void OnReceivedRpc(CustomNetworkDataObject obj) {
 			receivedRpc = true;
@@ -362,9 +413,8 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 			Assert.AreEqual(15, obj.Test);
 		}
 	}
-	
-	
-	
+
+
 	[Test]
 	public void Test_NetworkDataObjectNested() {
 		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
@@ -379,16 +429,14 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
 		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
 
-		
+
 		Assert.IsNotNull(testEntityB.TestNested);
 
 		testEntityA.TestNested.NestedProperty = new CustomNetworkDataObject { Test = 15 };
-		
+
 		Cycle();
-		
+
 		Assert.IsNotNull(testEntityB.TestNested.NestedProperty);
 		Assert.AreEqual(15, testEntityB.TestNested.NestedProperty.Test);
-
 	}
-	
 }

@@ -35,7 +35,7 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 		
 	}
 	
-	protected virtual void OnItemAdded(T item) {
+	protected virtual void OnItemAdded(T item, int index) {
 		
 	}
 	
@@ -48,7 +48,7 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 		AssertValidAddition(item);
 		
 		InternalList.Add(item);
-		OnItemAdded(item);
+		OnItemAdded(item, InternalList.Count - 1);
 		ItemAdded?.Invoke(this, InternalList.Count - 1);
 		IndexChanged?.Invoke(this, InternalList.Count - 1);
 
@@ -123,16 +123,14 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	}
 
 	public T this[int index] {
-		get {
-			return InternalList[index];
-		}
+		get => InternalList[index];
 		set {
 			((INetworkCollection<T>)this).AssertOwner();
 			T previousValue = InternalList[index];
 			InternalList[index] = value;
 			
 			OnItemRemoved(previousValue);
-			OnItemAdded(value);
+			OnItemAdded(value, index);
 			IndexChanged?.Invoke(this, index);
 
 			if (SerializationContext == null) {
