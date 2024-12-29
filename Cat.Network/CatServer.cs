@@ -159,10 +159,23 @@ public class CatServer : ISerializationContext {
 	}
 
 	private void ProcessOutgoingPackets() {
-
+		List<RemoteClient> clientsToDisconnect = null;
 		foreach (RemoteClient client in Clients) {
-			EntityStorage.ProcessRelevantEntities(client.ProfileEntity, client);
+			try {
+				EntityStorage.ProcessRelevantEntities(client.ProfileEntity, client);
+			} catch (Exception e) {
+				Logger?.LogError(e, "Exception during client processing, kicking player.");
+				clientsToDisconnect ??= [];
+				clientsToDisconnect.Add(client);
+			}
 		}
+
+		if (clientsToDisconnect != null) {
+			foreach (RemoteClient client in clientsToDisconnect) {
+				RemoveTransport(client.Transport);
+			}
+		}
+		
 
 		foreach(INetworkEntity entity in EntitiesMarkedForClean) {
 			entity.Clean();

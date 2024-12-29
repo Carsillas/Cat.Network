@@ -5,6 +5,7 @@
         <DebugType>embedded</DebugType>
         <EmbedAllSources>true</EmbedAllSources>
         <DebugSymbols>true</DebugSymbols>
+        <LangVersion>12</LangVersion>
     </PropertyGroup>
 
     <PropertyGroup>

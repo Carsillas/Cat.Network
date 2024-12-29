@@ -85,13 +85,13 @@ public class SocketTransport : ITransport, IDisposable {
 				packetSize = BinaryPrimitives.ReadInt32LittleEndian(ReceiveBuffer);
 
 			} catch (Exception e) {
-				Logger.LogError(e, "Exception occurred while reading packet!");
+				Logger?.LogError(e, "Exception occurred while reading packet!");
 				Dispose();
 				yield break;
 			}
 
 			if (packetSize > ReceiveBuffer.Length) {	
-				Logger.LogError("Encountered a packet with extreme size: {Size} bytes.", packetSize);
+				Logger?.LogError("Encountered a packet with extreme size: {Size} bytes.", packetSize);
 				Dispose();
 				yield break;
 			}
@@ -120,7 +120,8 @@ public class SocketTransport : ITransport, IDisposable {
 
 
 	public void Dispose() {
-		Logger.LogInformation("Disconnecting from {Remote}", Socket.RemoteEndPoint);
+		Logger?.LogInformation("Disconnecting from {Remote}", Socket.RemoteEndPoint);
+		Socket.Close();
 		Socket.Dispose();
 	}
 }

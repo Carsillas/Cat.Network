@@ -9,8 +9,8 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace Cat.Network.Test;
-internal class SocketTransportTest {
 
+internal class SocketTransportTest {
 	protected TestServer Server { get; set; }
 	protected TestEntityStorage ServerEntityStorage { get; set; }
 
@@ -30,7 +30,6 @@ internal class SocketTransportTest {
 
 	[SetUp]
 	public async Task Setup() {
-
 		ListenSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 		ListenSocket.Bind(ListenEndPoint);
 		ListenSocket.Listen();
@@ -42,7 +41,10 @@ internal class SocketTransportTest {
 		(ClientA, ClientATransport, ProxyManagerA) = await AddClient();
 		(ClientB, ClientBTransport, ProxyManagerB) = await AddClient();
 
+		Cycle();
+	}
 
+	private void Cycle() {
 		ClientA.Tick();
 		Server.Tick();
 		ClientB.Tick();
@@ -54,7 +56,6 @@ internal class SocketTransportTest {
 		ClientA.Tick();
 		Server.Tick();
 		ClientB.Tick();
-
 	}
 
 	protected async Task<(TestClient, SocketTransport, TestProxyManager)> AddClient() {
@@ -67,7 +68,7 @@ internal class SocketTransportTest {
 		await Task.WhenAll(
 			clientSocket.ConnectAsync(ListenEndPoint),
 			Task.Run(async () => { serverSocket = await ListenSocket.AcceptAsync(); })
-			);
+		);
 
 		SocketTransport clientTransport = new SocketTransport(null, clientSocket);
 		SocketTransport serverTransport = new SocketTransport(null, serverSocket);
@@ -110,7 +111,40 @@ internal class SocketTransportTest {
 
 		Assert.IsFalse(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out _));
 		Assert.IsFalse(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out _));
-
 	}
 
+
+	[Test]
+	public void Test_SocketClosed() {
+		TestEntity testEntityA = new TestEntity {
+			Health = 123
+		};
+		TestEntity testEntityA2 = new TestEntity {
+			Health = 123
+		};
+		
+		TestEntity testEntityB = new TestEntity {
+			Health = 123
+		};
+
+		ClientA.Spawn(testEntityA);
+		ClientB.Spawn(testEntityB);
+		
+		Cycle();
+		
+		ClientA.Spawn(testEntityA2);
+		ClientBTransport.Dispose();
+		
+		ClientA.Tick();
+		Server.Tick();
+		ClientA.Tick();
+		Server.Tick();
+		ClientA.Tick();
+		
+		Assert.IsTrue(ClientA.TryGetEntityByNetworkId(testEntityB.NetworkId, out NetworkEntity entityB));
+		Assert.IsTrue(entityB.IsOwner);
+		
+		//ClientB.Tick();
+
+	}
 }
