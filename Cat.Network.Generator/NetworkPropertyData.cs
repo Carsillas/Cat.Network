@@ -14,6 +14,7 @@ namespace Cat.Network.Generator {
 		public string PartialSerializationExpression { get; set; }
 		
 		public ImmutableArray<string> ForwardedAttributes { get; set; }
+		
 	}
 
 	public struct TypeInfo {

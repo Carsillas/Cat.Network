@@ -12,6 +12,7 @@ namespace Cat.Network.Generator {
 		public TypeInfo CollectionTypeInfo { get; set; }
 		public TypeInfo ItemTypeInfo { get; set; }
 
+		public bool FixedSizeCollection { get; set; }
 
 		public string NetworkListTypeFQN =>
 			ItemTypeInfo.IsNetworkDataObject ? NetworkObjectListFQN : NetworkValueListFQN;

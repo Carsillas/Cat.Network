@@ -23,18 +23,20 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	public event CollectionChangedEvent ItemRemoved;
 	public event CollectionChangedEvent IndexChanged;
 	
-	
 	internal NetworkList(NetworkEntity owner, List<T> list) {
 		Owner = owner;
 		InternalList = list;
 	}
 
-
-
+	
 	protected virtual void AssertValidAddition(T item) {
 		
 	}
-	
+
+	protected virtual void AssertValidRemoval() {
+		
+	}
+
 	protected virtual void OnItemAdded(T item, int index) {
 		
 	}
@@ -66,6 +68,7 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 
 	public bool Remove(T item) {
 		((INetworkCollection<T>)this).AssertOwner();
+		AssertValidRemoval();
 		int index = InternalList.IndexOf(item);
 
 		return RemoveAt(index);
@@ -73,6 +76,7 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	
 	public bool RemoveAt(int index) {
 		((INetworkCollection<T>)this).AssertOwner();
+		AssertValidRemoval();
 
 		if (index < 0 || index >= InternalList.Count) {
 			return false;
@@ -102,6 +106,7 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	
 	public void Clear() {
 		((INetworkCollection<T>)this).AssertOwner();
+		AssertValidRemoval();
 		InternalList.Clear();
 		
 		if (SerializationContext == null) {

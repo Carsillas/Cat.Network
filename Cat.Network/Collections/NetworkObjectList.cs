@@ -10,11 +10,29 @@ public interface INetworkObjectList {
 }
 
 public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList where T : NetworkDataObject, INetworkDataObject {
-	public NetworkObjectList(NetworkEntity owner, List<T> list) : base(owner, list) { }
+	private bool FixedSize { get; }
+	
+	public NetworkObjectList(NetworkEntity owner, List<T> list, bool fixedSize) : base(owner, list) {
+		FixedSize = fixedSize;
+	}
 
 	protected override void AssertValidAddition(T item) {
+		base.AssertValidAddition(item);
+		
+		if (FixedSize) {
+			throw new InvalidOperationException("Attempted to modify a collection of fixed size.");
+		}
+		
 		if (item?.Parent != null) {
 			throw new InvalidOperationException($"{nameof(NetworkDataObject)}s may only occupy one networked property or list!");
+		}
+	}
+
+	protected override void AssertValidRemoval() {
+		base.AssertValidRemoval();
+		
+		if (FixedSize) {
+			throw new InvalidOperationException("Attempted to modify a collection of fixed size.");
 		}
 	}
 

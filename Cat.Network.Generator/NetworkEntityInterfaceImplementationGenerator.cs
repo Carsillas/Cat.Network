@@ -14,7 +14,7 @@ namespace Cat.Network.Generator {
 			NetworkEntityClassDefinition networkEntityClassDefinition = (NetworkEntityClassDefinition)classDefinition;
 
 			foreach (NetworkCollectionData data in networkEntityClassDefinition.NetworkCollections) {
-				writer.AppendLine($"(({NetworkCollectionPrefix})this).{data.BackingCollectionName} = new {data.NetworkListTypeFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>(this, (({NetworkCollectionPrefix})this).{data.Name});");
+				writer.AppendLine($"(({NetworkCollectionPrefix})this).{data.BackingCollectionName} = new {data.NetworkListTypeFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>(this, (({NetworkCollectionPrefix})this).{data.Name}, {data.FixedSizeCollection.ToString().ToLower()});");
 			}
 		}
 
@@ -108,22 +108,27 @@ namespace Cat.Network.Generator {
 
 			NetworkEntityClassDefinition networkEntityClassDefinition = (NetworkEntityClassDefinition)classDefinition;
 
-			foreach (NetworkCollectionData data in networkEntityClassDefinition.NetworkCollections) {
-				writer.AppendBlock($@"
+			writer.AppendBlock($@"
 					System.Int32 collectionContentLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(contentBuffer);
 					{ReadOnlySpanFQN} collectionContentBuffer = contentBuffer.Slice(4, collectionContentLength);
+
 					contentBuffer = contentBuffer.Slice(collectionContentLength);
+			");
+			
+			foreach (NetworkCollectionData data in networkEntityClassDefinition.NetworkCollections) {
+				using (writer.EnterScope()) {
+					writer.AppendBlock($@"
 
 					System.Int32 operationCount = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
 					var operationBuffer = (({NetworkCollectionInterfaceFQN}<{data.ItemTypeInfo.FullyQualifiedTypeName}>){data.Name}).OperationBuffer;
 				");
 
-				using (writer.EnterScope("for (System.Int32 i = 0; i < operationCount; i++)")) {
-					writer.AppendLine($"{NetworkCollectionOperationTypeFQN} operationType = ({NetworkCollectionOperationTypeFQN})collectionContentBuffer[0]; collectionContentBuffer = collectionContentBuffer.Slice(1);");
+					using (writer.EnterScope("for (System.Int32 i = 0; i < operationCount; i++)")) {
+						writer.AppendLine($"{NetworkCollectionOperationTypeFQN} operationType = ({NetworkCollectionOperationTypeFQN})collectionContentBuffer[0]; collectionContentBuffer = collectionContentBuffer.Slice(1);");
 
-					using (writer.EnterScope("switch (operationType)")) {
-						writer.AppendBlock($@"
+						using (writer.EnterScope("switch (operationType)")) {
+							writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Add: {{
 								System.Int32 itemLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 								
@@ -145,7 +150,7 @@ namespace Cat.Network.Generator {
 							}}
 						");
 
-						writer.AppendBlock($@"
+							writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Remove: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 
@@ -162,7 +167,7 @@ namespace Cat.Network.Generator {
 							}}
 						");
 
-						writer.AppendBlock($@"
+							writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Set: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 								System.Int32 itemLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
@@ -186,8 +191,8 @@ namespace Cat.Network.Generator {
 								break;
 							}}
 						");
-						
-						writer.AppendBlock($@"
+
+							writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Swap: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 								System.Int32 swapIndex = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
@@ -207,8 +212,8 @@ namespace Cat.Network.Generator {
 								break;
 							}}
 						");
-						
-						writer.AppendBlock($@"
+
+							writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Clear: {{
 
 								if (iSerializable.SerializationContext?.DeserializeDirtiesProperty == true) {{
@@ -223,7 +228,7 @@ namespace Cat.Network.Generator {
 							}}
 						");
 
-						writer.AppendBlock($@"
+							writer.AppendBlock($@"
 							case {NetworkCollectionOperationTypeFQN}.Update: {{
 								System.Int32 index = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
 								System.Int32 itemLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian(collectionContentBuffer); collectionContentBuffer = collectionContentBuffer.Slice(4);
@@ -245,6 +250,7 @@ namespace Cat.Network.Generator {
 								break;
 							}}
 						");
+						}
 					}
 				}
 			}

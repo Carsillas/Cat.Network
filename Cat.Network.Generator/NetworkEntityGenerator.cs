@@ -114,7 +114,10 @@ namespace Cat.Network.Generator {
 						GetReferenceDeserialization("item", itemType) :
 						GenerateTypeDeserialization("item", itemType),
 					PartialItemSerializationExpression = typeInfo.IsNetworkDataObject ?
-						GetReferenceSerialization("item", itemType, false) : null
+						GetReferenceSerialization("item", itemType, false) : null,
+					FixedSizeCollection = propertySymbol.Symbol.GetAttributes().Any(attributeData =>
+						attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) ==
+						FixedSizeAttributeFQN)
 				};
 			});
 		}

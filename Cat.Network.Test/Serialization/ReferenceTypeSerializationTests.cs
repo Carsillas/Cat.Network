@@ -349,6 +349,24 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		testEntity2.Inventory.Add(dataObject);
 		dataObject.Test = 20;
 	}
+	
+	
+	[Test]
+	public void Test_PreInitializedNetworkCollection() {
+		ReferenceTypeTestEntity testEntityA = new ReferenceTypeTestEntity();
+
+
+		ClientA.Spawn(testEntityA);
+
+		Cycle();
+
+		ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB);
+		ReferenceTypeTestEntity testEntityB = (ReferenceTypeTestEntity)entityB;
+		
+		Assert.AreEqual(1, testEntityB.TestPreInitializedCollection.Count);
+		Assert.AreEqual(123, testEntityB.TestPreInitializedCollection[0].Test);
+		
+	}
 
 	[Test]
 	public void Test_NetworkDataObjectCollectionUpdateValue() {

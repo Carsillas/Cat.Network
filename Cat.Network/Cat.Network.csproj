@@ -19,7 +19,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Cat.Network.Generator" Version="0.0.1-202412271725" />
+        <PackageReference Include="Cat.Network.Generator" Version="0.0.1-202412292213" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
     </ItemGroup>
 
