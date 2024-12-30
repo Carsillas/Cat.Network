@@ -40,7 +40,17 @@ public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList wh
 		item.Collection = null;
 		item.PropertyIndex = -1;
 	}
+	
+	public int IndexOfByReference(T item) {
+		for (int i = 0; i < Count; i++) {
+			if (ReferenceEquals(this[i], item)) {
+				return i;
+			}
+		}
 
+		return -1;
+	}
+	
 	public void MarkForUpdate(int index) {
 		INetworkCollection<T> iNetworkCollection = this;
 
