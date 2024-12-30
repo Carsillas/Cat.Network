@@ -10,7 +10,7 @@ namespace Cat.Network.Collections;
 
 public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 
-	internal NetworkEntity Owner { get; }
+	public NetworkEntity Owner { get; }
 	private List<T> InternalList { get; }
 	public int Count => InternalList.Count;
 	public bool FixedSize { get; }
