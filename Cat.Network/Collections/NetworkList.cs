@@ -13,6 +13,7 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	internal NetworkEntity Owner { get; }
 	private List<T> InternalList { get; }
 	public int Count => InternalList.Count;
+	public bool FixedSize { get; }
 	
 	private ISerializationContext SerializationContext => ((INetworkEntity)Owner).SerializationContext;
 	List<NetworkCollectionOperation<T>> INetworkCollection<T>.OperationBuffer { get; } = new();
@@ -23,18 +24,23 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	public event CollectionChangedEvent ItemRemoved;
 	public event CollectionChangedEvent IndexChanged;
 	
-	internal NetworkList(NetworkEntity owner, List<T> list) {
+	internal NetworkList(NetworkEntity owner, List<T> list, bool fixedSize) {
 		Owner = owner;
 		InternalList = list;
+		FixedSize = fixedSize;
 	}
 
 	
 	protected virtual void AssertValidAddition(T item) {
-		
+		if (FixedSize) {
+			throw new InvalidOperationException("Attempted to modify a collection of fixed size.");
+		}
 	}
 
 	protected virtual void AssertValidRemoval() {
-		
+		if (FixedSize) {
+			throw new InvalidOperationException("Attempted to modify a collection of fixed size.");
+		}
 	}
 
 	protected virtual void OnItemAdded(T item, int index) {
