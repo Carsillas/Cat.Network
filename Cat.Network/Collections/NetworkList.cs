@@ -93,7 +93,7 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 		OnItemRemoved(item);
 		ItemRemoved?.Invoke(this, index);
 
-		if (IndexChanged?.GetInvocationList().Length > 0) {
+		if (IndexChanged != null) {
 			for (int i = index; i < InternalList.Count; i++) {
 				IndexChanged?.Invoke(this, i);
 			}
