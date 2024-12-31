@@ -74,9 +74,7 @@ namespace Cat.Network.Generator {
 					DeserializationExpression = typeInfo.IsNetworkDataObject ?
 						GetReferenceDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type) :
 						GenerateTypeDeserialization(propertySymbol.Name, propertySymbol.Symbol.Type),
-					ExposeEvent = propertySymbol.Symbol.GetAttributes().Any(attributeData =>
-						attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) ==
-						NetworkPropertyChangedEventAttributeFQN),
+					ExposeEvent = false,
 					ForwardedAttributes = propertySymbol.Symbol.GetAttributes()
 						.Where(attributeData => attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) == ForwardedAttributeFQN )
 						.Select(attributeData => (string)attributeData.ConstructorArguments.FirstOrDefault().Value)

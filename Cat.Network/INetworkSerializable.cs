@@ -16,4 +16,8 @@ public interface INetworkSerializable {
 	
 	// NetworkDataObjects will call into parent for LastModifyTick
 	NetworkPropertyInfo[] NetworkProperties { get; set; }
+
+	void OnPropertyChanged(PropertyChangedEventArgs args);
+	
+	event Action<object, PropertyChangedEventArgs> PropertyChanged;
 }

@@ -18,12 +18,14 @@ namespace Cat.Network.Generator {
 
 		private void GenerateEventInvocation(ScopedStringWriter writer, int propertyIndex, NetworkPropertyData data) {
 			writer.AppendBlock($@"
-				{NetworkPropertyChangedEventArgsFQN}<{data.TypeInfo.FullyQualifiedTypeName}> args = new {NetworkPropertyChangedEventArgsFQN}<{data.TypeInfo.FullyQualifiedTypeName}> {{
-					PreviousValue = oldValue,
-					CurrentValue = (({NetworkPropertyPrefix})this).{data.Name}
-				}};
+				if (changed) {{
+					{NetworkPropertyChangedEventArgsFQN}<{data.TypeInfo.FullyQualifiedTypeName}> args = new {NetworkPropertyChangedEventArgsFQN}<{data.TypeInfo.FullyQualifiedTypeName}> {{
+						Index = {propertyIndex},
+						Name = nameof({data.Name}),
+						PreviousValue = oldValue,
+						CurrentValue = (({NetworkPropertyPrefix})this).{data.Name}
+					}};
 
-				if (!System.Collections.Generic.EqualityComparer<{data.TypeInfo.FullyQualifiedTypeName}>.Default.Equals(args.PreviousValue, args.CurrentValue)) {{
 					{data.Name}Changed?.Invoke(this, args);
 				}}
 			");
@@ -78,6 +80,26 @@ namespace Cat.Network.Generator {
 						}}
 					");
 				}
+
+				if (data.TypeInfo.IsNetworkDataObject) {
+					writer.AppendBlock($@"
+						bool changed = !ReferenceEquals(oldValue, (({NetworkPropertyPrefix})this).{data.Name});
+					");
+				} else {
+					writer.AppendBlock($@"
+						bool changed = !System.Collections.Generic.EqualityComparer<{data.TypeInfo.FullyQualifiedTypeName}>.Default.Equals(oldValue, (({NetworkPropertyPrefix})this).{data.Name});
+					");
+				}
+				writer.AppendBlock($@"
+					if (changed) {{
+						{NetworkPropertyChangedEventArgsFQN} args = new {NetworkPropertyChangedEventArgsFQN} {{
+							Index = {propertyIndex},
+							Name = nameof({data.Name})
+						}};
+
+						iEntity.OnPropertyChanged(args);
+					}}
+				");
 
 				if (data.ExposeEvent) {
 					GenerateEventInvocation(writer, propertyIndex, data);

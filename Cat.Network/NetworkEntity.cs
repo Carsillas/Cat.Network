@@ -8,6 +8,8 @@ public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 	public bool IsOwner { get; internal set; } = true;
 	public bool IsSpawned { get; internal set; }
 
+	public event Action<object, PropertyChangedEventArgs> PropertyChanged;
+	
 	bool NetworkProperty.DestroyWithOwner { get; set; }
 	
 	ISerializationContext INetworkEntity.SerializationContext { get; set; }
@@ -22,7 +24,11 @@ public abstract partial class NetworkEntity : IEquatable<NetworkEntity> {
 	public bool Equals(NetworkEntity other) {
 		return NetworkId == other.NetworkId;
 	}
-
+	
+	void INetworkSerializable.OnPropertyChanged(PropertyChangedEventArgs args) {
+		PropertyChanged?.Invoke(this, args);
+	}
+	
 }
 
 

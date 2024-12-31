@@ -9,22 +9,23 @@ namespace Cat.Network.Generator {
 		
 		protected override string BaseFQN { get; } = NetworkDataObjectFQN;
 		protected override string InterfaceFQN { get; } = NetworkDataObjectInterfaceFQN;
-
-		protected override void GenerateAdditionalPropertyDefinition(ScopedStringWriter writer, NetworkSerializableClassDefinition classDefinition, NetworkPropertyData data) {
-			if (data.ExposeEvent) {
-				writer.AppendLine($"public event {NetworkPropertyChangedEventFQN}<{classDefinition.Name}, {data.TypeInfo.FullyQualifiedTypeName}> {data.Name}Changed;");
-			}
-		}
+		
 
 		private void GenerateEventInvocation(ScopedStringWriter writer, int propertyIndex, NetworkPropertyData data) {
+
+			string changedDefinition = data.TypeInfo.IsNetworkDataObject ?
+				$"bool changed = !ReferenceEquals(oldValue, (({NetworkPropertyPrefix})this).{data.Name});" :
+				$"bool changed = !System.Collections.Generic.EqualityComparer<{data.TypeInfo.FullyQualifiedTypeName}>.Default.Equals(oldValue, (({NetworkPropertyPrefix})this).{data.Name});";
+			
 			writer.AppendBlock($@"
-				{NetworkPropertyChangedEventArgsFQN}<{data.TypeInfo.FullyQualifiedTypeName}> args = new {NetworkPropertyChangedEventArgsFQN}<{data.TypeInfo.FullyQualifiedTypeName}> {{
-					PreviousValue = oldValue,
-					CurrentValue = (({NetworkPropertyPrefix})this).{data.Name}
+				{NetworkPropertyChangedEventArgsFQN} args = new {NetworkPropertyChangedEventArgsFQN} {{
+					Index = {propertyIndex},
+					Name = nameof({data.Name})
 				}};
 
-				if (!System.Collections.Generic.EqualityComparer<{data.TypeInfo.FullyQualifiedTypeName}>.Default.Equals(args.PreviousValue, args.CurrentValue)) {{
-					{data.Name}Changed?.Invoke(this, args);
+				{changedDefinition}
+				if (changed) {{
+					iNetworkDataObject.OnPropertyChanged(args);
 				}}
 			");
 		}
@@ -93,9 +94,7 @@ namespace Cat.Network.Generator {
 					");
 				}
 				
-				if (data.ExposeEvent) {
-					GenerateEventInvocation(writer, propertyIndex, data);
-				}
+				GenerateEventInvocation(writer, propertyIndex, data);
 				
 			}
 		}

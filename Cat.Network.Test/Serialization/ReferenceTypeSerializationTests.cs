@@ -440,10 +440,8 @@ public class ReferenceTypeSerializationTests : CatNetworkTest {
 		int called = 0;
 
 		
-		test.TestChanged += (sender, args) => {
+		test.PropertyChanged += (sender, args) => {
 			called++;
-			Assert.AreEqual(10, args.PreviousValue);
-			Assert.AreEqual(20, args.CurrentValue);
 		};
 
 		test.Test = 20;
