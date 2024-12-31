@@ -41,6 +41,13 @@ public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList wh
 		item.PropertyIndex = -1;
 	}
 	
+	public bool RemoveByReference(T item) {
+		((INetworkCollection<T>)this).AssertOwner();
+		AssertValidRemoval();
+		int index = IndexOfByReference(item);
+		return RemoveAt(index);
+	}
+	
 	public int IndexOfByReference(T item) {
 		for (int i = 0; i < Count; i++) {
 			if (ReferenceEquals(this[i], item)) {
