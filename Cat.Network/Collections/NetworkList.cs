@@ -52,10 +52,21 @@ public abstract class NetworkList<T> : INetworkCollection<T>, IEnumerable<T> {
 	}
 
 	public void Add(T item) {
+		Insert(InternalList.Count, item);
+	}
+	
+	public void Insert(int index, T item) {
 		((INetworkCollection<T>)this).AssertOwner();
 		AssertValidAddition(item);
 		
-		InternalList.Add(item);
+		InternalList.Insert(index, item);
+		
+		if (IndexChanged != null) {
+			for (int i = index; i < InternalList.Count; i++) {
+				IndexChanged?.Invoke(this, i);
+			}
+		}
+		
 		OnItemAdded(item, InternalList.Count - 1);
 		ItemAdded?.Invoke(this, InternalList.Count - 1);
 		IndexChanged?.Invoke(this, InternalList.Count - 1);
