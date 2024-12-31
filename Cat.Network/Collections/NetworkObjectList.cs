@@ -57,6 +57,15 @@ public sealed class NetworkObjectList<T> : NetworkList<T>, INetworkObjectList wh
 
 		return -1;
 	}
+
+	public bool ContainsByReference(T item) {
+		for (int i = 0; i < Count; i++) {
+			if (ReferenceEquals(this[i], item)) {
+				return true;
+			}
+		}
+		return false;
+	}
 	
 	public void MarkForUpdate(int index) {
 		INetworkCollection<T> iNetworkCollection = this;
