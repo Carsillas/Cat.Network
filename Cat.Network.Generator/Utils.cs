@@ -197,10 +197,25 @@ namespace Cat.Network.Generator {
 			}
 
 			return symbol.GetMembers()
-				.Where(s => !s.IsStatic)
-				.Where(s =>
-					(s is IPropertySymbol propertySymbol && propertySymbol.Type.IsValueType && symbol.GetMembers().Any(f => f is IFieldSymbol fieldSymbol && SymbolEqualityComparer.Default.Equals(fieldSymbol.AssociatedSymbol, propertySymbol)))
-					|| (s is IFieldSymbol fieldSymbol && fieldSymbol.Type.IsValueType))
+				.Where(member => !member.IsStatic)
+				.Where(member => {
+
+					switch (member) {
+						case IPropertySymbol propertySymbol:
+							bool isValueType = propertySymbol.Type.IsValueType;
+							bool isStringType = propertySymbol.Type.SpecialType == SpecialType.System_String;
+							bool isAutoProperty = symbol.GetMembers().Any(f => f is IFieldSymbol fieldSymbol && SymbolEqualityComparer.Default.Equals(fieldSymbol.AssociatedSymbol, propertySymbol));
+
+							return isAutoProperty && (isValueType || isStringType);
+						case IFieldSymbol fieldSymbol:
+							isValueType = fieldSymbol.Type.IsValueType;
+							isStringType = fieldSymbol.Type.SpecialType == SpecialType.System_String;
+
+							return isValueType || isStringType;
+					}
+
+					return false;
+				})
 				.Where(s => s.DeclaredAccessibility == Accessibility.Public)
 				.OrderBy(s => s.Name);
 		}
