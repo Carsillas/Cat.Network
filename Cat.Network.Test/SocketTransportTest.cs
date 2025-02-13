@@ -44,6 +44,12 @@ internal class SocketTransportTest {
 		Cycle();
 	}
 
+	[TearDown]
+	public async Task TearDown() {
+		ListenSocket.Close();
+		ListenSocket.Dispose();
+	}
+
 	private void Cycle() {
 		ClientA.Tick();
 		Server.Tick();

@@ -199,6 +199,7 @@ public class SerializationTests : CatNetworkTest {
 			TransformProperty = new Transform {
 				Position = Vector3.One,
 				Scale = Vector3.One * 2,
+				TestString = "Wow!"
 			}
 		};
 
@@ -229,6 +230,7 @@ public class SerializationTests : CatNetworkTest {
 		testEntityB.TestTransformSerialization(new Transform {
 			Position = Vector3.One,
 			Scale = Vector3.One * 2,
+			TestString = "Wow!"
 		});
 
 		ClientB.Tick();

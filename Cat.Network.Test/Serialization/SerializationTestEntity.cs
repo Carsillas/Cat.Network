@@ -82,6 +82,8 @@ public partial class SerializationTestEntity : NetworkEntity {
 
 public struct Transform {
 
+	public string TestString { get; set; }
+	
 	public Vector3? Position;
 	public Vector3 Scale;
 

@@ -248,7 +248,7 @@ namespace Cat.Network.Generator {
 				serialization = serializationTemplate.Apply(accessName);
 
 				if (serializationTemplate.IsReference) {
-					serialization = NullableReferenceSerializationTemplate.Apply(name, serialization);
+					serialization = NullableReferenceSerializationTemplate.Apply(accessName, serialization);
 				}
 			}
 
@@ -276,12 +276,12 @@ namespace Cat.Network.Generator {
 				deserialization = deserializationTemplate.Apply(accessName);
 				
 				if (deserializationTemplate.IsReference) {
-					deserialization = NullableReferenceDeserializationTemplate.Apply(name, deserialization);
+					deserialization = NullableReferenceDeserializationTemplate.Apply(accessName, deserialization);
 				}
 			}
 
 			if (deserialization != null) {
-				deserialization = isNullable ? NullableDeserializationTemplate.Apply(name, deserialization) : deserialization;
+				deserialization = isNullable ? NullableDeserializationTemplate.Apply(accessName, deserialization) : deserialization;
 				return true;
 			}
 
