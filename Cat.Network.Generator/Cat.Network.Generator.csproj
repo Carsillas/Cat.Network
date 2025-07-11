@@ -9,6 +9,7 @@
         <RepositoryUrl>https://github.com/Carsillas/Cat.Network</RepositoryUrl>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageOutputPath>$(SolutionDir)artifacts</PackageOutputPath>
+        <PackageId>Cat.Network.Generator</PackageId>
     </PropertyGroup>
 
     <ItemGroup>
