@@ -64,7 +64,7 @@ jobs:
           dotnet-version: '8.0.x'
 
       - name: Add latest Cat.Network.Generator package
-        run: dotnet add Cat.Network/Cat.Network.csproj package Cat.Network.Generator --version ${{ needs.publish-generator.outputs.version }}
+        run: dotnet add Cat.Network/Cat.Network.csproj package Carsillas.Cat.Network.Generator --version ${{ needs.publish-generator.outputs.version }}
 
       - name: Restore
         run: dotnet restore Cat.Network.sln
