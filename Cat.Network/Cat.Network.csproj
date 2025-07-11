@@ -14,8 +14,6 @@
         <RepositoryUrl>https://github.com/Carsillas/Cat.Network</RepositoryUrl>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <PackageOutputPath>$(SolutionDir)artifacts</PackageOutputPath>
-        <VersionPrefix>0.0.1</VersionPrefix>
-        <VersionSuffix>$([System.DateTime]::Now.ToString(yyyyMMddHHmm))</VersionSuffix>
     </PropertyGroup>
 
     <ItemGroup>
