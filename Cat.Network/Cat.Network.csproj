@@ -6,7 +6,7 @@
         <EmbedAllSources>true</EmbedAllSources>
         <DebugSymbols>true</DebugSymbols>
         <LangVersion>12</LangVersion>
-        <PackageId>Cat.Network</PackageId>
+        <PackageId>Carsillas.Cat.Network</PackageId>
     </PropertyGroup>
 
     <PropertyGroup>
