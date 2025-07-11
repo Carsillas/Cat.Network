@@ -43,7 +43,7 @@ jobs:
     steps:
       - name: Wait for NuGet propagation
         run: |
-          PACKAGE="liba"
+          PACKAGE="Carsillas.Cat.Network.Generator"
           VERSION="${{ needs.publish-generator.outputs.version }}"
           echo "Waiting for $PACKAGE@$VERSION to be available on nuget.org..."
           for i in {1..20}; do
