@@ -9,7 +9,7 @@ jobs:
   publish-generator:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.gitversion.outputs.nuGetVersionV2 }}
+      version: ${{ steps.extract_version.outputs.version }}
     steps:
       - uses: actions/checkout@v3
 
@@ -18,14 +18,12 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v0.11.0
-        with:
-          versionSpec: '5.x'
-
-      - name: Run GitVersion
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v0.11.0
+      - name: Extract version from tag
+        id: extract_version
+        run: |
+          RAW_TAG=${GITHUB_REF##refs/tags/}
+          VERSION=${RAW_TAG#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Restore dependencies
         run: dotnet restore Cat.Network.Generator.sln
@@ -34,7 +32,7 @@ jobs:
         run: dotnet build Cat.Network.Generator.sln --configuration Release --no-restore
 
       - name: Pack
-        run: dotnet pack Cat.Network.Generator/Cat.Network.Generator.csproj -c Release -o out -p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+        run: dotnet pack Cat.Network.Generator/Cat.Network.Generator.csproj -c Release -o out -p:PackageVersion=${{ steps.extract_version.outputs.version }}
 
       - name: Push to NuGet
         run: dotnet nuget push out/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
