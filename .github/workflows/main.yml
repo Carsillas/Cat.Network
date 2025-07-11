@@ -1,0 +1,81 @@
+name: Publish NuGet Packages
+
+on:
+  push:
+    tags:
+      - 'v*'  # Only run on version tags like v1.2.3
+
+jobs:
+  publish-generator:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.gitversion.outputs.nuGetVersionV2 }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.11.0
+        with:
+          versionSpec: '5.x'
+
+      - name: Run GitVersion
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.11.0
+
+      - name: Restore dependencies
+        run: dotnet restore Cat.Network.Generator.sln
+
+      - name: Build
+        run: dotnet build Cat.Network.Generator.sln --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack Cat.Network.Generator/Cat.Network.Generator.csproj -c Release -o out -p:PackageVersion=${{ steps.gitversion.outputs.nuGetVersionV2 }}
+
+      - name: Push to NuGet
+        run: dotnet nuget push out/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+
+  wait-for-nuget:
+    runs-on: ubuntu-latest
+    needs: publish-generator
+    steps:
+      - name: Wait for NuGet propagation
+        run: |
+          PACKAGE="liba"
+          VERSION="${{ needs.publish-generator.outputs.version }}"
+          echo "Waiting for $PACKAGE@$VERSION to be available on nuget.org..."
+          for i in {1..20}; do
+            curl -sSf https://api.nuget.org/v3-flatcontainer/${PACKAGE,,}/$VERSION/${PACKAGE,,}.$VERSION.nupkg && break
+            echo "Still waiting... ($i)"
+            sleep 10
+          done
+
+  publish-library:
+    runs-on: ubuntu-latest
+    needs: [publish-generator, wait-for-nuget]
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Add latest Cat.Network.Generator package
+        run: dotnet add Cat.Network/Cat.Network.csproj package Cat.Network.Generator --version ${{ needs.publish-generator.outputs.version }}
+
+      - name: Restore
+        run: dotnet restore Cat.Network.sln
+
+      - name: Build
+        run: dotnet build Cat.Network.sln --configuration Release --no-restore
+
+      - name: Pack
+        run: dotnet pack Cat.Network/Cat.Network.csproj -c Release -o out -p:PackageVersion=${{ needs.publish-generator.outputs.version }}
+
+      - name: Push to NuGet
+        run: dotnet nuget push out/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
