@@ -68,7 +68,7 @@ public static class SerializationUtils {
 			bufferCopy = bufferCopy.Slice(typeNameLength);
 		}
 
-		if (requestType == RequestType.CreateEntity || requestType == RequestType.UpdateEntity || requestType == RequestType.RPC) {
+		if (requestType == RequestType.CreateEntity || requestType == RequestType.UpdateEntity || requestType == RequestType.RPC || requestType == RequestType.Broadcast) {
 			int contentLength = BinaryPrimitives.ReadInt32LittleEndian(bufferCopy.Slice(0, 4));
 			bufferCopy = bufferCopy.Slice(4);
 			contentBuffer = bufferCopy.Slice(0, contentLength);

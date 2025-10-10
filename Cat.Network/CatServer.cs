@@ -21,6 +21,7 @@ public class CatServer : ISerializationContext {
 
 	private BufferPool BufferPool { get; } = new();
 	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRpcBuffers { get; } = new();
+	private Dictionary<NetworkEntity, List<byte[]>> OutgoingBroadcastBuffers { get; } = new();
 	private List<RemoteClient> Clients { get; } = new();
 
 
@@ -77,6 +78,9 @@ public class CatServer : ISerializationContext {
 						break;
 					case RequestType.RPC:
 						HandleRpcEntityRequest(remoteClient, networkId, content);
+						break;
+					case RequestType.Broadcast:
+						HandleBroadcastEntityRequest(remoteClient, networkId, content);
 						break;
 					default:
 						Logger?.LogError($"Unknown network request type: {requestType}");
@@ -184,6 +188,7 @@ public class CatServer : ISerializationContext {
 		BufferPool.FreeAllBuffers();
 		BufferPool.FreeAllPools();
 		OutgoingRpcBuffers.Clear();
+		OutgoingBroadcastBuffers.Clear();
 	}
 	
 	private void HandleAssignOwnerEntityRequest(RemoteClient remoteClient, Guid networkId, ReadOnlySpan<byte> contentBuffer) {
@@ -250,10 +255,31 @@ public class CatServer : ISerializationContext {
 	private void HandleRpcEntityRequest(RemoteClient remoteClient, Guid networkId, ReadOnlySpan<byte> contentBuffer) {
 
 		if (EntityStorage.TryGetEntityByNetworkId(networkId, out NetworkEntity entity) &&
-			Owners.TryGetValue(entity, out NetworkEntity ownerProfile) &&
-			remoteClient.ProfileEntity != ownerProfile) {
+		    Owners.TryGetValue(entity, out NetworkEntity ownerProfile) &&
+		    remoteClient.ProfileEntity != ownerProfile) { // Only non-owners can call RPCs
 
 			Span<byte> copy = ((ISerializationContext)this).RentRpcBuffer(entity);
+
+			BinaryPrimitives.WriteInt32LittleEndian(copy, contentBuffer.Length + 16);
+			copy = copy.Slice(4);
+			remoteClient.ProfileEntity.NetworkId.TryWriteBytes(copy.Slice(0, 16));
+			copy = copy.Slice(16);
+
+			contentBuffer.CopyTo(copy);
+		}
+	}
+	
+	private void HandleBroadcastEntityRequest(RemoteClient remoteClient, Guid networkId, ReadOnlySpan<byte> contentBuffer) {
+
+		if (remoteClient?.ProfileEntity == null) {
+			return;
+		}
+		
+		if (EntityStorage.TryGetEntityByNetworkId(networkId, out NetworkEntity entity) &&
+		    Owners.TryGetValue(entity, out NetworkEntity ownerProfile) &&
+		    remoteClient.ProfileEntity == ownerProfile) { // Only owners can call broadcasts
+
+			Span<byte> copy = ((ISerializationContext)this).RentBroadcastBuffer(entity);
 
 			BinaryPrimitives.WriteInt32LittleEndian(copy, contentBuffer.Length + 16);
 			copy = copy.Slice(4);
@@ -278,12 +304,28 @@ public class CatServer : ISerializationContext {
 
 		return contentBuffer;
 	}
+	
+	Span<byte> ISerializationContext.RentBroadcastBuffer(NetworkEntity entity) {
+		byte[] buffer = BufferPool.RentBuffer();
+
+		WritePacketHeader(buffer, RequestType.Broadcast, entity, out Span<byte> contentBuffer);
+
+		if (!OutgoingBroadcastBuffers.TryGetValue(entity, out List<byte[]> rpcs)) {
+			rpcs = BufferPool.RentPool();
+			OutgoingBroadcastBuffers.Add(entity, rpcs);
+		}
+
+		rpcs.Add(buffer);
+
+		return contentBuffer;
+	}
 
 	List<byte[]> ISerializationContext.GetOutgoingRpcs(NetworkEntity entity) {
-		if (OutgoingRpcBuffers.TryGetValue(entity, out List<byte[]> buffers)) {
-			return buffers;
-		}
-		return null;
+		return OutgoingRpcBuffers.GetValueOrDefault(entity);
+	}
+	
+	List<byte[]> ISerializationContext.GetOutgoingBroadcasts(NetworkEntity entity) {
+		return OutgoingBroadcastBuffers.GetValueOrDefault(entity);
 	}
 
 	void ISerializationContext.MarkForClean(INetworkEntity entity) {

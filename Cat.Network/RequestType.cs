@@ -4,5 +4,6 @@ internal enum RequestType : byte {
 	CreateEntity = 1,
 	UpdateEntity = 2,
 	DeleteEntity = 3,
-	RPC = 4
+	RPC = 4,
+	Broadcast = 5,
 }

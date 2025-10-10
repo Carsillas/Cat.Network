@@ -293,6 +293,46 @@ public class ServerTest : CatNetworkTest {
 		Assert.AreEqual(133, testEntityA.Health);
 
 	}
+	
+	
+	[Test]
+	public void Test_EntityBroadcast() {
+		TestEntity testEntityA = new TestEntity {
+			Health = 123,
+			NonNetworkedVariable = 0
+		};
+
+		ClientA.Spawn(testEntityA);
+
+		Cycle();
+
+		Assert.IsTrue(ServerEntityStorage.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityServer));
+		Assert.IsTrue(ClientB.TryGetEntityByNetworkId(testEntityA.NetworkId, out NetworkEntity entityB));
+
+		TestEntity testEntityServer = (TestEntity)entityServer;
+		TestEntity testEntityB = (TestEntity)entityB;
+
+		Assert.AreEqual(testEntityA.Health, testEntityServer.Health);
+		Assert.AreEqual(testEntityA.Health, testEntityB.Health);
+
+		testEntityB.SetNonNetworkedVariable(5);
+
+		Cycle();
+
+		Assert.AreEqual(0, testEntityA.NonNetworkedVariable);
+		Assert.AreEqual(0, testEntityB.NonNetworkedVariable);
+
+		testEntityA.SetNonNetworkedVariable(5);
+		
+		Assert.AreEqual(5, testEntityA.NonNetworkedVariable);
+		Assert.AreEqual(0, testEntityB.NonNetworkedVariable);
+		
+		Cycle();
+
+		Assert.AreEqual(5,testEntityA.NonNetworkedVariable);
+		Assert.AreEqual(5,testEntityB.NonNetworkedVariable);
+
+	}
 
 	[Test]
 	public void Test_EntityRpcAutoParameters() {

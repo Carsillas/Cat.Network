@@ -12,6 +12,7 @@ namespace Cat.Network.Generator {
 		public string InterfaceMethodInvocationParameters { get; set; }
 		
 		public bool IsAutoEvent { get; set; }
+		public bool IsBroadcast { get; set; }
 
 		public ImmutableArray<RpcParameterData> InterfaceParameters { get; set; }
 		public ImmutableArray<RpcParameterData> ClassParameters { get; set; }

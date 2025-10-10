@@ -74,6 +74,8 @@ internal class RemoteClient : IEntityProcessor {
 				NotifyAssignedOwner(entity);
 			}
 			SendOutgoingRpcs(entity);
+		} else {
+			SendOutgoingBroadcasts(entity);
 		}
 
 	}
@@ -97,6 +99,8 @@ internal class RemoteClient : IEntityProcessor {
 				NotifyAssignedOwner(entity);
 			}
 			SendOutgoingRpcs(entity);
+		} else {
+			SendOutgoingBroadcasts(entity);
 		}
 
 	}
@@ -117,6 +121,22 @@ internal class RemoteClient : IEntityProcessor {
 				Transport.SendPacket(rpc, length + ServerRpcHeaderLength + ServertRpcContentLengthSlot);
 			}
 		}
+	}
+	
+	
+	private void SendOutgoingBroadcasts(NetworkEntity entity) {
+		List<byte[]> outgoingBroadcasts = SerializationContext.GetOutgoingBroadcasts(entity);
+
+		if (outgoingBroadcasts != null) {
+			foreach (byte[] rpc in outgoingBroadcasts) {
+				const int ServerRpcHeaderLength = 17;
+				const int ServertRpcContentLengthSlot = 4;
+				int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, ServerRpcHeaderLength, 4));
+				Transport.SendPacket(rpc, length + ServerRpcHeaderLength + ServertRpcContentLengthSlot);
+			}
+		}
+		
+		outgoingBroadcasts = SerializationContext.GetOutgoingBroadcasts(entity);
 	}
 
 }

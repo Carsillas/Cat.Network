@@ -42,16 +42,14 @@ namespace Cat.Network.Generator {
 		public const string NetworkEntityFQN = "Cat.Network.NetworkEntity";
 		public const string NetworkDataObjectFQN = "Cat.Network.NetworkDataObject";
 		public const string NetworkPropertyPrefix = "NetworkProperty";
-		public const string NetworkPropertyPrefixAndDot = NetworkPropertyPrefix + ".";
 		public const string NetworkCollectionPrefix = "NetworkCollection";
-		public const string NetworkCollectionPrefixAndDot = NetworkCollectionPrefix + ".";
 		public const string RpcPrefix = "RPC";
-		public const string RpcPrefixAndDot = RpcPrefix + ".";
 
 		public const string ForwardedAttributeFQN = "Cat.Network.ForwardedAttribute";
 		public const string ClientParameterAttributeFQN = "Cat.Network.ClientAttribute";
 		public const string InstigatorParameterAttributeFQN = "Cat.Network.InstigatorAttribute";
 		public const string AutoEventAttributeFQN = "Cat.Network.AutoEventAttribute";
+		public const string BroadcastRpcAttributeFQN = "Cat.Network.BroadcastAttribute";
 
 
 		public const string NetworkCollectionInterfaceFQN = "Cat.Network.Collections.INetworkCollection";

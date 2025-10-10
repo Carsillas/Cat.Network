@@ -120,7 +120,33 @@ namespace {classDefinition.Namespace} {{
 			StringBuilder rpcStringBuilder = new StringBuilder();
 
 			foreach (RpcMethodData method in classDefinition.Rpcs.Where(rpc => rpc.Declared)) {
-				rpcStringBuilder.AppendLine($@"
+
+				if (method.IsBroadcast) {
+									
+					rpcStringBuilder.AppendLine($@"
+		public {method.ClassMethodDeclaration} {{
+
+			if (IsOwner) {{ 
+				// First invoke the method locally.
+				{GuidFQN} instigatorId = default;
+				(({RpcPrefix})this).{method.Name}({method.InterfaceMethodInvocationParameters});
+				{(method.IsAutoEvent ? $"(({RpcPrefix})this).RaiseOn{method.Name}({method.DelegateInvocationParameters});" : string.Empty)}
+
+				// Invoke the method on remote clients.
+				var serializationContext = (({NetworkEntityInterfaceFQN})this).SerializationContext;
+				{SpanFQN} buffer = serializationContext.RentBroadcastBuffer(this);
+				{SpanFQN} bufferCopy = buffer.Slice(4);
+
+{GenerateSerialization()}
+			}} else {{
+				// Do nothing. Broadcasts cannot be called by non-owners.
+			}}
+		}}
+");
+					
+				} else {
+									
+					rpcStringBuilder.AppendLine($@"
 		public {method.ClassMethodDeclaration} {{
 
 			if (IsOwner) {{ 
@@ -138,6 +164,9 @@ namespace {classDefinition.Namespace} {{
 			}}
 		}}
 ");
+					
+				}
+
 
 
 				string GenerateSerialization() {

@@ -12,8 +12,7 @@ namespace Cat.Network.Generator {
 
 		public ImmutableArray<NetworkCollectionData> NetworkCollections { get; set; }
 		public ImmutableArray<RpcMethodData> Rpcs { get; set; }
-
-
+		
 	}
 
 }

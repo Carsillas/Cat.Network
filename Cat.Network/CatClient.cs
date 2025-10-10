@@ -31,6 +31,7 @@ public class CatClient : ISerializationContext {
 	private HashSet<NetworkEntity> EntitiesToDespawn { get; } = new();
 	private HashSet<(NetworkEntity Entity, Guid NewOwner)> EntitiesToForfeit { get; } = new();
 	private Dictionary<NetworkEntity, List<byte[]>> OutgoingRpcBuffers { get; } = new();
+	private Dictionary<NetworkEntity, List<byte[]>> OutgoingBroadcastBuffers { get; } = new();
 
 	private HashSet<INetworkEntity> EntitiesMarkedForClean { get; } = new();
 
@@ -162,6 +163,7 @@ public class CatClient : ISerializationContext {
 					Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
 				}
 				
+				SendOutgoingBroadcasts(entity);
 			} else {
 				SendOutgoingRpcs(entity);
 			}
@@ -174,7 +176,7 @@ public class CatClient : ISerializationContext {
 			int contentLength = iEntity.Serialize(CreateOptions, contentBuffer);
 
 			Transport.SendPacket(OutgoingReliableDataBuffer, headerLength + contentLength);
-			SendOutgoingRpcs(entity);
+			SendOutgoingBroadcasts(entity);
 		}
 
 		EntitiesToSpawn.Clear();
@@ -192,6 +194,7 @@ public class CatClient : ISerializationContext {
 		}
 
 		OutgoingRpcBuffers.Clear();
+		OutgoingBroadcastBuffers.Clear();
 		BufferPool.FreeAllBuffers();
 		BufferPool.FreeAllPools();
 	}
@@ -206,6 +209,20 @@ public class CatClient : ISerializationContext {
 				const int clientRpcContentLengthSlot = 4;
 				int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(rpc, clientRpcHeaderLength, 4));
 				Transport.SendPacket(rpc, length + clientRpcHeaderLength + clientRpcContentLengthSlot);
+			}
+		}
+	}
+	
+	private void SendOutgoingBroadcasts(NetworkEntity entity) {
+		List<byte[]> outgoingBroadcasts = ((ISerializationContext)this).GetOutgoingBroadcasts(entity);
+
+		if(outgoingBroadcasts != null) {
+			foreach (byte[] broadcast in outgoingBroadcasts) {
+
+				const int clientRpcHeaderLength = 17;
+				const int clientRpcContentLengthSlot = 4;
+				int length = BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(broadcast, clientRpcHeaderLength, 4));
+				Transport.SendPacket(broadcast, length + clientRpcHeaderLength + clientRpcContentLengthSlot);
 			}
 		}
 	}
@@ -243,6 +260,9 @@ public class CatClient : ISerializationContext {
 					break;
 				case RequestType.RPC:
 					HandleRpcEntityRequest(networkId, content);
+					break;
+				case RequestType.Broadcast:
+					HandleBroadcastEntityRequest(networkId, content);
 					break;
 				default:
 					Logger?.LogError($"Unknown network request type: {requestType}");
@@ -307,6 +327,17 @@ public class CatClient : ISerializationContext {
 			iEntity.HandleRpcInvocation(instigatorId, content);
 		}
 	}
+	
+	private void HandleBroadcastEntityRequest(Guid networkId, ReadOnlySpan<byte> content) {
+		if (Entities.TryGetValue(networkId, out NetworkEntity entity)) {
+			INetworkEntity iEntity = entity;
+
+			Guid instigatorId = new Guid(content.Slice(0, 16));
+			content = content.Slice(16);
+
+			iEntity.HandleRpcInvocation(instigatorId, content);
+		}
+	}
 
 	private void HandleAssignOwnerRequest(Guid networkId) {
 		if (Entities.TryGetValue(networkId, out NetworkEntity entity)) {
@@ -329,12 +360,28 @@ public class CatClient : ISerializationContext {
 	
 		return contentBuffer;
 	}
+	
+	Span<byte> ISerializationContext.RentBroadcastBuffer(NetworkEntity entity) {
+		byte[] buffer = BufferPool.RentBuffer();
+
+		WritePacketHeader(buffer, RequestType.Broadcast, entity, out Span<byte> contentBuffer);
+
+		if(!OutgoingBroadcastBuffers.TryGetValue(entity, out List<byte[]> broadcasts)) {
+			broadcasts = BufferPool.RentPool();
+			OutgoingBroadcastBuffers.Add(entity, broadcasts);
+		}
+
+		broadcasts.Add(buffer);
+	
+		return contentBuffer;
+	}
 
 	List<byte[]> ISerializationContext.GetOutgoingRpcs(NetworkEntity entity) {
-		if (OutgoingRpcBuffers.TryGetValue(entity, out List<byte[]> buffers)) {
-			return buffers;
-		}
-		return null;
+		return OutgoingRpcBuffers.GetValueOrDefault(entity);
+	}
+	
+	List<byte[]> ISerializationContext.GetOutgoingBroadcasts(NetworkEntity entity) {
+		return OutgoingBroadcastBuffers.GetValueOrDefault(entity);
 	}
 
 	void ISerializationContext.MarkForClean(INetworkEntity entity) {

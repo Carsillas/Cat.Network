@@ -37,7 +37,7 @@ namespace Cat.Network.Generator {
 						MetadataName = symbol.MetadataName,
 						NetworkProperties = GetNetworkPropertiesForSymbol(symbol).Reverse().ToImmutableArray(),
 						NetworkCollections = GetNetworkCollectionsForSymbol(symbol).Reverse().ToImmutableArray(),
-						Rpcs = GetRpcsForSymbol(symbol).ToImmutableArray(),
+						Rpcs = GetRpcsForSymbol(symbol).ToImmutableArray()
 					};
 
 				}
@@ -188,7 +188,8 @@ namespace Cat.Network.Generator {
 					InterfaceMethodInvocationParameters = interfaceInvocationParameters,
 					InterfaceParameters = parameters,
 					ClassParameters = classMethodParameters,
-					IsAutoEvent = methodSymbol.Symbol.GetAttributes().Any(attribute => attribute.AttributeClass.ToDisplayString(FullyQualifiedFormat) == AutoEventAttributeFQN)
+					IsAutoEvent = methodSymbol.Symbol.GetAttributes().Any(attribute => attribute.AttributeClass.ToDisplayString(FullyQualifiedFormat) == AutoEventAttributeFQN),
+					IsBroadcast = methodSymbol.Symbol.GetAttributes().Any(attribute => attribute.AttributeClass.ToDisplayString(FullyQualifiedFormat) == BroadcastRpcAttributeFQN)
 				};
 				
 			});
@@ -199,6 +200,7 @@ namespace Cat.Network.Generator {
 			INamedTypeSymbol currentSymbol = typeSymbol;
 
 			while (currentSymbol != null) {
+				INamedTypeSymbol symbolCopy = currentSymbol;
 				IEnumerable<ExplicitSymbol<T>> symbols = currentSymbol
 					.GetMembers()
 					.OfType<T>()
@@ -211,7 +213,7 @@ namespace Cat.Network.Generator {
 					})
 					.OrderByDescending(symbol => symbol.Name)
 					.Select(symbol => new ExplicitSymbol<T> {
-						Declared = ReferenceEquals(currentSymbol, typeSymbol), // explicitly using reference equality
+						Declared = ReferenceEquals(symbolCopy, typeSymbol), // explicitly using reference equality
 						Symbol = symbol
 					});
 
