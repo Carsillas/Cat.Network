@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -9,6 +10,8 @@ namespace Cat.Network;
 public static class SerializationUtils {
 
 	private static Dictionary<Type, string> AssemblyQualifiedTypeNames { get; } = new();
+
+	private static ConcurrentDictionary<string, Type> TypeNameMap { get; } = new();
 
 	public static SerializationOptions UpdateOptions { get; } = new() {
 		MemberIdentifierMode = MemberIdentifierMode.Index,
@@ -111,7 +114,7 @@ public static class SerializationUtils {
 
 		int typeNameLength = BinaryPrimitives.ReadInt32LittleEndian(buffer);
 		string typeName = Encoding.Unicode.GetString(buffer.Slice(4, typeNameLength));
-		Type unverifiedType = Type.GetType(typeName);
+		Type unverifiedType = GetTypeFromAssemblyQualifiedName(typeName);
 
 		if (unverifiedType == null) {
 			throw new Exception($"Received Create Entity request with an unresolved type: {typeName}");
@@ -135,4 +138,13 @@ public static class SerializationUtils {
 		return assemblyQualifiedTypeName;
 	}
 
+	public static void RegisterDeserializableType(Type type) {
+		string typeName = GetAssemblyQualifiedTypeName(type);
+		TypeNameMap.TryAdd(typeName, type);
+	}
+
+	public static Type GetTypeFromAssemblyQualifiedName(string assemblyQualifiedName) {
+		return TypeNameMap.GetValueOrDefault(assemblyQualifiedName);
+	}
+	
 }

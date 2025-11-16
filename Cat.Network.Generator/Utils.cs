@@ -331,7 +331,7 @@ namespace Cat.Network.Generator {
 						System.Int32 serializedStringLength = {BinaryPrimitivesFQN}.ReadInt32LittleEndian({PropertyBufferName});
 						System.String assemblyQualifiedName = {UnicodeFQN}.GetString({PropertyBufferName}.Slice(4, serializedStringLength));
 						{PropertyBufferName} = {PropertyBufferName}.Slice(4 + serializedStringLength);
-						System.Type type = System.Type.GetType(assemblyQualifiedName);
+						System.Type type = Cat.Network.SerializationUtils.GetTypeFromAssemblyQualifiedName(assemblyQualifiedName);
 						
  						_{name} = ({symbol.ToDisplayString(FullyQualifiedFormat)}) System.Activator.CreateInstance(type);
 					}}

@@ -1,4 +1,7 @@
-﻿using NUnit.Framework;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using NUnit.Framework;
 
 namespace Cat.Network.Test;
 public class CatNetworkTest {
@@ -14,7 +17,17 @@ public class CatNetworkTest {
 	public TestProxyManager ProxyManagerA { get; set; }
 	public TestProxyManager ProxyManagerB { get; set; }
 
+	static CatNetworkTest() {
+		List<Type> deserializableTypes = AppDomain.CurrentDomain.GetAssemblies()
+			.SelectMany(assembly => assembly.GetTypes())
+			.Where(x => x.IsAssignableTo(typeof(NetworkEntity)) || x.IsAssignableTo(typeof(NetworkDataObject)))
+			.ToList();
 
+		foreach (Type type in deserializableTypes) {
+			SerializationUtils.RegisterDeserializableType(type);
+		}
+	}
+	
 	[SetUp]
 	public void Setup() {
 		ServerEntityStorage = new TestEntityStorage();
