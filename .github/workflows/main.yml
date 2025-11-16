@@ -46,7 +46,7 @@ jobs:
           PACKAGE="Carsillas.Cat.Network.Generator"
           VERSION="${{ needs.publish-generator.outputs.version }}"
           echo "Waiting for $PACKAGE@$VERSION to be available on nuget.org..."
-          for i in {1..20}; do
+          for i in {1..50}; do
             curl -sSf https://api.nuget.org/v3-flatcontainer/${PACKAGE,,}/$VERSION/${PACKAGE,,}.$VERSION.nupkg && break
             echo "Still waiting... ($i)"
             sleep 10
