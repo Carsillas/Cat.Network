@@ -114,11 +114,13 @@ public static class SerializationUtils {
 		Type unverifiedType = Type.GetType(typeName);
 
 		if (unverifiedType == null) {
-			throw new Exception("Received Create Entity request with an unresolved type!");
-		} else if (unverifiedType.IsSubclassOf(typeof(NetworkEntity))) {
+			throw new Exception($"Received Create Entity request with an unresolved type: {typeName}");
+		} 
+		
+		if (unverifiedType.IsSubclassOf(typeof(NetworkEntity))) {
 			type = unverifiedType;
 		} else {
-			throw new Exception("Received Create Entity request with an invalid type!");
+			throw new Exception($"Received Create Entity request with an invalid type: {typeName}");
 		}
 
 		return typeNameLength + 4;
