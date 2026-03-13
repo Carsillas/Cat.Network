@@ -45,7 +45,7 @@ namespace Cat.Network.Generator {
 		public const string NetworkCollectionPrefix = "NetworkCollection";
 		public const string RpcPrefix = "RPC";
 
-		public const string ForwardedAttributeFQN = "Cat.Network.ForwardedAttribute";
+		public const string NetworkPropertyAttributeFQN = "Cat.Network.NetworkPropertyAttribute";
 		public const string ClientParameterAttributeFQN = "Cat.Network.ClientAttribute";
 		public const string InstigatorParameterAttributeFQN = "Cat.Network.InstigatorAttribute";
 		public const string AutoEventAttributeFQN = "Cat.Network.AutoEventAttribute";

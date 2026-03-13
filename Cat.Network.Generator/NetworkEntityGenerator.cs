@@ -83,11 +83,7 @@ namespace Cat.Network.Generator {
 						GetReferenceSerialization(propertySymbol.Name, propertySymbol.Symbol.Type, false) : null,
 					ExposeEvent = propertySymbol.Symbol.GetAttributes().Any(attributeData =>
 						attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) ==
-						NetworkPropertyChangedEventAttributeFQN),
-					ForwardedAttributes = propertySymbol.Symbol.GetAttributes()
-						.Where(attributeData => attributeData.AttributeClass.ToDisplayString(FullyQualifiedFormat) == ForwardedAttributeFQN )
-						.Select(attributeData => (string)attributeData.ConstructorArguments.FirstOrDefault().Value)
-						.ToImmutableArray()
+						NetworkPropertyChangedEventAttributeFQN)
 				};
 			});
 		}

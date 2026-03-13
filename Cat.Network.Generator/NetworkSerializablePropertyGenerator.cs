@@ -54,9 +54,7 @@ namespace Cat.Network.Generator {
 
 				GenerateAdditionalPropertyDefinition(writer, classDefinition, data);
 				
-				foreach (string forwardedAttribute in data.ForwardedAttributes) {
-					writer.AppendLine($"[{forwardedAttribute}]");
-				}
+				writer.AppendLine($"[{NetworkPropertyAttributeFQN}]");
 				using (writer.EnterScope($"public {data.TypeInfo.FullyQualifiedTypeName} {data.Name}")) {
 					GenerateGetter(writer, propertyIndex, data);
 					GenerateSetter(writer, propertyIndex, data);
