@@ -99,8 +99,8 @@ public class CatClient : ISerializationContext {
 			throw new Exception("Cannot disown an entity that is not currently spawned!");
 		}
 		
-		ProxyManager.OnForfeitOwnership(entity);
 		entity.IsOwner = false;
+		ProxyManager.OnForfeitOwnership(entity);
 
 		EntitiesToForfeit.Add((entity, newOwnerProfileId));
 	}
