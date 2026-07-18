@@ -2,12 +2,14 @@
 /shelf/
 /workspace.xml
 # Rider ignored files
-/contentModel.xml
-/projectSettingsUpdater.xml
 /modules.xml
+/projectSettingsUpdater.xml
 /.idea.Cat.Network.iml
-# Editor-based HTTP Client requests
-/httpRequests/
+/contentModel.xml
+# Ignored default folder with query files
+/queries/
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+# Editor-based HTTP Client requests
+/httpRequests/
