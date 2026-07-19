@@ -1,5 +1,19 @@
-﻿namespace Cat.Network;
+namespace Cat.Network;
 
-public partial class NetworkEntity {
+using System.Collections.Immutable;
+
+public abstract partial class NetworkEntity : IPartiallySerializable {
+
+	protected static ImmutableArray<NetworkPropertyInfo> Properties { get; } = [];
+
+	ImmutableArray<NetworkPropertyInfo> IPartiallySerializable.Properties => Properties;
+
+	protected NetworkEntity() {
+		((IPartiallySerializable)this).Initialize();
+	}
+	
+	public void Initialize() {
+		
+	}
 	
 }

@@ -10,3 +10,4 @@
  CN0003  | Usage    | Error    | NetworkEntityAttribute requires a partial type                         
  CN0004  | Usage    | Error    | NetworkPropertyAttribute can only be used in NetworkEntity-derived types
  CN0005  | Usage    | Error    | NetworkPropertyAttribute requires a partial property                   
+ CN0006  | Usage    | Error    | NetworkPropertyAttribute requires get and set accessors                
