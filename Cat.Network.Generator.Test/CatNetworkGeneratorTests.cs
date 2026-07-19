@@ -66,6 +66,7 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(generatedSource, Does.Contain("..global::Cat.Network.NetworkEntity.Properties"));
 			Assert.That(generatedSource, Does.Contain("Index = global::Cat.Network.NetworkEntity.Properties.Length + 0"));
 			Assert.That(generatedSource, Does.Contain("Name = nameof(Health)"));
+			Assert.That(generatedSource, Does.Contain("EncodedName = global::System.Collections.Immutable.ImmutableArray.Create(global::System.Text.Encoding.UTF8.GetBytes(nameof(Health)))"));
 			Assert.That(generatedSource, Does.Contain("global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> global::Cat.Network.IPartiallySerializable.Properties => Properties;"));
 			Assert.That(generatedSource, Does.Contain("public partial global::System.Int32 Health"));
 			Assert.That(generatedSource, Does.Contain("get => field;"));
@@ -112,6 +113,7 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(generatedSource, Does.Contain("..global::Game.Actor.Properties"));
 			Assert.That(generatedSource, Does.Contain("Index = global::Game.Actor.Properties.Length + 0"));
 			Assert.That(generatedSource, Does.Contain("Name = nameof(Mana)"));
+			Assert.That(generatedSource, Does.Contain("EncodedName = global::System.Collections.Immutable.ImmutableArray.Create(global::System.Text.Encoding.UTF8.GetBytes(nameof(Mana)))"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
 	}

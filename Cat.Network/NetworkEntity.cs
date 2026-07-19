@@ -2,18 +2,11 @@ namespace Cat.Network;
 
 using System.Collections.Immutable;
 
-public abstract partial class NetworkEntity : IPartiallySerializable {
+public abstract partial class NetworkEntity : NetworkObject {
 
-	protected static ImmutableArray<NetworkPropertyInfo> Properties { get; } = [];
-
-	ImmutableArray<NetworkPropertyInfo> IPartiallySerializable.Properties => Properties;
-
-	protected NetworkEntity() {
-		((IPartiallySerializable)this).Initialize();
-	}
+	public Guid Id { get; internal set; }
 	
-	public void Initialize() {
-		
-	}
+	protected static ImmutableArray<NetworkPropertyInfo> Properties { get; } = [];
+	
 	
 }

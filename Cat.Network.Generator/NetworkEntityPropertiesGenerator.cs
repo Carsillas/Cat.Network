@@ -89,7 +89,8 @@ internal static class NetworkEntityPropertiesGenerator {
 	private const string PropertyInfoEntryTemplate = """
 	                                                 		new global::Cat.Network.NetworkPropertyInfo {{
 	                                                 			Index = {0}.Properties.Length + {1},
-	                                                 			Name = nameof({2})
+	                                                 			Name = nameof({2}),
+	                                                 			EncodedName = global::System.Collections.Immutable.ImmutableArray.Create(global::System.Text.Encoding.UTF8.GetBytes(nameof({2})))
 	                                                 		}}
 	                                                 """;
 
