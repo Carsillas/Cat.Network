@@ -6,18 +6,18 @@ namespace Cat.Network.Generator;
 
 [Generator(LanguageNames.CSharp)]
 public sealed class CatNetworkGenerator : IIncrementalGenerator {
-	private const string NetworkEntityAttributeMetadataName = "Cat.Network.NetworkEntityAttribute";
+	private const string NetworkObjectAttributeMetadataName = "Cat.Network.NetworkObjectAttribute";
 
 	public void Initialize(IncrementalGeneratorInitializationContext context) {
-		IncrementalValueProvider<ImmutableArray<NetworkEntityTypeModel>> networkEntityTypes = context.SyntaxProvider
+		IncrementalValueProvider<ImmutableArray<NetworkObjectTypeModel>> networkObjectTypes = context.SyntaxProvider
 			.ForAttributeWithMetadataName(
-				NetworkEntityAttributeMetadataName,
+				NetworkObjectAttributeMetadataName,
 				static (node, _) => node is ClassDeclarationSyntax,
-				static (syntaxContext, _) => NetworkEntityTypeModel.Create((INamedTypeSymbol)syntaxContext.TargetSymbol))
+				static (syntaxContext, _) => NetworkObjectTypeModel.Create((INamedTypeSymbol)syntaxContext.TargetSymbol))
 			.Collect();
 
-		context.RegisterSourceOutput(networkEntityTypes, static (sourceProductionContext, models) => {
-			foreach (NetworkEntityTypeModel model in models) NetworkEntityPropertiesGenerator.Generate(sourceProductionContext, model);
+		context.RegisterSourceOutput(networkObjectTypes, static (sourceProductionContext, models) => {
+			foreach (NetworkObjectTypeModel model in models) NetworkObjectPropertiesGenerator.Generate(sourceProductionContext, model);
 		});
 	}
 }

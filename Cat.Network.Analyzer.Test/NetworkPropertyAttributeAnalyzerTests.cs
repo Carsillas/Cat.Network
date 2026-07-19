@@ -5,7 +5,7 @@ namespace Cat.Network.Analyzer.Test;
 
 public sealed class NetworkPropertyAttributeAnalyzerTests {
 	[Test]
-	public async Task ReportsErrorWhenNetworkPropertyAttributeIsUsedInNonNetworkEntitySubclass() {
+	public async Task ReportsErrorWhenNetworkPropertyAttributeIsUsedInNonNetworkObjectSubclass() {
 		const string source = """
 		                      using Cat.Network;
 
@@ -26,12 +26,12 @@ public sealed class NetworkPropertyAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task DoesNotReportErrorWhenNetworkPropertyAttributeIsUsedInNetworkEntitySubclass() {
+	public async Task DoesNotReportErrorWhenNetworkPropertyAttributeIsUsedInNetworkObjectSubclass() {
 		const string source = """
 		                      using Cat.Network;
 
-		                      [NetworkEntity]
-		                      public sealed partial class Player : NetworkEntity {
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkProperty]
 		                      	public partial int Health { get; set; }
 		                      }
@@ -47,8 +47,8 @@ public sealed class NetworkPropertyAttributeAnalyzerTests {
 		const string source = """
 		                      using Cat.Network;
 
-		                      [NetworkEntity]
-		                      public sealed partial class Player : NetworkEntity {
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkProperty]
 		                      	public int Health { get; set; }
 		                      }
@@ -69,8 +69,8 @@ public sealed class NetworkPropertyAttributeAnalyzerTests {
 		const string source = """
 		                      using Cat.Network;
 
-		                      [NetworkEntity]
-		                      public sealed partial class Player : NetworkEntity {
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkProperty]
 		                      	public partial int Health { get; }
 		                      }
@@ -91,8 +91,8 @@ public sealed class NetworkPropertyAttributeAnalyzerTests {
 		const string source = """
 		                      using Cat.Network;
 
-		                      [NetworkEntity]
-		                      public sealed partial class Player : NetworkEntity {
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkProperty]
 		                      	public partial int Health { set { } }
 		                      }

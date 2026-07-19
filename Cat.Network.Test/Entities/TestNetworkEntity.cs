@@ -1,6 +1,6 @@
 namespace Cat.Network.Test.Entities;
 
-[NetworkEntity]
+[NetworkObject]
 public partial class TestNetworkEntity : NetworkEntity {
 
 	[NetworkProperty]

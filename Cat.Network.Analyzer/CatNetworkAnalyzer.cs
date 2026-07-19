@@ -5,13 +5,13 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Cat.Network.Analyzer;
 
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
-public sealed class CatNetworkAnalyzer : DiagnosticAnalyzer {
-	private const string NetworkEntityMetadataName = "Cat.Network.NetworkEntity";
-	private const string NetworkEntityAttributeMetadataName = "Cat.Network.NetworkEntityAttribute";
+	public sealed class CatNetworkAnalyzer : DiagnosticAnalyzer {
+	private const string NetworkObjectMetadataName = "Cat.Network.NetworkObject";
+	private const string NetworkObjectAttributeMetadataName = "Cat.Network.NetworkObjectAttribute";
 	private const string NetworkPropertyAttributeMetadataName = "Cat.Network.NetworkPropertyAttribute";
 
 	public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
-		..NetworkEntityAttributeAnalyzer.SupportedDiagnostics,
+		..NetworkObjectAttributeAnalyzer.SupportedDiagnostics,
 		..NetworkPropertyAttributeAnalyzer.SupportedDiagnostics
 	];
 
@@ -20,16 +20,16 @@ public sealed class CatNetworkAnalyzer : DiagnosticAnalyzer {
 		context.EnableConcurrentExecution();
 
 		context.RegisterCompilationStartAction(static compilationContext => {
-			INamedTypeSymbol? networkEntityType = compilationContext.Compilation.GetTypeByMetadataName(NetworkEntityMetadataName);
-			INamedTypeSymbol? networkEntityAttributeType = compilationContext.Compilation.GetTypeByMetadataName(NetworkEntityAttributeMetadataName);
+			INamedTypeSymbol? networkObjectType = compilationContext.Compilation.GetTypeByMetadataName(NetworkObjectMetadataName);
+			INamedTypeSymbol? networkObjectAttributeType = compilationContext.Compilation.GetTypeByMetadataName(NetworkObjectAttributeMetadataName);
 			INamedTypeSymbol? networkPropertyAttributeType = compilationContext.Compilation.GetTypeByMetadataName(NetworkPropertyAttributeMetadataName);
 
-			if (networkEntityType is null || networkEntityAttributeType is null || networkPropertyAttributeType is null) {
+			if (networkObjectType is null || networkObjectAttributeType is null || networkPropertyAttributeType is null) {
 				return;
 			}
 
-			NetworkEntityAttributeAnalyzer.Register(compilationContext, networkEntityType, networkEntityAttributeType);
-			NetworkPropertyAttributeAnalyzer.Register(compilationContext, networkEntityType, networkPropertyAttributeType);
+			NetworkObjectAttributeAnalyzer.Register(compilationContext, networkObjectType, networkObjectAttributeType);
+			NetworkPropertyAttributeAnalyzer.Register(compilationContext, networkObjectType, networkPropertyAttributeType);
 		});
 	}
 }

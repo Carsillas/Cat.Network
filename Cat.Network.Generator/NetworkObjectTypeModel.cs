@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 
 namespace Cat.Network.Generator;
 
-internal sealed class NetworkEntityTypeModel : IEquatable<NetworkEntityTypeModel> {
+internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel> {
 	private const string NetworkPropertyAttributeMetadataName = "Cat.Network.NetworkPropertyAttribute";
 
 	private static readonly SymbolDisplayFormat FullyQualifiedTypeFormat = new(
@@ -14,11 +14,12 @@ internal sealed class NetworkEntityTypeModel : IEquatable<NetworkEntityTypeModel
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
 		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-	private NetworkEntityTypeModel(string @namespace, string typeName, string fullyQualifiedName, string baseTypeName, string hintName, string accessibility, ImmutableArray<NetworkPropertyModel> properties) {
+	private NetworkObjectTypeModel(string @namespace, string typeName, string fullyQualifiedName, string baseTypeName, bool hasBaseProperties, string hintName, string accessibility, ImmutableArray<NetworkPropertyModel> properties) {
 		Namespace = @namespace;
 		TypeName = typeName;
 		FullyQualifiedName = fullyQualifiedName;
 		BaseTypeName = baseTypeName;
+		HasBaseProperties = hasBaseProperties;
 		HintName = hintName;
 		Accessibility = accessibility;
 		Properties = properties;
@@ -32,17 +33,22 @@ internal sealed class NetworkEntityTypeModel : IEquatable<NetworkEntityTypeModel
 
 	public string BaseTypeName { get; }
 
+	public bool HasBaseProperties { get; }
+
 	public string HintName { get; }
 
 	public string Accessibility { get; }
 
 	public ImmutableArray<NetworkPropertyModel> Properties { get; }
 
-	public static NetworkEntityTypeModel Create(INamedTypeSymbol type) {
+	public static NetworkObjectTypeModel Create(INamedTypeSymbol type) {
 		string @namespace = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
 		string typeName = type.Name;
 		string fullyQualifiedName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-		string baseTypeName = type.BaseType?.ToDisplayString(FullyQualifiedTypeFormat) ?? "global::Cat.Network.NetworkEntity";
+		bool hasBaseProperties = type.BaseType is not null && type.BaseType.SpecialType != SpecialType.System_Object;
+		string baseTypeName = hasBaseProperties
+			? type.BaseType!.ToDisplayString(FullyQualifiedTypeFormat)
+			: "global::Cat.Network.NetworkObject";
 		string hintName = fullyQualifiedName
 			.Replace("global::", string.Empty)
 			.Replace(".", "_")
@@ -53,22 +59,23 @@ internal sealed class NetworkEntityTypeModel : IEquatable<NetworkEntityTypeModel
 			.Select(NetworkPropertyModel.Create)
 			.ToImmutableArray();
 
-		return new NetworkEntityTypeModel(@namespace, typeName, fullyQualifiedName, baseTypeName, hintName, GetAccessibility(type.DeclaredAccessibility), properties);
+		return new NetworkObjectTypeModel(@namespace, typeName, fullyQualifiedName, baseTypeName, hasBaseProperties, hintName, GetAccessibility(type.DeclaredAccessibility), properties);
 	}
 
-	public bool Equals(NetworkEntityTypeModel? other) {
+	public bool Equals(NetworkObjectTypeModel? other) {
 		return other is not null &&
 		       Namespace == other.Namespace &&
 		       TypeName == other.TypeName &&
 		       FullyQualifiedName == other.FullyQualifiedName &&
 		       BaseTypeName == other.BaseTypeName &&
+		       HasBaseProperties == other.HasBaseProperties &&
 		       HintName == other.HintName &&
 		       Accessibility == other.Accessibility &&
 		       Properties.SequenceEqual(other.Properties);
 	}
 
 	public override bool Equals(object? obj) {
-		return obj is NetworkEntityTypeModel other && Equals(other);
+		return obj is NetworkObjectTypeModel other && Equals(other);
 	}
 
 	public override int GetHashCode() {
@@ -77,6 +84,7 @@ internal sealed class NetworkEntityTypeModel : IEquatable<NetworkEntityTypeModel
 			hashCode = (hashCode * 397) ^ TypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ FullyQualifiedName.GetHashCode();
 			hashCode = (hashCode * 397) ^ BaseTypeName.GetHashCode();
+			hashCode = (hashCode * 397) ^ HasBaseProperties.GetHashCode();
 			hashCode = (hashCode * 397) ^ HintName.GetHashCode();
 			hashCode = (hashCode * 397) ^ Accessibility.GetHashCode();
 			foreach (NetworkPropertyModel property in Properties) hashCode = (hashCode * 397) ^ property.GetHashCode();

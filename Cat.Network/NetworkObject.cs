@@ -1,5 +1,6 @@
 namespace Cat.Network;
 
-public class NetworkObject {
-	
+[NetworkObject]
+public partial class NetworkObject {
+
 }

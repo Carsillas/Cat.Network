@@ -3,13 +3,13 @@ using Microsoft.CodeAnalysis;
 
 namespace Cat.Network.Analyzer.Test;
 
-public sealed class NetworkEntityAttributeAnalyzerTests {
+public sealed class NetworkObjectAttributeAnalyzerTests {
 	[Test]
-	public async Task ReportsErrorWhenNetworkEntitySubclassIsMissingAttribute() {
+	public async Task ReportsErrorWhenNetworkObjectSubclassIsMissingAttribute() {
 		const string source = """
 		                      using Cat.Network;
 
-		                      public sealed class Player : NetworkEntity
+		                      public sealed class Player : NetworkObject
 		                      {
 		                      }
 		                      """;
@@ -25,12 +25,12 @@ public sealed class NetworkEntityAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task DoesNotReportErrorWhenNetworkEntitySubclassHasAttribute() {
+	public async Task DoesNotReportErrorWhenNetworkObjectSubclassHasAttribute() {
 		const string source = """
 		                      using Cat.Network;
 
-		                      [NetworkEntity]
-		                      public sealed partial class Player : NetworkEntity
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject
 		                      {
 		                      }
 		                      """;
@@ -41,12 +41,12 @@ public sealed class NetworkEntityAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task ReportsErrorWhenNetworkEntitySubclassWithAttributeIsNotPartial() {
+	public async Task ReportsErrorWhenNetworkObjectSubclassWithAttributeIsNotPartial() {
 		const string source = """
 		                      using Cat.Network;
 
-		                      [NetworkEntity]
-		                      public sealed class Player : NetworkEntity
+		                      [NetworkObjectAttribute]
+		                      public sealed class Player : NetworkObject
 		                      {
 		                      }
 		                      """;
@@ -62,7 +62,7 @@ public sealed class NetworkEntityAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task DoesNotReportErrorWhenClassHasNoNetworkEntityInheritanceOrAttribute() {
+	public async Task DoesNotReportErrorWhenClassHasNoNetworkObjectInheritanceOrAttribute() {
 		const string source = """
 		                      public sealed class Player
 		                      {
@@ -75,11 +75,11 @@ public sealed class NetworkEntityAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task ReportsErrorWhenNetworkEntityAttributeIsUsedOnNonNetworkEntitySubclass() {
+	public async Task ReportsErrorWhenNetworkObjectAttributeIsUsedOnNonNetworkObjectSubclass() {
 		const string source = """
 		                      using Cat.Network;
 
-		                      [NetworkEntity]
+		                      [NetworkObjectAttribute]
 		                      public sealed class Player
 		                      {
 		                      }

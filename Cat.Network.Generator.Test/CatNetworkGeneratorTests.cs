@@ -6,8 +6,8 @@ namespace Cat.Network.Generator.Test;
 
 public sealed class CatNetworkGeneratorTests {
 	[Test]
-	public void NetworkEntityAttributeIsClassOnlyAndNotInherited() {
-		AttributeUsageAttribute usage = typeof(NetworkEntityAttribute)
+	public void NetworkObjectAttributeIsClassOnlyAndNotInherited() {
+		AttributeUsageAttribute usage = typeof(NetworkObjectAttribute)
 			.GetCustomAttributes(typeof(AttributeUsageAttribute), false)
 			.OfType<AttributeUsageAttribute>()
 			.Single();
@@ -32,14 +32,48 @@ public sealed class CatNetworkGeneratorTests {
 	}
 
 	[Test]
-	public void GeneratorUsesAttributeMetadataNamePipelineToEmitPartialClassStub() {
+	public void GeneratedRootPropertiesDoNotReferenceObjectProperties() {
 		const string source = """
 		                      using Cat.Network;
 
 		                      namespace Game;
 
-		                      [NetworkEntity]
-		                      public sealed partial class Player : NetworkEntity {
+		                      [NetworkObjectAttribute]
+		                      public partial class Root {
+		                      	[NetworkProperty]
+		                      	public partial int Health { get; set; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string generatedSource = runResult.GeneratedTrees.Single().GetText().ToString();
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(generatedSource, Does.Contain("protected static global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties { get; } = ["));
+			Assert.That(generatedSource, Does.Not.Contain("..global::System.Object.Properties"));
+			Assert.That(generatedSource, Does.Contain("Index = 0 + 0"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
+	public void GeneratorUsesNetworkObjectAttributeMetadataNamePipelineToEmitPartialClassStub() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkProperty]
 		                      	public partial int Health { get; set; }
 		                      }
@@ -63,11 +97,10 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(generatedSource, Does.Contain("public partial class Player"));
 			Assert.That(generatedSource, Does.Contain("// Player"));
 			Assert.That(generatedSource, Does.Contain("protected static new global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties { get; } = ["));
-			Assert.That(generatedSource, Does.Contain("..global::Cat.Network.NetworkEntity.Properties"));
-			Assert.That(generatedSource, Does.Contain("Index = global::Cat.Network.NetworkEntity.Properties.Length + 0"));
+			Assert.That(generatedSource, Does.Contain("..global::Cat.Network.NetworkObject.Properties"));
+			Assert.That(generatedSource, Does.Contain("Index = global::Cat.Network.NetworkObject.Properties.Length + 0"));
 			Assert.That(generatedSource, Does.Contain("Name = nameof(Health)"));
 			Assert.That(generatedSource, Does.Contain("EncodedName = global::System.Collections.Immutable.ImmutableArray.Create(global::System.Text.Encoding.UTF8.GetBytes(nameof(Health)))"));
-			Assert.That(generatedSource, Does.Contain("global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> global::Cat.Network.IPartiallySerializable.Properties => Properties;"));
 			Assert.That(generatedSource, Does.Contain("public partial global::System.Int32 Health"));
 			Assert.That(generatedSource, Does.Contain("get => field;"));
 			Assert.That(generatedSource, Does.Contain("set => field = value;"));
@@ -82,13 +115,13 @@ public sealed class CatNetworkGeneratorTests {
 
 		                      namespace Game;
 
-		                      [NetworkEntity]
-		                      public partial class Actor : NetworkEntity {
+		                      [NetworkObjectAttribute]
+		                      public partial class Actor : NetworkObject {
 		                      	[NetworkProperty]
 		                      	public partial int Health { get; set; }
 		                      }
 
-		                      [NetworkEntity]
+		                      [NetworkObjectAttribute]
 		                      public sealed partial class Player : Actor {
 		                      	[NetworkProperty]
 		                      	public partial int Mana { get; set; }
@@ -109,7 +142,7 @@ public sealed class CatNetworkGeneratorTests {
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
 			Assert.That(runResult.GeneratedTrees, Has.Length.EqualTo(2));
-			Assert.That(generatedSource, Does.Contain("..global::Cat.Network.NetworkEntity.Properties"));
+			Assert.That(generatedSource, Does.Contain("..global::Cat.Network.NetworkObject.Properties"));
 			Assert.That(generatedSource, Does.Contain("..global::Game.Actor.Properties"));
 			Assert.That(generatedSource, Does.Contain("Index = global::Game.Actor.Properties.Length + 0"));
 			Assert.That(generatedSource, Does.Contain("Name = nameof(Mana)"));
@@ -125,8 +158,8 @@ public sealed class CatNetworkGeneratorTests {
 
 		                      namespace Game;
 
-		                      [NetworkEntity]
-		                      public sealed partial class Player : NetworkEntity {
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkProperty]
 		                      	internal partial int Health { get; private set; }
 
@@ -173,6 +206,6 @@ public sealed class CatNetworkGeneratorTests {
 
 		foreach (string assemblyPath in trustedPlatformAssemblies.Split(Path.PathSeparator)) yield return MetadataReference.CreateFromFile(assemblyPath);
 
-		yield return MetadataReference.CreateFromFile(typeof(NetworkEntity).Assembly.Location);
+		yield return MetadataReference.CreateFromFile(typeof(NetworkObject).Assembly.Location);
 	}
 }

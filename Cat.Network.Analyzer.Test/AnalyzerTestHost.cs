@@ -30,6 +30,6 @@ internal static class AnalyzerTestHost {
 
 		foreach (string assemblyPath in trustedPlatformAssemblies.Split(Path.PathSeparator)) yield return MetadataReference.CreateFromFile(assemblyPath);
 
-		yield return MetadataReference.CreateFromFile(typeof(NetworkEntity).Assembly.Location);
+		yield return MetadataReference.CreateFromFile(typeof(NetworkObject).Assembly.Location);
 	}
 }

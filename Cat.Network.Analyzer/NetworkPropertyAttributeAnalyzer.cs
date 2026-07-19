@@ -12,8 +12,8 @@ internal static class NetworkPropertyAttributeAnalyzer {
 
 	private static readonly DiagnosticDescriptor InvalidNetworkPropertyAttributeRule = new(
 		InvalidNetworkPropertyAttributeDiagnosticId,
-		"NetworkPropertyAttribute can only be used in NetworkEntity-derived types",
-		"Property '{0}' is marked with NetworkPropertyAttribute but its containing type does not inherit NetworkEntity",
+		"NetworkPropertyAttribute can only be used in NetworkObject-derived types",
+		"Property '{0}' is marked with NetworkPropertyAttribute but its containing type does not inherit NetworkObject",
 		"Usage",
 		DiagnosticSeverity.Error,
 		true);
@@ -40,13 +40,13 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		NetworkPropertyAttributeRequiresGetAndSetRule
 	];
 
-	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkEntityType, INamedTypeSymbol networkPropertyAttributeType) {
+	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkPropertyAttributeType) {
 		context.RegisterSymbolAction(
-			symbolContext => Analyze(symbolContext, networkEntityType, networkPropertyAttributeType),
+			symbolContext => Analyze(symbolContext, networkObjectType, networkPropertyAttributeType),
 			SymbolKind.Property);
 	}
 
-	private static void Analyze(SymbolAnalysisContext context, INamedTypeSymbol networkEntityType, INamedTypeSymbol networkPropertyAttributeType) {
+	private static void Analyze(SymbolAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkPropertyAttributeType) {
 		IPropertySymbol property = (IPropertySymbol)context.Symbol;
 
 		if (!NetworkAnalyzerHelpers.HasAttribute(property, networkPropertyAttributeType)) {
@@ -55,7 +55,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 
 		INamedTypeSymbol containingType = property.ContainingType;
 
-		if (!SymbolEqualityComparer.Default.Equals(containingType, networkEntityType) && !NetworkAnalyzerHelpers.InheritsFrom(containingType, networkEntityType)) {
+		if (!SymbolEqualityComparer.Default.Equals(containingType, networkObjectType) && !NetworkAnalyzerHelpers.InheritsFrom(containingType, networkObjectType)) {
 			context.ReportDiagnostic(Diagnostic.Create(
 				InvalidNetworkPropertyAttributeRule,
 				property.Locations.FirstOrDefault(),
