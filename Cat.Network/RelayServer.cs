@@ -1,5 +1,4 @@
 using System.Buffers.Binary;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Cat.Network;
@@ -135,17 +134,18 @@ public class RelayServer(IDaemon daemon) {
 		int stringByteCount = BinaryPrimitives.ReadInt32LittleEndian(message);
 		message = message[sizeof(int)..];
 
-		if (message.Length < stringByteCount) {
+		if (stringByteCount < 0 || message.Length < stringByteCount) {
 			return false;
 		}
 		
 		name = Encoding.UTF8.GetString(message[..stringByteCount]);
+		message = message[stringByteCount..];
 		
 		return true;
 	}
 
 	private static bool ApplyChanges(NetworkObject target, ref ReadOnlySpan<byte> message) {
-		
+		return false;
 	}
 	
 }
