@@ -2,8 +2,8 @@ namespace Cat.Network;
 
 public enum EntityMessageKind : byte {
 	Create,
-	Delete,
 	Update,
+	Delete,
 	Rpc,
 	Broadcast
 }

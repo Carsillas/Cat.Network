@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Text;
 
 namespace Cat.Network.Test;
@@ -11,14 +12,15 @@ public sealed class RelayMessagePassingTests {
 		var clientB = new RelayClient();
 		Connect(daemon, server, clientA);
 		Connect(daemon, server, clientB);
-		clientA.Send("hello"u8);
+		byte[] packet = CreateApplicationPacket("hello"u8);
+		clientA.Send(packet);
 		clientA.Tick();
 		server.Tick();
 		clientB.Tick();
 
 		Assert.Multiple(() => {
 			Assert.That(clientB.TryReadMessage(out ReadOnlyMemory<byte> received), Is.True);
-			Assert.That(Encoding.UTF8.GetString(received.Span), Is.EqualTo("hello"));
+			Assert.That(received.ToArray(), Is.EqualTo(packet));
 			Assert.That(clientB.TryReadMessage(out ReadOnlyMemory<byte> _), Is.False);
 		});
 	}
@@ -32,7 +34,7 @@ public sealed class RelayMessagePassingTests {
 		Connect(daemon, server, clientA);
 		Connect(daemon, server, clientB);
 
-		clientA.Send("hello"u8);
+		clientA.Send(CreateApplicationPacket("hello"u8));
 		clientA.Tick();
 		server.Tick();
 		clientA.Tick();
@@ -50,7 +52,7 @@ public sealed class RelayMessagePassingTests {
 		MemoryRelayTransport clientBTransport = Connect(daemon, server, clientB);
 		server.RemoveTransport(clientBTransport.Remote!);
 
-		clientA.Send("hello"u8);
+		clientA.Send(CreateApplicationPacket("hello"u8));
 		clientA.Tick();
 		server.Tick();
 		clientB.Tick();
@@ -69,7 +71,27 @@ public sealed class RelayMessagePassingTests {
 		clientA.Connect(clientATransport);
 		clientB.Connect(clientBTransport);
 
-		clientA.Send("hello"u8);
+		clientA.Send(CreateApplicationPacket("hello"u8));
+		clientA.Tick();
+		server.Tick();
+		clientB.Tick();
+
+		Assert.That(clientB.TryReadMessage(out ReadOnlyMemory<byte> _), Is.False);
+	}
+
+	[Test]
+	public void ServerDoesNotRelayPacketsWithInvalidHeader() {
+		var daemon = new MemoryRelayDaemon();
+		var server = new RelayServer(daemon);
+		var clientA = new RelayClient();
+		var clientB = new RelayClient();
+		Connect(daemon, server, clientA);
+		Connect(daemon, server, clientB);
+
+		byte[] invalidPacket = CreateApplicationPacket("hello"u8);
+		BinaryPrimitives.WriteUInt32LittleEndian(invalidPacket, 99);
+
+		clientA.Send(invalidPacket);
 		clientA.Tick();
 		server.Tick();
 		clientB.Tick();
@@ -86,5 +108,13 @@ public sealed class RelayMessagePassingTests {
 		server.Tick();
 
 		return clientTransport;
+	}
+
+	private static byte[] CreateApplicationPacket(ReadOnlySpan<byte> payload) {
+		byte[] packet = new byte[sizeof(uint) + sizeof(byte) + payload.Length];
+		BinaryPrimitives.WriteUInt32LittleEndian(packet, (uint)(sizeof(byte) + payload.Length));
+		packet[sizeof(uint)] = (byte)NetworkMessageChannel.Application;
+		payload.CopyTo(packet.AsSpan((int)(sizeof(uint) + sizeof(byte))));
+		return packet;
 	}
 }
