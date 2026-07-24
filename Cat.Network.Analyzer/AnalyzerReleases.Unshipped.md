@@ -11,3 +11,4 @@
  CN0004  | Usage    | Error    | NetworkPropertyAttribute can only be used in NetworkEntity-derived types
  CN0005  | Usage    | Error    | NetworkPropertyAttribute requires a partial property                   
  CN0006  | Usage    | Error    | NetworkPropertyAttribute requires get and set accessors                
+ CN0007  | Usage    | Error    | NetworkPropertyAttribute cannot hide an inherited network property     

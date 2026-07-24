@@ -1,5 +1,6 @@
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 
 namespace Cat.Network.Generator;
 
@@ -9,7 +10,7 @@ internal static class NetworkObjectPropertiesGenerator {
 	}
 
 	private static string GenerateSource(NetworkObjectTypeModel model) {
-		return string.Format(
+		string source = string.Format(
 			SourceTemplate,
 			Namespace(model),
 			model.TypeId,
@@ -18,6 +19,8 @@ internal static class NetworkObjectPropertiesGenerator {
 			model.TypeName,
 			Properties(model),
 			PartialProperties(model));
+
+		return SyntaxFactory.ParseCompilationUnit(source).NormalizeWhitespace().ToFullString();
 	}
 
 	private static string Namespace(NetworkObjectTypeModel model) {

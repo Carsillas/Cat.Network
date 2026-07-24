@@ -3,7 +3,6 @@ using System.Buffers.Binary;
 namespace Cat.Network;
 
 public abstract class RelayPeer {
-	
 	private const int GuidSize = 16;
 	private TypeCatalogue TypeCatalogue { get; }
 	private IEntityStorage EntityStorage { get; }
@@ -49,17 +48,19 @@ public abstract class RelayPeer {
 				if (!TypeCatalogue.TryFindType(typeId, out Type? type)) {
 					return;
 				}
-
-				if (Activator.CreateInstance(type) is not NetworkEntity target) {
+				
+				if (!TypeCatalogue.TryFindSerializer(type, out INetworkObjectSerializer? serializer)) {
 					return;
 				}
+
+				NetworkEntity target = (NetworkEntity)Activator.CreateInstance(type)!;
 
 				if (!TryExtractObjectData(ref message, out ReadOnlySpan<byte> data)) {
 					return;
 				}
 				
 				target.Id = entityId;
-				ApplyChanges(target, data);
+				serializer.Deserialize(target, data, new SerializationContext(TypeCatalogue));
 				EntityStorage.RegisterEntity(target);
 				
 				break;
@@ -68,16 +69,17 @@ public abstract class RelayPeer {
 				if (!EntityStorage.TryGetEntity(entityId, out NetworkEntity? entity)) {
 					return;
 				}
+				if (!TypeCatalogue.TryFindSerializer(entity.GetType(), out INetworkObjectSerializer? serializer)) {
+					return;
+				}
 
 				if (!TryExtractObjectData(ref message, out ReadOnlySpan<byte> data)) {
 					return;
 				}
 				
-				ApplyChanges(entity, data);
+				serializer.Deserialize(entity, data, new SerializationContext(TypeCatalogue));
 				break;
 			}
-
-
 				
 			case EntityMessageKind.Delete:
 				break;
@@ -154,10 +156,4 @@ public abstract class RelayPeer {
 		return true;
 	}
 	
-	private static bool ApplyChanges(NetworkObject target, ReadOnlySpan<byte> data) {
-		
-		
-		
-		return false;
-	}
 }

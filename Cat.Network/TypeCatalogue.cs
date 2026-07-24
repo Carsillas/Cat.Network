@@ -5,14 +5,14 @@ namespace Cat.Network;
 public class TypeCatalogue {
 	
 	private Dictionary<Guid, Type> Types { get; } = [];
-	private Dictionary<Type, Type> Serializers { get; } = [];
+	private Dictionary<Type, INetworkObjectSerializer> Serializers { get; } = [];
 
 	public TypeCatalogue Clone() {
 		TypeCatalogue clone = new TypeCatalogue();
 		foreach (KeyValuePair<Guid, Type> entry in Types) {
 			clone.Types.Add(entry.Key, entry.Value);
 		}
-		foreach (KeyValuePair<Type, Type> entry in Serializers) {
+		foreach (KeyValuePair<Type, INetworkObjectSerializer> entry in Serializers) {
 			clone.Serializers.Add(entry.Key, entry.Value);
 		}
 
@@ -41,23 +41,31 @@ public class TypeCatalogue {
 		}
 
 		Type serializerType = serializerAttribute.SerializerType;
+		if (!typeof(INetworkObjectSerializer).IsAssignableFrom(serializerType)) {
+			throw new InvalidOperationException($"Serializer type '{serializerType.FullName}' does not implement '{typeof(INetworkObjectSerializer).FullName}'.");
+		}
+
+		if (Activator.CreateInstance(serializerType) is not INetworkObjectSerializer serializer) {
+			throw new InvalidOperationException($"Serializer type '{serializerType.FullName}' could not be constructed.");
+		}
+
 		if (Types.TryGetValue(typeId.Id, out Type? existingType) && existingType != type) {
 			throw new InvalidOperationException($"Type id '{typeId.Id}' is already registered to '{existingType.FullName}'.");
 		}
-		if (Serializers.TryGetValue(type, out Type? existingSerializerType) && existingSerializerType != serializerType) {
-			throw new InvalidOperationException($"Type '{type.FullName}' is already registered to serializer '{existingSerializerType.FullName}'.");
+		if (Serializers.TryGetValue(type, out INetworkObjectSerializer? existingSerializer) && existingSerializer.GetType() != serializerType) {
+			throw new InvalidOperationException($"Type '{type.FullName}' is already registered to serializer '{existingSerializer.GetType().FullName}'.");
 		}
 
 		Types[typeId.Id] = type;
-		Serializers[type] = serializerType;
+		Serializers[type] = serializer;
 	}
 	
 	public bool TryFindType(Guid id, [NotNullWhen(true)] out Type? type) {
 		return Types.TryGetValue(id, out type);
 	}
 
-	public bool TryFindSerializer(Type type, [NotNullWhen(true)] out Type? serializerType) {
+	public bool TryFindSerializer(Type type, [NotNullWhen(true)] out INetworkObjectSerializer? serializer) {
 		ArgumentNullException.ThrowIfNull(type);
-		return Serializers.TryGetValue(type, out serializerType);
+		return Serializers.TryGetValue(type, out serializer);
 	}
 }

@@ -9,6 +9,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 	private const string InvalidNetworkPropertyAttributeDiagnosticId = "CN0004";
 	private const string NetworkPropertyAttributeRequiresPartialDiagnosticId = "CN0005";
 	private const string NetworkPropertyAttributeRequiresGetAndSetDiagnosticId = "CN0006";
+	private const string DuplicateInheritedNetworkPropertyNameDiagnosticId = "CN0007";
 
 	private static readonly DiagnosticDescriptor InvalidNetworkPropertyAttributeRule = new(
 		InvalidNetworkPropertyAttributeDiagnosticId,
@@ -34,10 +35,19 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		DiagnosticSeverity.Error,
 		true);
 
+	private static readonly DiagnosticDescriptor DuplicateInheritedNetworkPropertyNameRule = new(
+		DuplicateInheritedNetworkPropertyNameDiagnosticId,
+		"NetworkPropertyAttribute cannot hide an inherited network property",
+		"Property '{0}' hides inherited network property '{0}' declared on '{1}'. Network property names must be unique across the inheritance chain.",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
 	public static ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
 		InvalidNetworkPropertyAttributeRule,
 		NetworkPropertyAttributeRequiresPartialRule,
-		NetworkPropertyAttributeRequiresGetAndSetRule
+		NetworkPropertyAttributeRequiresGetAndSetRule,
+		DuplicateInheritedNetworkPropertyNameRule
 	];
 
 	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkPropertyAttributeType) {
@@ -76,5 +86,29 @@ internal static class NetworkPropertyAttributeAnalyzer {
 				property.Locations.FirstOrDefault(),
 				property.Name));
 		}
+
+		IPropertySymbol? inheritedNetworkProperty = FindInheritedNetworkPropertyWithSameName(containingType, property.Name, networkPropertyAttributeType);
+		if (inheritedNetworkProperty is not null) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				DuplicateInheritedNetworkPropertyNameRule,
+				property.Locations.FirstOrDefault(),
+				property.Name,
+				inheritedNetworkProperty.ContainingType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+		}
+	}
+
+	private static IPropertySymbol? FindInheritedNetworkPropertyWithSameName(INamedTypeSymbol containingType, string propertyName, INamedTypeSymbol networkPropertyAttributeType) {
+		for (INamedTypeSymbol? current = containingType.BaseType; current is not null; current = current.BaseType) {
+			IPropertySymbol? inheritedProperty = current
+				.GetMembers(propertyName)
+				.OfType<IPropertySymbol>()
+				.FirstOrDefault(candidate => NetworkAnalyzerHelpers.HasAttribute(candidate, networkPropertyAttributeType));
+
+			if (inheritedProperty is not null) {
+				return inheritedProperty;
+			}
+		}
+
+		return null;
 	}
 }

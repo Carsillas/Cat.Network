@@ -107,4 +107,34 @@ public sealed class NetworkPropertyAttributeAnalyzerTests {
 			Assert.That(diagnostics[0].GetMessage(), Does.Contain("Health"));
 		});
 	}
+
+	[Test]
+	public async Task ReportsErrorWhenNetworkPropertyHidesInheritedNetworkProperty() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Actor : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial int Health { get; set; }
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : Actor {
+		                      	[NetworkProperty]
+		                      	public new partial int Health { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics, Has.Length.EqualTo(1));
+		Assert.Multiple(() => {
+			Assert.That(diagnostics[0].Id, Is.EqualTo("CN0007"));
+			Assert.That(diagnostics[0].Severity, Is.EqualTo(DiagnosticSeverity.Error));
+			Assert.That(diagnostics[0].Location.GetLineSpan().StartLinePosition.Line, Is.EqualTo(11));
+			Assert.That(diagnostics[0].GetMessage(), Does.Contain("Health"));
+			Assert.That(diagnostics[0].GetMessage(), Does.Contain("Actor"));
+		});
+	}
 }

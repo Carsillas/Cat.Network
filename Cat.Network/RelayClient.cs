@@ -30,33 +30,6 @@ public class RelayClient(TypeCatalogue typeCatalogue, IEntityStorage entityStora
 			Transport.PumpMessages();
 		}
 		
-		while (outgoingMessages.TryDequeue(out byte[]? message)) {
-			if (Transport is null) {
-				throw new InvalidOperationException("Cannot send relay messages before connecting to a server.");
-			}
 
-			Transport.Send(message);
-		}
-
-	}
-
-	public bool TryReadMessage(out ReadOnlyMemory<byte> message) {
-		if (incomingMessages.TryDequeue(out byte[]? bytes)) {
-			message = bytes;
-			return true;
-		}
-
-		message = default;
-		return false;
-	}
-
-	private void ProcessMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
-		if (!handshakeCompleted && RelayHandshake.IsPing(message)) {
-			Transport?.Send(RelayHandshake.Pong);
-			handshakeCompleted = true;
-			return;
-		}
-
-		incomingMessages.Enqueue(message.ToArray());
 	}
 }

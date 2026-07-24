@@ -4,6 +4,6 @@ namespace Cat.Network.Test.Entities;
 public partial class TestNetworkEntity : NetworkEntity {
 
 	[NetworkProperty]
-	public partial int Health { get; set; }
+	public partial int Health { get; private set; }
 
 }
