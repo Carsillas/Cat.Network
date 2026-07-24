@@ -1,46 +1,43 @@
 namespace Cat.Network;
 
-public class RelayClient {
+public class RelayClient : RelayPeer {
 	
-	private IRelayTransport? transport;
-	private bool handshakeCompleted;
-	
+	private IRelayTransport? Transport { get; set; }
 
 	public void Send(ReadOnlySpan<byte> message) {
-		outgoingMessages.Enqueue(message.ToArray());
+		
 	}
 
 	public void Connect(IRelayTransport transport) {
-		if (this.transport is not null) {
-			this.transport.MessageReceived -= ProcessMessage;
+		if (Transport is not null) {
+			Transport.MessageReceived -= ProcessMessage;
 		}
 
-		this.transport = transport ?? throw new ArgumentNullException(nameof(transport));
-		this.transport.MessageReceived += ProcessMessage;
-		handshakeCompleted = false;
+		Transport = transport ?? throw new ArgumentNullException(nameof(transport));
+		Transport.MessageReceived += ProcessMessage;
 	}
 
 	public void Disconnect() {
-		if (transport is not null) {
-			transport.MessageReceived -= ProcessMessage;
+		if (Transport is not null) {
+			Transport.MessageReceived -= ProcessMessage;
 		}
 
-		transport = null;
-		handshakeCompleted = false;
+		Transport = null;
 	}
 
 	public void Tick() {
+		if (Transport is not null) {
+			Transport.PumpMessages();
+		}
+		
 		while (outgoingMessages.TryDequeue(out byte[]? message)) {
-			if (transport is null) {
+			if (Transport is null) {
 				throw new InvalidOperationException("Cannot send relay messages before connecting to a server.");
 			}
 
-			transport.Send(message);
+			Transport.Send(message);
 		}
 
-		if (transport is not null) {
-			transport.PumpMessages();
-		}
 	}
 
 	public bool TryReadMessage(out ReadOnlyMemory<byte> message) {
@@ -55,7 +52,7 @@ public class RelayClient {
 
 	private void ProcessMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
 		if (!handshakeCompleted && RelayHandshake.IsPing(message)) {
-			transport?.Send(RelayHandshake.Pong);
+			Transport?.Send(RelayHandshake.Pong);
 			handshakeCompleted = true;
 			return;
 		}
