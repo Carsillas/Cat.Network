@@ -1,8 +1,11 @@
 namespace Cat.Network;
 
-[AttributeUsage(AttributeTargets.Class)]
-public class NetworkObjectSerializerAttribute<T> : Attribute where T : INetworkObjectSerializer {
-	
-	private Type Type { get; } = typeof(T);
-	
+public class NetworkObjectSerializerAttribute : Attribute {
+	private protected NetworkObjectSerializerAttribute(Type serializerType) {
+		SerializerType = serializerType;
+	}
+	public Type SerializerType { get; }
 }
+
+[AttributeUsage(AttributeTargets.Class, Inherited = false)]
+public sealed class NetworkObjectSerializerAttribute<T>() : NetworkObjectSerializerAttribute(typeof(T)) where T : INetworkObjectSerializer;
