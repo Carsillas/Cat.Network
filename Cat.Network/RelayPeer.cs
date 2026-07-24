@@ -43,7 +43,9 @@ public abstract class RelayPeer {
 				if (!TryExtractObjectData(ref message, out ReadOnlySpan<byte> data)) {
 					return;
 				}
+				
 				// TODO create entity and register
+				
 				break;
 			}
 			case EntityMessageKind.Update: {
