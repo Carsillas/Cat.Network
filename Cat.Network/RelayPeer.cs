@@ -1,13 +1,19 @@
 using System.Buffers.Binary;
-using System.Text;
 
 namespace Cat.Network;
 
 public abstract class RelayPeer {
 	
 	private const int GuidSize = 16;
+	private TypeCatalogue TypeCatalogue { get; }
+	private IEntityStorage EntityStorage { get; }
 	
-	private protected RelayPeer() { }
+	private protected RelayPeer(TypeCatalogue typeCatalogue, IEntityStorage entityStorage) {
+		ArgumentNullException.ThrowIfNull(typeCatalogue);
+		ArgumentNullException.ThrowIfNull(entityStorage);
+		TypeCatalogue = typeCatalogue.Clone();
+		EntityStorage = entityStorage;
+	}
 	
 	protected void ProcessMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
 		if (!TryExtractPacketChannel(ref message, out NetworkMessageChannel channel)) {
@@ -36,24 +42,38 @@ public abstract class RelayPeer {
 		
 		switch (kind) {
 			case EntityMessageKind.Create: {
-				if (!TryExtractTypeName(ref message, out string? name)) {
+				if (!TryExtractTypeId(ref message, out Guid typeId)) {
 					return;
 				}
-				
+
+				if (!TypeCatalogue.TryFindType(typeId, out Type? type)) {
+					return;
+				}
+
+				if (Activator.CreateInstance(type) is not NetworkEntity target) {
+					return;
+				}
+
 				if (!TryExtractObjectData(ref message, out ReadOnlySpan<byte> data)) {
 					return;
 				}
 				
-				// TODO create entity and register
+				target.Id = entityId;
+				ApplyChanges(target, data);
+				EntityStorage.RegisterEntity(target);
 				
 				break;
 			}
 			case EntityMessageKind.Update: {
+				if (!EntityStorage.TryGetEntity(entityId, out NetworkEntity? entity)) {
+					return;
+				}
+
 				if (!TryExtractObjectData(ref message, out ReadOnlySpan<byte> data)) {
 					return;
 				}
 				
-				ApplyChanges()
+				ApplyChanges(entity, data);
 				break;
 			}
 
@@ -110,24 +130,8 @@ public abstract class RelayPeer {
 		return true;
 	}
 
-	private static bool TryExtractTypeName(ref ReadOnlySpan<byte> message, out string? name) {
-		name = null;
-
-		if (message.Length < sizeof(int)) {
-			return false;
-		}
-		
-		int stringByteCount = BinaryPrimitives.ReadInt32LittleEndian(message);
-		message = message[sizeof(int)..];
-
-		if (stringByteCount < 0 || message.Length < stringByteCount) {
-			return false;
-		}
-		
-		name = Encoding.UTF8.GetString(message[..stringByteCount]);
-		message = message[stringByteCount..];
-		
-		return true;
+	private static bool TryExtractTypeId(ref ReadOnlySpan<byte> message, out Guid typeId) {
+		return TryExtractEntityId(ref message, out typeId);
 	}
 
 	private static bool TryExtractObjectData(ref ReadOnlySpan<byte> message, out ReadOnlySpan<byte> data) {

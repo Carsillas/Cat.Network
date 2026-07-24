@@ -1,7 +1,18 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Cat.Network;
 
 public class TypeCatalogue {
 	private readonly Dictionary<Guid, Type> typesById = [];
+
+	public TypeCatalogue Clone() {
+		TypeCatalogue clone = new TypeCatalogue();
+		foreach (KeyValuePair<Guid, Type> entry in typesById) {
+			clone.typesById.Add(entry.Key, entry.Value);
+		}
+
+		return clone;
+	}
 
 	public void Register(Type type) {
 		ArgumentNullException.ThrowIfNull(type);
@@ -24,7 +35,7 @@ public class TypeCatalogue {
 		typesById[typeId.Id] = type;
 	}
 	
-	public bool TryFindType(Guid id, out Type? type) {
+	public bool TryFindType(Guid id, [NotNullWhen(true)] out Type? type) {
 		return typesById.TryGetValue(id, out type);
 	}
 }

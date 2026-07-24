@@ -3,7 +3,7 @@ using System.Text;
 
 namespace Cat.Network;
 
-public class RelayServer(IDaemon daemon) : RelayPeer {
+public class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IEntityStorage entityStorage) : RelayPeer(typeCatalogue, entityStorage) {
 	
 	private IDaemon Daemon { get; } = daemon ?? throw new ArgumentNullException(nameof(daemon));
 	private List<IRelayTransport> Transports { get; } = [];

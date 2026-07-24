@@ -1,6 +1,6 @@
 namespace Cat.Network;
 
-public class RelayClient : RelayPeer {
+public class RelayClient(TypeCatalogue typeCatalogue, IEntityStorage entityStorage) : RelayPeer(typeCatalogue, entityStorage) {
 	
 	private IRelayTransport? Transport { get; set; }
 
