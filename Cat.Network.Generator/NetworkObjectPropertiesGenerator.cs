@@ -91,7 +91,8 @@ internal static class NetworkObjectPropertiesGenerator {
 			property.TypeName,
 			property.Name,
 			property.GetterAccessibility,
-			property.SetterAccessibility);
+			property.SetterAccessibility,
+			model.HasBaseProperties ? $"{model.BaseTypeName}.Properties.Length + {index}" : index.ToString());
 	}
 
 	private const string SourceTemplate = """
@@ -142,7 +143,23 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                               	{0} partial {1} {2}
 	                                               	{{
 	                                               		{3}get => field;
-	                                               		{4}set => field = value;
+	                                               		{4}set
+	                                               		{{
+	                                               			{1} oldValue = field;
+	                                               			if (global::System.Collections.Generic.EqualityComparer<{1}>.Default.Equals(oldValue, value))
+	                                               			{{
+	                                               				return;
+	                                               			}}
+	                                               			field = value;
+	                                               			global::Cat.Network.INetworkObject current = this;
+	                                               			current.PropertyStates[{5}] |= global::Cat.Network.NetworkPropertyState.Replaced;
+	                                               			while (current.Parent is global::Cat.Network.NetworkObject parent)
+	                                               			{{
+	                                               				global::Cat.Network.INetworkObject parentObject = parent;
+	                                               				parentObject.PropertyStates[current.PropertyIndex] |= global::Cat.Network.NetworkPropertyState.Modified;
+	                                               				current = parentObject;
+	                                               			}}
+	                                               		}}
 	                                               	}}
 	                                               """;
 
@@ -178,6 +195,14 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                                     				global::Cat.Network.INetworkObject attachedValue = value;
 	                                                     				attachedValue.Parent = this;
 	                                                     				attachedValue.PropertyIndex = propertyIndex;
+	                                                     			}}
+	                                                     			global::Cat.Network.INetworkObject current = this;
+	                                                     			current.PropertyStates[propertyIndex] |= global::Cat.Network.NetworkPropertyState.Replaced;
+	                                                     			while (current.Parent is global::Cat.Network.NetworkObject parent)
+	                                                     			{{
+	                                                     				global::Cat.Network.INetworkObject parentObject = parent;
+	                                                     				parentObject.PropertyStates[current.PropertyIndex] |= global::Cat.Network.NetworkPropertyState.Modified;
+	                                                     				current = parentObject;
 	                                                     			}}
 	                                                     		}}
 	                                                     	}}

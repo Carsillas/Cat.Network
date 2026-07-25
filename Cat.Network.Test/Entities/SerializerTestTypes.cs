@@ -130,3 +130,21 @@ public partial class ParentAssignmentState : NetworkObject {
 	[NetworkProperty]
 	public partial ChildState? SecondaryChild { get; set; }
 }
+
+[NetworkObject]
+public partial class DirtyPrimitiveState : NetworkObject {
+	[NetworkProperty]
+	public partial int Value { get; set; }
+}
+
+[NetworkObject]
+public partial class DirtyChildState : NetworkObject {
+	[NetworkProperty]
+	public partial int Value { get; set; }
+}
+
+[NetworkObject]
+public partial class DirtyParentState : NetworkObject {
+	[NetworkProperty]
+	public partial DirtyChildState? Child { get; set; }
+}

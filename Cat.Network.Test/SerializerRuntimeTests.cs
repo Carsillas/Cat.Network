@@ -400,6 +400,52 @@ public sealed class SerializerRuntimeTests {
 		});
 	}
 
+	[Test]
+	public void Setting_Property_MarksOwnStateAsReplaced() {
+		DirtyPrimitiveState target = new();
+
+		target.Value = 9;
+
+		Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Replaced));
+	}
+
+	[Test]
+	public void Setting_ChildProperty_MarksParentStateAsModified() {
+		DirtyParentState parent = new();
+		DirtyChildState child = new();
+
+		parent.Child = child;
+		((INetworkObject)parent).PropertyStates[0] = NetworkPropertyState.Unchanged;
+
+		child.Value = 9;
+
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)child).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Replaced));
+			Assert.That(((INetworkObject)parent).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+		});
+	}
+
+	[Test]
+	public void Setting_ChildProperty_MarksAllAncestorsAsModified() {
+		DirtyParentState grandParent = new();
+		DirtyParentState parent = new();
+		DirtyChildState child = new();
+
+		((INetworkObject)parent).Parent = grandParent;
+		((INetworkObject)parent).PropertyIndex = 0;
+		parent.Child = child;
+		((INetworkObject)grandParent).PropertyStates = new[] { NetworkPropertyState.Unchanged };
+		((INetworkObject)parent).PropertyStates[0] = NetworkPropertyState.Unchanged;
+
+		child.Value = 5;
+
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)child).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Replaced));
+			Assert.That(((INetworkObject)parent).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+			Assert.That(((INetworkObject)grandParent).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+		});
+	}
+
 	private static void Deserialize(NetworkObject target, TypeCatalogue catalogue, byte[] payload) {
 		Assert.That(catalogue.TryFindSerializer(target.GetType(), out INetworkObjectSerializer? serializer), Is.True);
 		serializer!.Deserialize(target, payload, new SerializationContext(catalogue));
