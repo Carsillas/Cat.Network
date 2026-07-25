@@ -1,5 +1,7 @@
 namespace Cat.Network;
 
-public struct NetworkPropertyState {
-	
+public enum NetworkPropertyState {
+	Unchanged,
+	Replaced,
+	Modified
 }

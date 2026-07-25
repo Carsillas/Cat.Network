@@ -124,3 +124,12 @@ public partial class ParentState : NetworkObject {
 	[NetworkProperty]
 	public partial ChildState? Child { get; private set; }
 }
+
+[NetworkObject]
+public partial class ParentAssignmentState : NetworkObject {
+	[NetworkProperty]
+	public partial ChildState? Child { get; set; }
+
+	[NetworkProperty]
+	public partial ChildState? SecondaryChild { get; set; }
+}

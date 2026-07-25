@@ -341,6 +341,65 @@ public sealed class SerializerRuntimeTests {
 		});
 	}
 
+	[Test]
+	public void Assigning_NetworkObjectProperty_SetsAndClearsParent() {
+		ParentAssignmentState parent = new();
+		ChildState firstChild = new(1);
+		ChildState secondChild = new(2);
+
+		parent.Child = firstChild;
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)firstChild).Parent, Is.SameAs(parent));
+			Assert.That(((INetworkObject)firstChild).PropertyIndex, Is.EqualTo(0));
+		});
+
+		parent.Child = secondChild;
+
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)firstChild).Parent, Is.Null);
+			Assert.That(((INetworkObject)firstChild).PropertyIndex, Is.EqualTo(-1));
+			Assert.That(((INetworkObject)secondChild).Parent, Is.SameAs(parent));
+			Assert.That(((INetworkObject)secondChild).PropertyIndex, Is.EqualTo(0));
+		});
+
+		parent.Child = null;
+
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)secondChild).Parent, Is.Null);
+			Assert.That(((INetworkObject)secondChild).PropertyIndex, Is.EqualTo(-1));
+		});
+	}
+
+	[Test]
+	public void Assigning_NetworkObjectProperty_ThrowsWhenChildAlreadyHasParent() {
+		ParentAssignmentState firstParent = new();
+		ParentAssignmentState secondParent = new();
+		ChildState child = new(1);
+
+		firstParent.Child = child;
+
+		Assert.That(() => secondParent.Child = child, Throws.TypeOf<InvalidOperationException>());
+		Assert.That(((INetworkObject)child).Parent, Is.SameAs(firstParent));
+		Assert.That(secondParent.Child, Is.Null);
+	}
+
+	[Test]
+	public void Assigning_NetworkObjectProperty_ThrowsWhenChildAlreadyOccupiesDifferentPropertyOnSameParent() {
+		ParentAssignmentState parent = new();
+		ChildState child = new(1);
+
+		parent.Child = child;
+
+		Assert.That(() => parent.SecondaryChild = child, Throws.TypeOf<InvalidOperationException>());
+
+		Assert.Multiple(() => {
+			Assert.That(parent.Child, Is.SameAs(child));
+			Assert.That(parent.SecondaryChild, Is.Null);
+			Assert.That(((INetworkObject)child).Parent, Is.SameAs(parent));
+			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(0));
+		});
+	}
+
 	private static void Deserialize(NetworkObject target, TypeCatalogue catalogue, byte[] payload) {
 		Assert.That(catalogue.TryFindSerializer(target.GetType(), out INetworkObjectSerializer? serializer), Is.True);
 		serializer!.Deserialize(target, payload, new SerializationContext(catalogue));

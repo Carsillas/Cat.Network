@@ -309,6 +309,78 @@ public sealed class CatNetworkGeneratorTests {
 	}
 
 	[Test]
+	public void GeneratedNetworkObjectPropertySetterMaintainsParentOwnership() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Child : NetworkObject {
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Parent : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial Child? Child { get; set; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string propertySource = GetGeneratedSource(runResult, "Game_Parent.g.cs");
+		string expectedPropertyBlock = """
+			public partial global::Game.Child? Child
+			{
+				get => field;
+				set
+				{
+					global::Game.Child? oldValue = field;
+					int propertyIndex = global::Cat.Network.NetworkObject.Properties.Length + 0;
+					if (global::System.Object.ReferenceEquals(oldValue, value))
+					{
+						return;
+					}
+					if (value is not null)
+					{
+						global::Cat.Network.INetworkObject networkValue = value;
+						if (networkValue.Parent is not null && (!global::System.Object.ReferenceEquals(networkValue.Parent, this) || networkValue.PropertyIndex != propertyIndex))
+						{
+							throw new global::System.InvalidOperationException("NetworkObjects may only occupy one networked property at a time.");
+						}
+					}
+					field = value;
+					if (oldValue is not null)
+					{
+						global::Cat.Network.INetworkObject oldNetworkValue = oldValue;
+						oldNetworkValue.Parent = null;
+						oldNetworkValue.PropertyIndex = -1;
+					}
+					if (value is not null)
+					{
+						global::Cat.Network.INetworkObject attachedValue = value;
+						attachedValue.Parent = this;
+						attachedValue.PropertyIndex = propertyIndex;
+					}
+				}
+			}
+			""";
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			AssertGeneratedSourceEqual(expectedPropertyBlock, ExtractMemberBlock(propertySource, "public partial global::Game.Child? Child"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
 	public void GeneratedSerializerIncludesNullableValueTypeHandling() {
 		const string source = """
 		                      using Cat.Network;

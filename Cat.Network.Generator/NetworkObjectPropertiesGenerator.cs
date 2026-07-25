@@ -56,10 +56,21 @@ internal static class NetworkObjectPropertiesGenerator {
 	private static string PartialProperties(NetworkObjectTypeModel model) {
 		return string.Join(
 			"\n\n",
-			model.DeclaredProperties.Select(PartialProperty));
+			model.DeclaredProperties.Select((property, index) => PartialProperty(model, property, index)));
 	}
 
-	private static string PartialProperty(NetworkPropertyModel property) {
+	private static string PartialProperty(NetworkObjectTypeModel model, NetworkPropertyModel property, int index) {
+		if (property.SerializationKind == NetworkPropertySerializationKind.NetworkObject) {
+			return string.Format(
+				NetworkObjectPartialPropertyTemplate,
+				property.Accessibility,
+				property.TypeName,
+				property.Name,
+				property.GetterAccessibility,
+				property.SetterAccessibility,
+				model.HasBaseProperties ? $"{model.BaseTypeName}.Properties.Length + {index}" : index.ToString());
+		}
+
 		return string.Format(
 			PartialPropertyTemplate,
 			property.Accessibility,
@@ -117,4 +128,41 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                               		{4}set => field = value;
 	                                               	}}
 	                                               """;
+
+	private const string NetworkObjectPartialPropertyTemplate = """
+	                                                     	{0} partial {1} {2}
+	                                                     	{{
+	                                                     		{3}get => field;
+	                                                     		{4}set
+	                                                     		{{
+	                                                     			{1} oldValue = field;
+	                                                     			int propertyIndex = {5};
+	                                                     			if (global::System.Object.ReferenceEquals(oldValue, value))
+	                                                     			{{
+	                                                     				return;
+	                                                     			}}
+	                                                     			if (value is not null)
+	                                                     			{{
+	                                                     				global::Cat.Network.INetworkObject networkValue = value;
+	                                                     				if (networkValue.Parent is not null && (!global::System.Object.ReferenceEquals(networkValue.Parent, this) || networkValue.PropertyIndex != propertyIndex))
+	                                                     				{{
+	                                                     					throw new global::System.InvalidOperationException("NetworkObjects may only occupy one networked property at a time.");
+	                                                     				}}
+	                                                     			}}
+	                                                     			field = value;
+	                                                     			if (oldValue is not null)
+	                                                     			{{
+	                                                     				global::Cat.Network.INetworkObject oldNetworkValue = oldValue;
+	                                                     				oldNetworkValue.Parent = null;
+	                                                     				oldNetworkValue.PropertyIndex = -1;
+	                                                     			}}
+	                                                     			if (value is not null)
+	                                                     			{{
+	                                                     				global::Cat.Network.INetworkObject attachedValue = value;
+	                                                     				attachedValue.Parent = this;
+	                                                     				attachedValue.PropertyIndex = propertyIndex;
+	                                                     			}}
+	                                                     		}}
+	                                                     	}}
+	                                                     """;
 }
