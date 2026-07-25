@@ -12,3 +12,5 @@
  CN0005  | Usage    | Error    | NetworkPropertyAttribute requires a partial property                   
  CN0006  | Usage    | Error    | NetworkPropertyAttribute requires get and set accessors                
  CN0007  | Usage    | Error    | NetworkPropertyAttribute cannot hide an inherited network property     
+ CN0008  | Usage    | Error    | NetworkObject types cannot declare parameterized constructors          
+ CN0009  | Usage    | Error    | NetworkObject types require a public parameterless constructor         

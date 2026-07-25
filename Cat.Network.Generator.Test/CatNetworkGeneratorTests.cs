@@ -125,6 +125,8 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(propertySource, Does.Contain($"[global::Cat.Network.NetworkObjectTypeId(\"{CreateStableTypeId("global::Game.Player")}\")]"));
 			Assert.That(propertySource, Does.Contain("[global::Cat.Network.NetworkObjectSerializerAttribute<__CatNetwork_Player_Serializer>]"));
 			AssertGeneratedSourceEqual(expectedPropertyBlock, ExtractStatementBlock(propertySource, "protected static new global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties", "];"));
+			Assert.That(propertySource, Does.Contain("void global::Cat.Network.INetworkObject.Initialize()"));
+			Assert.That(propertySource, Does.Contain("((global::Cat.Network.INetworkObject)this).PropertyStates = new global::Cat.Network.NetworkPropertyState[Properties.Length];"));
 			AssertGeneratedSourceEqual(expectedDeserializeHealthBlock, ExtractMemberBlock(serializerSource, "private static void DeserializeHealth("));
 			AssertGeneratedSourceEqual(expectedAccessorBlock, ExtractTailBlock(serializerSource, "[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_Health\")]"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);

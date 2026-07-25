@@ -2,12 +2,11 @@ namespace Cat.Network.Test.Entities;
 
 [NetworkObject]
 public partial class PrimitiveState : NetworkObject {
-	public PrimitiveState() {
-	}
-
-	public PrimitiveState(int health, string name) {
-		Health = health;
-		Name = name;
+	public static PrimitiveState Create(int health, string name) {
+		return new PrimitiveState {
+			Health = health,
+			Name = name
+		};
 	}
 
 	[NetworkProperty]
@@ -19,12 +18,11 @@ public partial class PrimitiveState : NetworkObject {
 
 [NetworkObject]
 public partial class NullableState : NetworkObject {
-	public NullableState() {
-	}
-
-	public NullableState(int? health, Guid? sessionId) {
-		Health = health;
-		SessionId = sessionId;
+	public static NullableState Create(int? health, Guid? sessionId) {
+		return new NullableState {
+			Health = health,
+			SessionId = sessionId
+		};
 	}
 
 	[NetworkProperty]
@@ -36,11 +34,8 @@ public partial class NullableState : NetworkObject {
 
 [NetworkObject]
 public partial class ActorState : NetworkObject {
-	public ActorState() {
-	}
-
-	protected ActorState(int health) {
-		Health = health;
+	protected static void InitializeHealth(ActorState target, int health) {
+		target.Health = health;
 	}
 
 	[NetworkProperty]
@@ -49,11 +44,11 @@ public partial class ActorState : NetworkObject {
 
 [NetworkObject]
 public partial class PlayerState : ActorState {
-	public PlayerState() {
-	}
-
-	public PlayerState(int health, int mana) : base(health) {
-		Mana = mana;
+	public static PlayerState Create(int health, int mana) {
+		PlayerState state = new();
+		InitializeHealth(state, health);
+		state.Mana = mana;
+		return state;
 	}
 
 	[NetworkProperty]
@@ -88,11 +83,14 @@ public partial class StructState : NetworkObject {
 
 [NetworkObject]
 public partial class ChildState : NetworkObject {
-	public ChildState() {
+	protected static void InitializeValue(ChildState target, int value) {
+		target.Value = value;
 	}
 
-	public ChildState(int value) {
-		Value = value;
+	public static ChildState Create(int value) {
+		ChildState state = new();
+		InitializeValue(state, value);
+		return state;
 	}
 
 	[NetworkProperty]
@@ -101,11 +99,11 @@ public partial class ChildState : NetworkObject {
 
 [NetworkObject]
 public partial class ReplacementChildState : ChildState {
-	public ReplacementChildState() {
-	}
-
-	public ReplacementChildState(int value, int bonus) : base(value) {
-		Bonus = bonus;
+	public static ReplacementChildState Create(int value, int bonus) {
+		ReplacementChildState state = new();
+		InitializeValue(state, value);
+		state.Bonus = bonus;
+		return state;
 	}
 
 	[NetworkProperty]
@@ -114,11 +112,10 @@ public partial class ReplacementChildState : ChildState {
 
 [NetworkObject]
 public partial class ParentState : NetworkObject {
-	public ParentState() {
-	}
-
-	public ParentState(ChildState? child) {
-		Child = child;
+	public static ParentState Create(ChildState? child) {
+		return new ParentState {
+			Child = child
+		};
 	}
 
 	[NetworkProperty]

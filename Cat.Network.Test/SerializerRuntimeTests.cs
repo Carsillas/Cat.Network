@@ -8,7 +8,7 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void RoundTrip_PrimitiveState_PreservesIndexPayload() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
-		PrimitiveState original = new(42, "Mira");
+		PrimitiveState original = PrimitiveState.Create(42, "Mira");
 
 		AssertRoundTripSerializationEquals(original, new PrimitiveState(), catalogue);
 	}
@@ -16,7 +16,7 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void RoundTrip_NullableState_PreservesIndexPayload() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(NullableState));
-		NullableState original = new(99, new Guid("00112233-4455-6677-8899-aabbccddeeff"));
+		NullableState original = NullableState.Create(99, new Guid("00112233-4455-6677-8899-aabbccddeeff"));
 
 		AssertRoundTripSerializationEquals(original, new NullableState(), catalogue);
 	}
@@ -24,7 +24,7 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void RoundTrip_PlayerState_PreservesIndexPayload() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(PlayerState));
-		PlayerState original = new(30, 12);
+		PlayerState original = PlayerState.Create(30, 12);
 
 		AssertRoundTripSerializationEquals(original, new PlayerState(), catalogue);
 	}
@@ -63,7 +63,7 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void RoundTrip_ParentState_PreservesIndexPayload() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(ParentState), typeof(ChildState), typeof(ReplacementChildState));
-		ParentState original = new(new ReplacementChildState(5, 9));
+		ParentState original = ParentState.Create(ReplacementChildState.Create(5, 9));
 
 		AssertRoundTripSerializationEquals(original, new ParentState(), catalogue);
 	}
@@ -71,7 +71,7 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void Serialize_PrimitiveAndStringProperties_InIndexMode() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
-		PrimitiveState target = new(42, "Mira");
+		PrimitiveState target = PrimitiveState.Create(42, "Mira");
 
 		byte[] payload = Serialize(target, catalogue);
 
@@ -83,7 +83,7 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void Serialize_PrimitiveAndStringProperties_InNameMode() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
-		PrimitiveState target = new(42, "Mira");
+		PrimitiveState target = PrimitiveState.Create(42, "Mira");
 
 		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Name);
 
@@ -97,7 +97,7 @@ public sealed class SerializerRuntimeTests {
 	public void Serialize_NullableValueTypes() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(NullableState));
 		Guid sessionId = new("00112233-4455-6677-8899-aabbccddeeff");
-		NullableState target = new(99, sessionId);
+		NullableState target = NullableState.Create(99, sessionId);
 
 		byte[] payload = Serialize(target, catalogue);
 
@@ -105,7 +105,7 @@ public sealed class SerializerRuntimeTests {
 			BuildIndexField(0, NullableValue(Int32(99))),
 			BuildIndexField(1, NullableValue(GuidBytes(sessionId))))));
 
-		byte[] nullPayload = Serialize(new NullableState(null, null), catalogue);
+		byte[] nullPayload = Serialize(NullableState.Create(null, null), catalogue);
 
 		Assert.That(nullPayload, Is.EqualTo(BuildObjectPayload(
 			BuildIndexField(0, NullValue()),
@@ -149,7 +149,7 @@ public sealed class SerializerRuntimeTests {
 	public void Serialize_NetworkObject_UsesReplaceAndClear() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(ParentState), typeof(ChildState), typeof(ReplacementChildState));
 		Guid replacementTypeId = GetTypeId(typeof(ReplacementChildState));
-		ParentState target = new(new ReplacementChildState(5, 9));
+		ParentState target = ParentState.Create(ReplacementChildState.Create(5, 9));
 
 		byte[] payload = Serialize(target, catalogue);
 
@@ -160,7 +160,7 @@ public sealed class SerializerRuntimeTests {
 					BuildIndexField(0, Int32(5)),
 					BuildIndexField(1, Int32(9))))))));
 
-		byte[] clearPayload = Serialize(new ParentState(null), catalogue);
+		byte[] clearPayload = Serialize(ParentState.Create(null), catalogue);
 
 		Assert.That(clearPayload, Is.EqualTo(BuildObjectPayload(
 			BuildIndexField(0, ClearObject()))));
@@ -344,8 +344,8 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void Assigning_NetworkObjectProperty_SetsAndClearsParent() {
 		ParentAssignmentState parent = new();
-		ChildState firstChild = new(1);
-		ChildState secondChild = new(2);
+		ChildState firstChild = ChildState.Create(1);
+		ChildState secondChild = ChildState.Create(2);
 
 		parent.Child = firstChild;
 		Assert.Multiple(() => {
@@ -374,7 +374,7 @@ public sealed class SerializerRuntimeTests {
 	public void Assigning_NetworkObjectProperty_ThrowsWhenChildAlreadyHasParent() {
 		ParentAssignmentState firstParent = new();
 		ParentAssignmentState secondParent = new();
-		ChildState child = new(1);
+		ChildState child = ChildState.Create(1);
 
 		firstParent.Child = child;
 
@@ -386,7 +386,7 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void Assigning_NetworkObjectProperty_ThrowsWhenChildAlreadyOccupiesDifferentPropertyOnSameParent() {
 		ParentAssignmentState parent = new();
-		ChildState child = new(1);
+		ChildState child = ChildState.Create(1);
 
 		parent.Child = child;
 

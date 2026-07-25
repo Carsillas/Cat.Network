@@ -9,6 +9,8 @@ internal static class NetworkObjectAttributeAnalyzer {
 	private const string MissingNetworkObjectAttributeDiagnosticId = "CN0001";
 	private const string InvalidNetworkObjectAttributeDiagnosticId = "CN0002";
 	private const string NetworkObjectAttributeRequiresPartialDiagnosticId = "CN0003";
+	private const string NetworkObjectTypeDisallowsParameterizedConstructorsDiagnosticId = "CN0008";
+	private const string NetworkObjectTypeRequiresPublicParameterlessConstructorDiagnosticId = "CN0009";
 
 	private static readonly DiagnosticDescriptor MissingNetworkObjectAttributeRule = new(
 		MissingNetworkObjectAttributeDiagnosticId,
@@ -34,10 +36,28 @@ internal static class NetworkObjectAttributeAnalyzer {
 		DiagnosticSeverity.Error,
 		true);
 
+	private static readonly DiagnosticDescriptor NetworkObjectTypeDisallowsParameterizedConstructorsRule = new(
+		NetworkObjectTypeDisallowsParameterizedConstructorsDiagnosticId,
+		"NetworkObject types cannot declare parameterized constructors",
+		"Constructor '{0}' on NetworkObject type '{1}' must be parameterless",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
+	private static readonly DiagnosticDescriptor NetworkObjectTypeRequiresPublicParameterlessConstructorRule = new(
+		NetworkObjectTypeRequiresPublicParameterlessConstructorDiagnosticId,
+		"NetworkObject types require a public parameterless constructor",
+		"Type '{0}' must declare a public parameterless constructor",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
 	public static ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
 		MissingNetworkObjectAttributeRule,
 		InvalidNetworkObjectAttributeRule,
-		NetworkObjectAttributeRequiresPartialRule
+		NetworkObjectAttributeRequiresPartialRule,
+		NetworkObjectTypeDisallowsParameterizedConstructorsRule,
+		NetworkObjectTypeRequiresPublicParameterlessConstructorRule
 	];
 
 	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkObjectAttributeType) {
@@ -73,6 +93,33 @@ internal static class NetworkObjectAttributeAnalyzer {
 		if (inheritsNetworkObject && hasNetworkObjectAttribute && !NetworkAnalyzerHelpers.IsPartial(type, context.CancellationToken)) {
 			context.ReportDiagnostic(Diagnostic.Create(
 				NetworkObjectAttributeRequiresPartialRule,
+				type.Locations.FirstOrDefault(),
+				type.Name));
+		}
+
+		if (!inheritsNetworkObject || !hasNetworkObjectAttribute) {
+			return;
+		}
+
+		foreach (IMethodSymbol constructor in type.InstanceConstructors.Where(static constructor => !constructor.IsImplicitlyDeclared)) {
+			if (constructor.Parameters.Length == 0) {
+				continue;
+			}
+
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkObjectTypeDisallowsParameterizedConstructorsRule,
+				constructor.Locations.FirstOrDefault(),
+				constructor.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+				type.Name));
+		}
+
+		bool hasPublicParameterlessConstructor = type.InstanceConstructors.Any(static constructor =>
+			constructor.Parameters.Length == 0 &&
+			constructor.DeclaredAccessibility == Accessibility.Public);
+
+		if (!type.IsAbstract && !hasPublicParameterlessConstructor) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkObjectTypeRequiresPublicParameterlessConstructorRule,
 				type.Locations.FirstOrDefault(),
 				type.Name));
 		}
