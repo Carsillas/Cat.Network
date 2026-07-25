@@ -46,7 +46,7 @@ internal static class NetworkObjectPropertiesGenerator {
 	private static string PropertyInfoEntries(NetworkObjectTypeModel model) {
 		return string.Join(
 			",\n",
-			model.Properties.Select((property, index) => string.Format(
+			model.DeclaredProperties.Select((property, index) => string.Format(
 				PropertyInfoEntryTemplate,
 				model.HasBaseProperties ? $"{model.BaseTypeName}.Properties.Length" : "0",
 				index,
@@ -56,7 +56,7 @@ internal static class NetworkObjectPropertiesGenerator {
 	private static string PartialProperties(NetworkObjectTypeModel model) {
 		return string.Join(
 			"\n\n",
-			model.Properties.Select(PartialProperty));
+			model.DeclaredProperties.Select(PartialProperty));
 	}
 
 	private static string PartialProperty(NetworkPropertyModel property) {

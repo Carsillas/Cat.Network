@@ -108,21 +108,9 @@ internal static class NetworkObjectSerializerGenerator {
 			case NetworkPropertySerializationKind.UInt64:
 				return BinaryPrimitiveBody(property, "ReadUInt64LittleEndian", 8);
 			case NetworkPropertySerializationKind.Single:
-				return $$"""
-					if (valueData.Length != 4) {
-						return;
-					}
-
-					Set{{property.Name}}(typedTarget, global::System.BitConverter.Int32BitsToSingle(global::System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(valueData)));
-					""";
+				return BinaryPrimitiveBody(property, "ReadSingleLittleEndian", 4);
 			case NetworkPropertySerializationKind.Double:
-				return $$"""
-					if (valueData.Length != 8) {
-						return;
-					}
-
-					Set{{property.Name}}(typedTarget, global::System.BitConverter.Int64BitsToDouble(global::System.Buffers.Binary.BinaryPrimitives.ReadInt64LittleEndian(valueData)));
-					""";
+				return BinaryPrimitiveBody(property, "ReadDoubleLittleEndian", 8);
 			case NetworkPropertySerializationKind.String:
 				return $$"""
 					Set{{property.Name}}(typedTarget, global::System.Text.Encoding.UTF8.GetString(valueData));
@@ -166,13 +154,13 @@ internal static class NetworkObjectSerializerGenerator {
 							if (!context.TypeCatalogue.TryFindType(replacementTypeId, out global::System.Type? replacementType)) {
 								return;
 							}
-							if (!typeof({{property.TypeName}}).IsAssignableFrom(replacementType)) {
+							if (!typeof({{property.RuntimeTypeName}}).IsAssignableFrom(replacementType)) {
 								return;
 							}
 							if (!context.TypeCatalogue.TryFindSerializer(replacementType, out global::Cat.Network.INetworkObjectSerializer? replacementSerializer)) {
 								return;
 							}
-							if (global::System.Activator.CreateInstance(replacementType) is not {{property.TypeName}} replacementTarget) {
+							if (global::System.Activator.CreateInstance(replacementType) is not {{property.RuntimeTypeName}} replacementTarget) {
 								return;
 							}
 
@@ -206,10 +194,10 @@ internal static class NetworkObjectSerializerGenerator {
 	private static string AccessorMethods(NetworkObjectTypeModel model, NetworkPropertyModel property) {
 		return $$"""
 			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "get_{{property.Name}}")]
-			private static extern {{property.TypeName}} Get{{property.Name}}({{model.FullyQualifiedName}} target);
+			private static extern {{property.TypeName}} Get{{property.Name}}({{property.DeclaringTypeName}} target);
 
 			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "set_{{property.Name}}")]
-			private static extern void Set{{property.Name}}({{model.FullyQualifiedName}} target, {{property.TypeName}} value);
+			private static extern void Set{{property.Name}}({{property.DeclaringTypeName}} target, {{property.TypeName}} value);
 			""";
 	}
 

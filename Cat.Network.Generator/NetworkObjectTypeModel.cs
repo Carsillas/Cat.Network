@@ -16,7 +16,7 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
 		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-	private NetworkObjectTypeModel(string @namespace, string typeName, string fullyQualifiedName, string baseTypeName, bool hasBaseProperties, string hintName, string serializerHintName, string accessibility, string serializerTypeName, string typeId, ImmutableArray<NetworkPropertyModel> properties) {
+	private NetworkObjectTypeModel(string @namespace, string typeName, string fullyQualifiedName, string baseTypeName, bool hasBaseProperties, string hintName, string serializerHintName, string accessibility, string serializerTypeName, string typeId, ImmutableArray<NetworkPropertyModel> declaredProperties, ImmutableArray<NetworkPropertyModel> properties) {
 		Namespace = @namespace;
 		TypeName = typeName;
 		FullyQualifiedName = fullyQualifiedName;
@@ -27,6 +27,7 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		Accessibility = accessibility;
 		SerializerTypeName = serializerTypeName;
 		TypeId = typeId;
+		DeclaredProperties = declaredProperties;
 		Properties = properties;
 	}
 
@@ -50,6 +51,8 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 
 	public string TypeId { get; }
 
+	public ImmutableArray<NetworkPropertyModel> DeclaredProperties { get; }
+
 	public ImmutableArray<NetworkPropertyModel> Properties { get; }
 
 	public static NetworkObjectTypeModel Create(INamedTypeSymbol type) {
@@ -67,13 +70,15 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		string serializerTypeName = $"__CatNetwork_{typeName}_Serializer";
 		string serializerHintName = $"{hintName}_Serializer";
 		string typeId = CreateStableTypeId(type);
-		ImmutableArray<NetworkPropertyModel> properties = type.GetMembers()
+		ImmutableArray<NetworkPropertyModel> declaredProperties = type.GetMembers()
 			.OfType<IPropertySymbol>()
 			.Where(HasNetworkPropertyAttribute)
+			.OrderBy(static property => property.Name, StringComparer.Ordinal)
 			.Select(NetworkPropertyModel.Create)
 			.ToImmutableArray();
+		ImmutableArray<NetworkPropertyModel> properties = GetPropertiesInSerializationOrder(type);
 
-		return new NetworkObjectTypeModel(@namespace, typeName, fullyQualifiedName, baseTypeName, hasBaseProperties, hintName, serializerHintName, GetAccessibility(type.DeclaredAccessibility), serializerTypeName, typeId, properties);
+		return new NetworkObjectTypeModel(@namespace, typeName, fullyQualifiedName, baseTypeName, hasBaseProperties, hintName, serializerHintName, GetAccessibility(type.DeclaredAccessibility), serializerTypeName, typeId, declaredProperties, properties);
 	}
 
 	public bool Equals(NetworkObjectTypeModel? other) {
@@ -88,6 +93,7 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		       Accessibility == other.Accessibility &&
 		       SerializerTypeName == other.SerializerTypeName &&
 		       TypeId == other.TypeId &&
+		       DeclaredProperties.SequenceEqual(other.DeclaredProperties) &&
 		       Properties.SequenceEqual(other.Properties);
 	}
 
@@ -107,6 +113,7 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 			hashCode = (hashCode * 397) ^ Accessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ SerializerTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ TypeId.GetHashCode();
+			foreach (NetworkPropertyModel property in DeclaredProperties) hashCode = (hashCode * 397) ^ property.GetHashCode();
 			foreach (NetworkPropertyModel property in Properties) hashCode = (hashCode * 397) ^ property.GetHashCode();
 
 			return hashCode;
@@ -116,6 +123,34 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 	private static bool HasNetworkPropertyAttribute(IPropertySymbol property) {
 		return property.GetAttributes().Any(attribute =>
 			attribute.AttributeClass?.ToDisplayString() == NetworkPropertyAttributeMetadataName);
+	}
+
+	private static ImmutableArray<NetworkPropertyModel> GetPropertiesInSerializationOrder(INamedTypeSymbol type) {
+		ImmutableArray<INamedTypeSymbol> inheritanceChain = GetInheritanceChain(type);
+		return inheritanceChain
+			.SelectMany(currentType => currentType
+				.GetMembers()
+				.OfType<IPropertySymbol>()
+				.Where(HasNetworkPropertyAttribute)
+				.OrderBy(static property => property.Name, StringComparer.Ordinal)
+				.Select(NetworkPropertyModel.Create))
+			.ToImmutableArray();
+	}
+
+	private static ImmutableArray<INamedTypeSymbol> GetInheritanceChain(INamedTypeSymbol type) {
+		ImmutableStack<INamedTypeSymbol> stack = ImmutableStack<INamedTypeSymbol>.Empty;
+
+		for (INamedTypeSymbol? current = type; current is not null && current.SpecialType != SpecialType.System_Object; current = current.BaseType) {
+			stack = stack.Push(current);
+		}
+
+		ImmutableArray<INamedTypeSymbol>.Builder builder = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+		while (!stack.IsEmpty) {
+			builder.Add(stack.Peek());
+			stack = stack.Pop();
+		}
+
+		return builder.ToImmutable();
 	}
 
 	private static string CreateStableTypeId(INamedTypeSymbol type) {

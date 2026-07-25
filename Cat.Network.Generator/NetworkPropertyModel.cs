@@ -10,8 +10,15 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
 		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-	private NetworkPropertyModel(string typeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, NetworkPropertySerializationKind serializationKind) {
+	private static readonly SymbolDisplayFormat FullyQualifiedNonNullableTypeFormat = new(
+		SymbolDisplayGlobalNamespaceStyle.Included,
+		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
+		SymbolDisplayGenericsOptions.IncludeTypeParameters);
+
+	private NetworkPropertyModel(string typeName, string runtimeTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, NetworkPropertySerializationKind serializationKind) {
 		TypeName = typeName;
+		RuntimeTypeName = runtimeTypeName;
+		DeclaringTypeName = declaringTypeName;
 		Name = name;
 		Accessibility = accessibility;
 		GetterAccessibility = getterAccessibility;
@@ -20,6 +27,10 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 	}
 
 	public string TypeName { get; }
+
+	public string RuntimeTypeName { get; }
+
+	public string DeclaringTypeName { get; }
 
 	public string Name { get; }
 
@@ -34,6 +45,8 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 	public static NetworkPropertyModel Create(IPropertySymbol property) {
 		return new NetworkPropertyModel(
 			property.Type.ToDisplayString(FullyQualifiedTypeFormat),
+			property.Type.WithNullableAnnotation(NullableAnnotation.NotAnnotated).ToDisplayString(FullyQualifiedNonNullableTypeFormat),
+			property.ContainingType.ToDisplayString(FullyQualifiedTypeFormat),
 			property.Name,
 			GetAccessibility(property.DeclaredAccessibility),
 			GetAccessorAccessibility(property, property.GetMethod),
@@ -44,6 +57,8 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 	public bool Equals(NetworkPropertyModel? other) {
 		return other is not null &&
 		       TypeName == other.TypeName &&
+		       RuntimeTypeName == other.RuntimeTypeName &&
+		       DeclaringTypeName == other.DeclaringTypeName &&
 		       Name == other.Name &&
 		       Accessibility == other.Accessibility &&
 		       GetterAccessibility == other.GetterAccessibility &&
@@ -58,6 +73,8 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 	public override int GetHashCode() {
 		unchecked {
 			int hashCode = TypeName.GetHashCode();
+			hashCode = (hashCode * 397) ^ RuntimeTypeName.GetHashCode();
+			hashCode = (hashCode * 397) ^ DeclaringTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ Name.GetHashCode();
 			hashCode = (hashCode * 397) ^ Accessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ GetterAccessibility.GetHashCode();

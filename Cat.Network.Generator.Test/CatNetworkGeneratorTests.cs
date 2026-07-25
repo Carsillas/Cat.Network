@@ -39,7 +39,7 @@ public sealed class CatNetworkGeneratorTests {
 		                      namespace Game;
 
 		                      [NetworkObjectAttribute]
-		                      public partial class Root {
+		                      public partial class Root : NetworkObject {
 		                      	[NetworkProperty]
 		                      	public partial int Health { get; set; }
 		                      }
@@ -59,9 +59,9 @@ public sealed class CatNetworkGeneratorTests {
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
 			Assert.That(runResult.GeneratedTrees, Has.Length.EqualTo(2));
-			Assert.That(generatedSource, Does.Contain("protected static global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties { get; } = ["));
+			Assert.That(generatedSource, Does.Contain("protected static new global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties { get; } = ["));
 			Assert.That(generatedSource, Does.Not.Contain("..global::System.Object.Properties"));
-			Assert.That(generatedSource, Does.Contain("Index = 0 + 0"));
+			Assert.That(generatedSource, Does.Contain("Index = global::Cat.Network.NetworkObject.Properties.Length + 0"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
 	}
@@ -164,6 +164,53 @@ public sealed class CatNetworkGeneratorTests {
 	}
 
 	[Test]
+	public void GeneratedDerivedSerializerHandlesInheritedNetworkProperties() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Actor : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial int Health { get; set; }
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : Actor {
+		                      	[NetworkProperty]
+		                      	public partial int Mana { get; set; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string playerSerializerSource = runResult.GeneratedTrees
+			.Where(tree => tree.FilePath.Contains("Game_Player_Serializer", StringComparison.Ordinal))
+			.Select(tree => tree.GetText().ToString())
+			.Single();
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(playerSerializerSource, Does.Contain("case 0:"));
+			Assert.That(playerSerializerSource, Does.Contain("DeserializeHealth(typedTarget, valueData, context);"));
+			Assert.That(playerSerializerSource, Does.Contain("case 1:"));
+			Assert.That(playerSerializerSource, Does.Contain("DeserializeMana(typedTarget, valueData, context);"));
+			Assert.That(playerSerializerSource, Does.Contain("private static void DeserializeHealth(global::Game.Player typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context)"));
+			Assert.That(playerSerializerSource, Does.Contain("private static extern void SetHealth(global::Game.Actor target, global::System.Int32 value);"));
+			Assert.That(playerSerializerSource, Does.Contain("private static void DeserializeMana(global::Game.Player typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context)"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
 	public void GeneratedPropertiesPreservePropertyAndAccessorAccessibility() {
 		const string source = """
 		                      using Cat.Network;
@@ -243,7 +290,7 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(generatedSource, Does.Contain("global::Game.Child? currentTarget = GetChild(typedTarget);"));
 			Assert.That(generatedSource, Does.Contain("context.TypeCatalogue.TryFindSerializer(currentTarget.GetType(), out global::Cat.Network.INetworkObjectSerializer? nestedSerializer)"));
 			Assert.That(generatedSource, Does.Contain("context.TypeCatalogue.TryFindType(replacementTypeId, out global::System.Type? replacementType)"));
-			Assert.That(generatedSource, Does.Contain("global::System.Activator.CreateInstance(replacementType) is not global::Game.Child? replacementTarget"));
+			Assert.That(generatedSource, Does.Contain("global::System.Activator.CreateInstance(replacementType)is not global::Game.Child replacementTarget"));
 			Assert.That(generatedSource, Does.Contain("Name = \"get_Child\""));
 			Assert.That(generatedSource, Does.Contain("Name = \"set_Child\""));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
