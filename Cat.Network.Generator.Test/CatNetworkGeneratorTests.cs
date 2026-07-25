@@ -556,8 +556,11 @@ public sealed class CatNetworkGeneratorTests {
 		int startIndex = source.IndexOf(startMarker, StringComparison.Ordinal);
 		Assert.That(startIndex, Is.GreaterThanOrEqualTo(0), $"Could not find tail start marker: {startMarker}");
 
-		int classCloseIndex = source.LastIndexOf('}');
-		Assert.That(classCloseIndex, Is.GreaterThan(startIndex), "Could not find enclosing class close brace.");
+		int helperIndex = source.IndexOf("private static void WriteByte(", startIndex, StringComparison.Ordinal);
+		int classCloseIndex = helperIndex >= 0
+			? helperIndex
+			: source.LastIndexOf('}');
+		Assert.That(classCloseIndex, Is.GreaterThan(startIndex), "Could not find tail block end.");
 
 		return source[startIndex..classCloseIndex];
 	}

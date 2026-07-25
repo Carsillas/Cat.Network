@@ -6,6 +6,167 @@ namespace Cat.Network.Test;
 
 public sealed class SerializerRuntimeTests {
 	[Test]
+	public void RoundTrip_PrimitiveState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
+		PrimitiveState original = new(42, "Mira");
+
+		AssertRoundTripSerializationEquals(original, new PrimitiveState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_NullableState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(NullableState));
+		NullableState original = new(99, new Guid("00112233-4455-6677-8899-aabbccddeeff"));
+
+		AssertRoundTripSerializationEquals(original, new NullableState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_PlayerState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(PlayerState));
+		PlayerState original = new(30, 12);
+
+		AssertRoundTripSerializationEquals(original, new PlayerState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_StructState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(StructState));
+		StructState original = new() {
+			PreviousStats = new Stats {
+				Accuracy = 0.5f,
+				Details = new DetailStats {
+					CriticalChance = 1.5d,
+					UltraDetails = null
+				},
+				Health = 3,
+				Name = "Before",
+				SessionId = null
+			},
+			Stats = new Stats {
+				Accuracy = 1.5f,
+				Details = new DetailStats {
+					CriticalChance = 2.5d,
+					UltraDetails = new UltraDetailedStats {
+						Vision = 3.5d
+					}
+				},
+				Health = 7,
+				Name = "Ada",
+				SessionId = new Guid("8899aabb-ccdd-eeff-0011-223344556677")
+			}
+		};
+
+		AssertRoundTripSerializationEquals(original, new StructState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_ParentState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ParentState), typeof(ChildState), typeof(ReplacementChildState));
+		ParentState original = new(new ReplacementChildState(5, 9));
+
+		AssertRoundTripSerializationEquals(original, new ParentState(), catalogue);
+	}
+
+	[Test]
+	public void Serialize_PrimitiveAndStringProperties_InIndexMode() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
+		PrimitiveState target = new(42, "Mira");
+
+		byte[] payload = Serialize(target, catalogue);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, Int32(42)),
+			BuildIndexField(1, Utf8("Mira")))));
+	}
+
+	[Test]
+	public void Serialize_PrimitiveAndStringProperties_InNameMode() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
+		PrimitiveState target = new(42, "Mira");
+
+		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Name);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			MemberIdentificationMode.Name,
+			BuildNameField("Health", Int32(42)),
+			BuildNameField("Name", Utf8("Mira")))));
+	}
+
+	[Test]
+	public void Serialize_NullableValueTypes() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(NullableState));
+		Guid sessionId = new("00112233-4455-6677-8899-aabbccddeeff");
+		NullableState target = new(99, sessionId);
+
+		byte[] payload = Serialize(target, catalogue);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, NullableValue(Int32(99))),
+			BuildIndexField(1, NullableValue(GuidBytes(sessionId))))));
+
+		byte[] nullPayload = Serialize(new NullableState(null, null), catalogue);
+
+		Assert.That(nullPayload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, NullValue()),
+			BuildIndexField(1, NullValue()))));
+	}
+
+	[Test]
+	public void Serialize_NestedStructs_AndNullableNestedStructs() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(StructState));
+		Guid sessionId = new("8899aabb-ccdd-eeff-0011-223344556677");
+		StructState target = new() {
+			PreviousStats = null,
+			Stats = new Stats {
+				Accuracy = 1.5f,
+				Details = new DetailStats {
+					CriticalChance = 2.5d,
+					UltraDetails = new UltraDetailedStats {
+						Vision = 3.5d
+					}
+				},
+				Health = 7,
+				Name = "Ada",
+				SessionId = sessionId
+			}
+		};
+
+		byte[] payload = Serialize(target, catalogue);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, NullValue()),
+			BuildIndexField(1, BuildStatsPayload(
+				accuracy: 1.5f,
+				criticalChance: 2.5d,
+				ultraVision: 3.5d,
+				health: 7,
+				name: "Ada",
+				sessionId: sessionId)))));
+	}
+
+	[Test]
+	public void Serialize_NetworkObject_UsesReplaceAndClear() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ParentState), typeof(ChildState), typeof(ReplacementChildState));
+		Guid replacementTypeId = GetTypeId(typeof(ReplacementChildState));
+		ParentState target = new(new ReplacementChildState(5, 9));
+
+		byte[] payload = Serialize(target, catalogue);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, ReplaceObject(
+				replacementTypeId,
+				BuildObjectPayload(
+					BuildIndexField(0, Int32(5)),
+					BuildIndexField(1, Int32(9))))))));
+
+		byte[] clearPayload = Serialize(new ParentState(null), catalogue);
+
+		Assert.That(clearPayload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, ClearObject()))));
+	}
+
+	[Test]
 	public void Deserialize_PrimitiveAndStringProperties_InIndexMode() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
 		PrimitiveState target = new();
@@ -185,6 +346,22 @@ public sealed class SerializerRuntimeTests {
 		serializer!.Deserialize(target, payload, new SerializationContext(catalogue));
 	}
 
+	private static void AssertRoundTripSerializationEquals<T>(T original, T roundTripTarget, TypeCatalogue catalogue)
+		where T : NetworkObject {
+		byte[] firstPayload = Serialize(original, catalogue);
+		Deserialize(roundTripTarget, catalogue, firstPayload);
+		byte[] secondPayload = Serialize(roundTripTarget, catalogue);
+
+		Assert.That(secondPayload, Is.EqualTo(firstPayload));
+	}
+
+	private static byte[] Serialize(NetworkObject target, TypeCatalogue catalogue, MemberIdentificationMode memberIdentificationMode = MemberIdentificationMode.Index) {
+		Assert.That(catalogue.TryFindSerializer(target.GetType(), out INetworkObjectSerializer? serializer), Is.True);
+		BufferWriter writer = new();
+		serializer!.Serialize(writer, target, new SerializationContext(catalogue), new SerializationOptions(MemberSelectionMode.All, memberIdentificationMode));
+		return writer.GetWrittenSpan().ToArray();
+	}
+
 	private static TypeCatalogue RegisterTypes(params Type[] types) {
 		TypeCatalogue catalogue = new();
 		foreach (Type type in types) {
@@ -202,14 +379,23 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	private static byte[] BuildObjectPayload(params byte[][] fields) {
+		return BuildObjectPayload(MemberIdentificationMode.Index, fields);
+	}
+
+	private static byte[] BuildObjectPayload(MemberIdentificationMode memberIdentificationMode, params byte[][] fields) {
 		return Concat(
-			new[] { (byte)MemberIdentificationMode.Index },
+			new[] { (byte)memberIdentificationMode },
 			UInt16((ushort)fields.Length),
 			Concat(fields));
 	}
 
 	private static byte[] BuildIndexField(ushort index, byte[] value) {
 		return Concat(UInt16(index), UInt32((uint)value.Length), value);
+	}
+
+	private static byte[] BuildNameField(string name, byte[] value) {
+		byte[] nameBytes = Utf8(name);
+		return Concat(UInt32((uint)nameBytes.Length), nameBytes, UInt32((uint)value.Length), value);
 	}
 
 	private static byte[] BuildStatsPayload(float accuracy, double criticalChance, double? ultraVision, int health, string name, Guid? sessionId) {

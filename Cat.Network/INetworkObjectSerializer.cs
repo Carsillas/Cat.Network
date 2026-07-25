@@ -1,6 +1,6 @@
 namespace Cat.Network;
 
 public interface INetworkObjectSerializer {
-	void Serialize(NetworkObject target);
+	void Serialize(BufferWriter writer, NetworkObject target, SerializationContext context, SerializationOptions options);
 	void Deserialize(NetworkObject target, ReadOnlySpan<byte> data, SerializationContext context);
 }
