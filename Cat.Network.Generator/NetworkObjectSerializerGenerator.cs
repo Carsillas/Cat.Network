@@ -55,11 +55,7 @@ internal static class NetworkObjectSerializerGenerator {
 			model.Properties.Select(property => DeserializeMethod(model, property)));
 	}
 
-	private static string AccessorMethods(NetworkObjectTypeModel model) {
-		return string.Join(
-			"\n\n",
-			model.Properties.Select(property => AccessorMethods(model, property)));
-	}
+	private static string AccessorMethods(NetworkObjectTypeModel model) => string.Join("\n\n", model.Properties.Select(AccessorMethods));
 
 	private static string DeserializeMethod(NetworkObjectTypeModel model, NetworkPropertyModel property) {
 		return $$"""
@@ -191,7 +187,7 @@ internal static class NetworkObjectSerializerGenerator {
 			""";
 	}
 
-	private static string AccessorMethods(NetworkObjectTypeModel model, NetworkPropertyModel property) {
+	private static string AccessorMethods(NetworkPropertyModel property) {
 		return $$"""
 			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "get_{{property.Name}}")]
 			private static extern {{property.TypeName}} Get{{property.Name}}({{property.DeclaringTypeName}} target);
