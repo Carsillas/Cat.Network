@@ -60,7 +60,7 @@ internal static class NetworkObjectSerializerGenerator {
 	private static string DeserializeMethod(NetworkObjectTypeModel model, NetworkPropertyModel property) {
 		return $$"""
 			private static void Deserialize{{property.Name}}({{model.FullyQualifiedName}} typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context) {
-			{{DeserializePropertyBody(property)}}
+			{{MaybeWrapNullableValueType(property, DeserializePropertyBody(property))}}
 			}
 			""";
 	}
@@ -119,6 +119,8 @@ internal static class NetworkObjectSerializerGenerator {
 
 					Set{{property.Name}}(typedTarget, new global::System.Guid(valueData));
 					""";
+			case NetworkPropertySerializationKind.Struct:
+				return DeserializeStructBody(property);
 			case NetworkPropertySerializationKind.NetworkObject:
 				return $$"""
 					if (valueData.Length < 1) {
@@ -184,6 +186,203 @@ internal static class NetworkObjectSerializerGenerator {
 			}
 
 			Set{{property.Name}}(typedTarget, global::System.Buffers.Binary.BinaryPrimitives.{{binaryPrimitiveMethod}}(valueData));
+			""";
+	}
+
+	private static string DeserializeStructBody(NetworkPropertyModel property) {
+		string fieldBodies = string.Join(
+			"\n\n",
+			property.StructFields.Select(field => DeserializeStructFieldBody(field, "structValue", "__" + field.Name)));
+
+		return $$"""
+			{{property.RuntimeTypeName}} structValue = default;
+
+			{{fieldBodies}}
+
+			if (!valueData.IsEmpty) {
+				return;
+			}
+
+			Set{{property.Name}}(typedTarget, structValue);
+			""";
+	}
+
+	private static string DeserializeStructFieldBody(NetworkStructFieldModel field, string targetExpression, string fieldPath) {
+		return $$"""
+			{
+			{{DeserializeStructFieldBlock(field, targetExpression, fieldPath)}}
+			}
+			""";
+	}
+
+	private static string DeserializeStructFieldBlock(NetworkStructFieldModel field, string targetExpression, string fieldPath) {
+		if (field.IsNullableValueType) {
+			if (field.SerializationKind == NetworkPropertySerializationKind.Struct) {
+				string nestedBody = string.Join(
+					"\n\n",
+					field.StructFields.Select(nestedField => DeserializeStructFieldBody(nestedField, fieldPath, fieldPath + "__" + nestedField.Name)));
+
+				return $$"""
+					if (valueData.Length < 1) {
+						return;
+					}
+
+					byte has{{field.Name}}Value = valueData[0];
+					valueData = valueData[1..];
+					switch (has{{field.Name}}Value) {
+						case 0:
+							{{targetExpression}}.{{field.Name}} = null;
+							break;
+						case 1:
+							{{field.RuntimeTypeName}} {{fieldPath}} = default;
+
+							{{nestedBody}}
+
+							{{targetExpression}}.{{field.Name}} = {{fieldPath}};
+							break;
+						default:
+							return;
+					}
+					""";
+			}
+
+			return $$"""
+				if (valueData.Length < 1) {
+					return;
+				}
+
+				byte has{{field.Name}}Value = valueData[0];
+				valueData = valueData[1..];
+				switch (has{{field.Name}}Value) {
+					case 0:
+						{{targetExpression}}.{{field.Name}} = null;
+						break;
+					case 1:
+						{{DeserializeNonNullableStructFieldAssignment(field, targetExpression)}}
+						break;
+					default:
+						return;
+				}
+				""";
+		}
+
+		if (field.SerializationKind == NetworkPropertySerializationKind.Struct) {
+			string nestedBody = string.Join(
+				"\n\n",
+				field.StructFields.Select(nestedField => DeserializeStructFieldBody(nestedField, fieldPath, fieldPath + "__" + nestedField.Name)));
+
+			return $$"""
+				{{field.RuntimeTypeName}} {{fieldPath}} = default;
+
+				{{nestedBody}}
+
+				{{targetExpression}}.{{field.Name}} = {{fieldPath}};
+				""";
+		}
+
+		return DeserializeNonNullableStructFieldAssignment(field, targetExpression);
+	}
+
+	private static string DeserializeNonNullableStructFieldAssignment(NetworkStructFieldModel field, string targetExpression) {
+		return field.SerializationKind switch {
+			NetworkPropertySerializationKind.Boolean => $$"""
+				if (valueData.Length < 1) {
+					return;
+				}
+
+				{{targetExpression}}.{{field.Name}} = valueData[0] != 0;
+				valueData = valueData[1..];
+				""",
+			NetworkPropertySerializationKind.Byte => $$"""
+				if (valueData.Length < 1) {
+					return;
+				}
+
+				{{targetExpression}}.{{field.Name}} = valueData[0];
+				valueData = valueData[1..];
+				""",
+			NetworkPropertySerializationKind.SByte => $$"""
+				if (valueData.Length < 1) {
+					return;
+				}
+
+				{{targetExpression}}.{{field.Name}} = unchecked((sbyte)valueData[0]);
+				valueData = valueData[1..];
+				""",
+			NetworkPropertySerializationKind.Int16 => StructBinaryPrimitiveBody(field, targetExpression, "ReadInt16LittleEndian", 2),
+			NetworkPropertySerializationKind.UInt16 => StructBinaryPrimitiveBody(field, targetExpression, "ReadUInt16LittleEndian", 2),
+			NetworkPropertySerializationKind.Int32 => StructBinaryPrimitiveBody(field, targetExpression, "ReadInt32LittleEndian", 4),
+			NetworkPropertySerializationKind.UInt32 => StructBinaryPrimitiveBody(field, targetExpression, "ReadUInt32LittleEndian", 4),
+			NetworkPropertySerializationKind.Int64 => StructBinaryPrimitiveBody(field, targetExpression, "ReadInt64LittleEndian", 8),
+			NetworkPropertySerializationKind.UInt64 => StructBinaryPrimitiveBody(field, targetExpression, "ReadUInt64LittleEndian", 8),
+			NetworkPropertySerializationKind.Single => StructBinaryPrimitiveBody(field, targetExpression, "ReadSingleLittleEndian", 4),
+			NetworkPropertySerializationKind.Double => StructBinaryPrimitiveBody(field, targetExpression, "ReadDoubleLittleEndian", 8),
+			NetworkPropertySerializationKind.String => $$"""
+				if (valueData.Length < 4) {
+					return;
+				}
+
+				uint stringByteCount = global::System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(valueData);
+				valueData = valueData[4..];
+				if (valueData.Length < stringByteCount) {
+					return;
+				}
+
+				{{targetExpression}}.{{field.Name}} = global::System.Text.Encoding.UTF8.GetString(valueData[..(int)stringByteCount]);
+				valueData = valueData[(int)stringByteCount..];
+				""",
+			NetworkPropertySerializationKind.Guid => $$"""
+				if (valueData.Length < 16) {
+					return;
+				}
+
+				{{targetExpression}}.{{field.Name}} = new global::System.Guid(valueData[..16]);
+				valueData = valueData[16..];
+				""",
+			_ => """
+				return;
+				"""
+		};
+	}
+
+	private static string StructBinaryPrimitiveBody(NetworkStructFieldModel field, string targetExpression, string binaryPrimitiveMethod, int byteLength) {
+		return $$"""
+			if (valueData.Length < {{byteLength}}) {
+				return;
+			}
+
+			{{targetExpression}}.{{field.Name}} = global::System.Buffers.Binary.BinaryPrimitives.{{binaryPrimitiveMethod}}(valueData);
+			valueData = valueData[{{byteLength}}..];
+			""";
+	}
+
+	private static string MaybeWrapNullableValueType(NetworkPropertyModel property, string body) {
+		if (!property.IsNullableValueType) {
+			return body;
+		}
+
+		return $$"""
+			if (valueData.Length < 1) {
+				return;
+			}
+
+			byte hasValue = valueData[0];
+			valueData = valueData[1..];
+			switch (hasValue) {
+				case 0:
+					if (valueData.Length != 0) {
+						return;
+					}
+
+					Set{{property.Name}}(typedTarget, null);
+					return;
+				case 1:
+					break;
+				default:
+					return;
+			}
+
+			{{body}}
 			""";
 	}
 

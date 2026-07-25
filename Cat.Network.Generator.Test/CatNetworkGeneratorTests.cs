@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -89,33 +91,42 @@ public sealed class CatNetworkGeneratorTests {
 			out ImmutableArray<Diagnostic> generatorDiagnostics);
 
 		GeneratorDriverRunResult runResult = driver.GetRunResult();
-		string generatedSource = string.Join(Environment.NewLine, runResult.GeneratedTrees.Select(tree => tree.GetText().ToString()));
+		string propertySource = GetGeneratedSource(runResult, "Game_Player.g.cs");
+		string serializerSource = GetGeneratedSource(runResult, "Game_Player_Serializer.g.cs");
+		string expectedPropertyBlock = """
+			protected static new global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties { get; } = [..global::Cat.Network.NetworkObject.Properties, new global::Cat.Network.NetworkPropertyInfo
+			{
+				Index = global::Cat.Network.NetworkObject.Properties.Length + 0,
+				Name = nameof(Health),
+				EncodedName = global::System.Collections.Immutable.ImmutableArray.Create(global::System.Text.Encoding.UTF8.GetBytes(nameof(Health)))
+			}
+			];
+			""";
+		string expectedDeserializeHealthBlock = """
+			private static void DeserializeHealth(global::Game.Player typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context)
+			{
+				if (valueData.Length != 4)
+				{
+					return;
+				}
+				SetHealth(typedTarget, global::System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(valueData));
+			}
+			""";
+		string expectedAccessorBlock = """
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "get_Health")]
+			private static extern global::System.Int32 GetHealth(global::Game.Player target);
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "set_Health")]
+			private static extern void SetHealth(global::Game.Player target, global::System.Int32 value);
+			""";
 
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
 			Assert.That(runResult.GeneratedTrees, Has.Length.EqualTo(2));
-			Assert.That(generatedSource, Does.Contain("namespace Game;"));
-			Assert.That(generatedSource, Does.Contain("public partial class Player"));
-			Assert.That(generatedSource, Does.Contain("// Player"));
-			Assert.That(generatedSource, Does.Contain("protected static new global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties { get; } = ["));
-			Assert.That(generatedSource, Does.Contain("..global::Cat.Network.NetworkObject.Properties"));
-			Assert.That(generatedSource, Does.Contain("Index = global::Cat.Network.NetworkObject.Properties.Length + 0"));
-			Assert.That(generatedSource, Does.Contain("Name = nameof(Health)"));
-			Assert.That(generatedSource, Does.Contain("EncodedName = global::System.Collections.Immutable.ImmutableArray.Create(global::System.Text.Encoding.UTF8.GetBytes(nameof(Health)))"));
-			Assert.That(generatedSource, Does.Contain("public partial global::System.Int32 Health"));
-			Assert.That(generatedSource, Does.Contain("get => field;"));
-			Assert.That(generatedSource, Does.Contain("set => field = value;"));
-			Assert.That(generatedSource, Does.Contain("internal sealed class __CatNetwork_Player_Serializer : global::Cat.Network.INetworkObjectSerializer"));
-			Assert.That(generatedSource, Does.Contain("public void Deserialize(global::Cat.Network.NetworkObject target, global::System.ReadOnlySpan<byte> data, global::Cat.Network.SerializationContext context)"));
-			Assert.That(generatedSource, Does.Contain("global::Cat.Network.MemberIdentificationMode memberIdentificationMode"));
-			Assert.That(generatedSource, Does.Contain("global::System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(data)"));
-			Assert.That(generatedSource, Does.Contain("global::System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(data)"));
-			Assert.That(generatedSource, Does.Contain("private static void DeserializeHealth(global::Game.Player typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context)"));
-			Assert.That(generatedSource, Does.Contain("case \"Health\":"));
-			Assert.That(generatedSource, Does.Contain("Name = \"get_Health\""));
-			Assert.That(generatedSource, Does.Contain("Name = \"set_Health\""));
-			Assert.That(generatedSource, Does.Contain("private static extern global::System.Int32 GetHealth(global::Game.Player target);"));
-			Assert.That(generatedSource, Does.Contain("private static extern void SetHealth(global::Game.Player target, global::System.Int32 value);"));
+			Assert.That(propertySource, Does.Contain($"[global::Cat.Network.NetworkObjectTypeId(\"{CreateStableTypeId("global::Game.Player")}\")]"));
+			Assert.That(propertySource, Does.Contain("[global::Cat.Network.NetworkObjectSerializerAttribute<__CatNetwork_Player_Serializer>]"));
+			AssertGeneratedSourceEqual(expectedPropertyBlock, ExtractStatementBlock(propertySource, "protected static new global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties", "];"));
+			AssertGeneratedSourceEqual(expectedDeserializeHealthBlock, ExtractMemberBlock(serializerSource, "private static void DeserializeHealth("));
+			AssertGeneratedSourceEqual(expectedAccessorBlock, ExtractTailBlock(serializerSource, "[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_Health\")]"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
 	}
@@ -297,6 +308,163 @@ public sealed class CatNetworkGeneratorTests {
 		});
 	}
 
+	[Test]
+	public void GeneratedSerializerIncludesNullableValueTypeHandling() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Player : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial int? Health { get; set; }
+
+		                      	[NetworkProperty]
+		                      	public partial global::System.Guid? SessionId { get; set; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string serializerSource = GetGeneratedSource(runResult, "Game_Player_Serializer.g.cs");
+		string expectedNullableHealthBlock = """
+			private static void DeserializeHealth(global::Game.Player typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context)
+			{
+				if (valueData.Length < 1)
+				{
+					return;
+				}
+				byte hasValue = valueData[0];
+				valueData = valueData[1..];
+				switch (hasValue)
+				{
+					case 0:
+						if (valueData.Length != 0)
+						{
+							return;
+						}
+						SetHealth(typedTarget, null);
+						return;
+					case 1:
+						break;
+					default:
+						return;
+				}
+				if (valueData.Length != 4)
+				{
+					return;
+				}
+				SetHealth(typedTarget, global::System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(valueData));
+			}
+			""";
+		string expectedNullableSessionIdBlock = """
+			private static void DeserializeSessionId(global::Game.Player typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context)
+			{
+				if (valueData.Length < 1)
+				{
+					return;
+				}
+				byte hasValue = valueData[0];
+				valueData = valueData[1..];
+				switch (hasValue)
+				{
+					case 0:
+						if (valueData.Length != 0)
+						{
+							return;
+						}
+						SetSessionId(typedTarget, null);
+						return;
+					case 1:
+						break;
+					default:
+						return;
+				}
+				if (valueData.Length != 16)
+				{
+					return;
+				}
+				SetSessionId(typedTarget, new global::System.Guid(valueData));
+			}
+			""";
+		string expectedNullableAccessorTail = """
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "get_Health")]
+			private static extern global::System.Int32? GetHealth(global::Game.Player target);
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "set_Health")]
+			private static extern void SetHealth(global::Game.Player target, global::System.Int32? value);
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "get_SessionId")]
+			private static extern global::System.Guid? GetSessionId(global::Game.Player target);
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "set_SessionId")]
+			private static extern void SetSessionId(global::Game.Player target, global::System.Guid? value);
+			""";
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			AssertGeneratedSourceEqual(expectedNullableHealthBlock, ExtractMemberBlock(serializerSource, "private static void DeserializeHealth("));
+			AssertGeneratedSourceEqual(expectedNullableSessionIdBlock, ExtractMemberBlock(serializerSource, "private static void DeserializeSessionId("));
+			AssertGeneratedSourceEqual(expectedNullableAccessorTail, ExtractTailBlock(serializerSource, "[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_Health\")]"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
+	public void GeneratedSerializerIncludesStructAndNullableStructHandling() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      public struct UltraDetailedStats {
+		                        public double Vision;
+		                      }
+		                      
+		                      public struct DetailStats {
+		                      	public double CriticalChance;
+		                      	public UltraDetailedStats UltraDetails;
+		                      }
+
+		                      public struct Stats {
+		                        public int Health;
+		                      	public float Accuracy;
+		                      	
+		                      	public DetailStats Details;
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Player : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial Stats Stats { get; set; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string generatedSource = string.Join(Environment.NewLine, runResult.GeneratedTrees.Select(tree => tree.GetText().ToString()));
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+
+			
+			
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
 	private static CSharpCompilation CreateCompilation(string source) {
 		SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(source);
 		IEnumerable<MetadataReference> references = GetMetadataReferences();
@@ -314,5 +482,96 @@ public sealed class CatNetworkGeneratorTests {
 		foreach (string assemblyPath in trustedPlatformAssemblies.Split(Path.PathSeparator)) yield return MetadataReference.CreateFromFile(assemblyPath);
 
 		yield return MetadataReference.CreateFromFile(typeof(NetworkObject).Assembly.Location);
+	}
+
+	private static string GetGeneratedSource(GeneratorDriverRunResult runResult, string filePathContains) {
+		return runResult.GeneratedTrees
+			.Where(tree => tree.FilePath.Contains(filePathContains, StringComparison.Ordinal))
+			.Select(tree => tree.GetText().ToString())
+			.Single();
+	}
+
+	private static void AssertGeneratedSourceEqual(string expected, string actual) {
+		string[] expectedLines = NormalizeLines(expected);
+		string[] actualLines = NormalizeLines(actual);
+
+		Assert.That(actualLines, Is.EqualTo(expectedLines));
+	}
+
+	private static string[] NormalizeLines(string source) {
+		return source
+			.Replace("\r\n", "\n")
+			.Split('\n')
+			.Select(static line => line.Trim())
+			.Where(static line => !string.IsNullOrWhiteSpace(line))
+			.ToArray();
+	}
+
+	private static string ExtractBlock(string source, string startMarker, string endMarker) {
+		int startIndex = source.IndexOf(startMarker, StringComparison.Ordinal);
+		Assert.That(startIndex, Is.GreaterThanOrEqualTo(0), $"Could not find start marker: {startMarker}");
+
+		int endIndex = source.IndexOf(endMarker, startIndex, StringComparison.Ordinal);
+		Assert.That(endIndex, Is.GreaterThanOrEqualTo(0), $"Could not find end marker: {endMarker}");
+
+		int afterEndMarker = endIndex + endMarker.Length;
+		return source[startIndex..afterEndMarker];
+	}
+
+	private static string ExtractMemberBlock(string source, string memberStartMarker) {
+		int startIndex = source.IndexOf(memberStartMarker, StringComparison.Ordinal);
+		Assert.That(startIndex, Is.GreaterThanOrEqualTo(0), $"Could not find member start marker: {memberStartMarker}");
+
+		int braceStart = source.IndexOf('{', startIndex);
+		Assert.That(braceStart, Is.GreaterThanOrEqualTo(0), $"Could not find opening brace for marker: {memberStartMarker}");
+
+		int depth = 0;
+		for (int index = braceStart; index < source.Length; index++) {
+			char current = source[index];
+			if (current == '{') {
+				depth++;
+			} else if (current == '}') {
+				depth--;
+				if (depth == 0) {
+					return source[startIndex..(index + 1)];
+				}
+			}
+		}
+
+		Assert.Fail($"Could not find matching closing brace for marker: {memberStartMarker}");
+		return string.Empty;
+	}
+
+	private static string ExtractStatementBlock(string source, string startMarker, string endMarker) {
+		int startIndex = source.IndexOf(startMarker, StringComparison.Ordinal);
+		Assert.That(startIndex, Is.GreaterThanOrEqualTo(0), $"Could not find statement start marker: {startMarker}");
+
+		int endIndex = source.IndexOf(endMarker, startIndex, StringComparison.Ordinal);
+		Assert.That(endIndex, Is.GreaterThanOrEqualTo(0), $"Could not find statement end marker: {endMarker}");
+
+		return source[startIndex..(endIndex + endMarker.Length)];
+	}
+
+	private static string ExtractTailBlock(string source, string startMarker) {
+		int startIndex = source.IndexOf(startMarker, StringComparison.Ordinal);
+		Assert.That(startIndex, Is.GreaterThanOrEqualTo(0), $"Could not find tail start marker: {startMarker}");
+
+		int classCloseIndex = source.LastIndexOf('}');
+		Assert.That(classCloseIndex, Is.GreaterThan(startIndex), "Could not find enclosing class close brace.");
+
+		return source[startIndex..classCloseIndex];
+	}
+
+	private static string CreateStableTypeId(string fullyQualifiedTypeName) {
+		string assemblyQualifiedName = $"{fullyQualifiedTypeName}, GeneratorTestAssembly";
+		byte[] bytes = Encoding.UTF8.GetBytes(assemblyQualifiedName);
+		byte[] hash;
+		using (SHA256 sha256 = SHA256.Create()) {
+			hash = sha256.ComputeHash(bytes);
+		}
+
+		byte[] guidBytes = new byte[16];
+		Array.Copy(hash, guidBytes, guidBytes.Length);
+		return new Guid(guidBytes).ToString();
 	}
 }

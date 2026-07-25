@@ -15,5 +15,6 @@ internal enum NetworkPropertySerializationKind {
 	Double,
 	String,
 	Guid,
+	Struct,
 	NetworkObject
 }

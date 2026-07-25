@@ -82,6 +82,44 @@ Each field entry has this shape:
 
 For non-`NetworkObject` member types, the value bytes are the serialized representation of that member.
 
+For nullable value types such as `int?`, `Guid?`, or `float?`, the value bytes use this nested shape:
+
+- `1 byte` presence flag
+- if the flag is `0`, the value is `null` and no additional bytes are present
+- if the flag is `1`, the remaining bytes are the serialized representation of the underlying non-nullable value type
+
+Any other presence flag value is invalid.
+
+For struct member types, the value bytes are the serialized representation of that struct's public instance fields in ascending ordinal field-name order.
+
+- only public instance fields are included
+- supported struct field types are the same scalar types already supported as member values:
+  - primitive numeric types
+  - `bool`
+  - `string`
+  - `Guid`
+  - nullable versions of those value types
+- supported nested struct fields recurse using this same struct-field encoding
+- nullable nested struct fields use the nullable struct encoding described below
+- `NetworkObject` fields inside structs are not supported
+- unsupported struct field types make the containing struct unsupported for generated deserialization
+- cyclic or self-recursive struct layouts are not supported
+
+Struct field values are encoded sequentially with no per-field identifier metadata:
+
+- fixed-width primitive and `Guid` fields use their normal little-endian byte representation
+- `string` fields use `4 bytes` of UTF-8 byte length followed by the UTF-8 bytes
+- nullable value-type fields use the nullable value-type encoding described above
+- nested struct fields use their own sequential struct payload directly inline
+
+Nullable struct member types use this nested shape:
+
+- `1 byte` presence flag
+- if the flag is `0`, the value is `null` and no additional struct bytes are present
+- if the flag is `1`, the remaining bytes are the serialized struct payload described above
+
+Any other presence flag value is invalid.
+
 For `NetworkObject` member types, the value bytes contain a nested object update payload:
 
 - `1 byte` object update mode
