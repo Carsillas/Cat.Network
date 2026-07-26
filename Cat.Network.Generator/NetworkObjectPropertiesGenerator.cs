@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -52,28 +53,39 @@ internal static class NetworkObjectPropertiesGenerator {
 	}
 
 	private static string PropertyInfoEntries(NetworkObjectTypeModel model) {
+		IEnumerable<(string Name, int PropertyIndex)> members = model.DeclaredProperties
+			.Select(static property => (property.Name, property.PropertyIndex))
+			.Concat(model.DeclaredCollections.Select(static collection => (collection.Name, collection.PropertyIndex)))
+			.OrderBy(static member => member.PropertyIndex);
+
 		return string.Join(
 			",\n",
-			model.DeclaredProperties.Select((property, index) => string.Format(
+			members.Select(member => string.Format(
 				PropertyInfoEntryTemplate,
-				model.HasBaseProperties ? $"{model.BaseTypeName}.Properties.Length" : "0",
-				index,
-				property.Name)));
+				member.PropertyIndex,
+				member.Name)));
 	}
 
 	private static string PartialProperties(NetworkObjectTypeModel model) {
 		return string.Join(
 			"\n\n",
-			model.DeclaredProperties.Select((property, index) => PartialProperty(model, property, index)));
+			model.DeclaredProperties.Select(PartialProperty).Concat(model.DeclaredCollections.Select(CollectionPartialProperty)));
 	}
 
 	private static string InitializeMembers(NetworkObjectTypeModel model) {
+		string collectionInitializers = string.Join(
+			"\n",
+			model.Collections
+				.OrderBy(static collection => collection.PropertyIndex)
+				.Select(CollectionInitializer));
+
 		return string.Format(
 			InitializeMembersTemplate,
-			model.Namespace == "Cat.Network" ? "INetworkObject" : "global::Cat.Network.INetworkObject");
+			model.Namespace == "Cat.Network" ? "INetworkObject" : "global::Cat.Network.INetworkObject",
+			collectionInitializers);
 	}
 
-	private static string PartialProperty(NetworkObjectTypeModel model, NetworkPropertyModel property, int index) {
+	private static string PartialProperty(NetworkPropertyModel property) {
 		if (property.SerializationKind == NetworkPropertySerializationKind.NetworkObject) {
 			return string.Format(
 				NetworkObjectPartialPropertyTemplate,
@@ -82,7 +94,7 @@ internal static class NetworkObjectPropertiesGenerator {
 				property.Name,
 				property.GetterAccessibility,
 				property.SetterAccessibility,
-				model.HasBaseProperties ? $"{model.BaseTypeName}.Properties.Length + {index}" : index.ToString());
+				property.PropertyIndex);
 		}
 
 		return string.Format(
@@ -92,7 +104,25 @@ internal static class NetworkObjectPropertiesGenerator {
 			property.Name,
 			property.GetterAccessibility,
 			property.SetterAccessibility,
-			model.HasBaseProperties ? $"{model.BaseTypeName}.Properties.Length + {index}" : index.ToString());
+			property.PropertyIndex);
+	}
+
+	private static string CollectionPartialProperty(NetworkCollectionModel collection) {
+		return string.Format(
+			CollectionPartialPropertyTemplate,
+			collection.TypeName,
+			collection.BackingFieldName,
+			collection.Accessibility,
+			collection.Name,
+			collection.GetterAccessibility);
+	}
+
+	private static string CollectionInitializer(NetworkCollectionModel collection) {
+		string collectionType = collection.IsNetworkObjectItem
+			? $"global::Cat.Network.NetworkObjectList<{collection.RuntimeItemTypeName}>"
+			: $"global::Cat.Network.NetworkValueList<{collection.ItemTypeName}>";
+
+		return $"{collection.BackingFieldName} = new {collectionType}(this, {collection.PropertyIndex});";
 	}
 
 	private const string SourceTemplate = """
@@ -133,9 +163,9 @@ internal static class NetworkObjectPropertiesGenerator {
 
 	private const string PropertyInfoEntryTemplate = """
 	                                                 		new global::Cat.Network.NetworkPropertyInfo {{
-	                                                 			Index = {0} + {1},
-	                                                 			Name = nameof({2}),
-	                                                 			EncodedName = global::System.Collections.Immutable.ImmutableArray.Create(global::System.Text.Encoding.UTF8.GetBytes(nameof({2})))
+	                                                 			Index = {0},
+	                                                 			Name = nameof({1}),
+	                                                 			EncodedName = global::System.Collections.Immutable.ImmutableArray.Create(global::System.Text.Encoding.UTF8.GetBytes(nameof({1})))
 	                                                 		}}
 	                                                 """;
 
@@ -208,11 +238,20 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                                     	}}
 	                                                     """;
 
+	private const string CollectionPartialPropertyTemplate = """
+	                                                   	private protected {0} {1} = null!;
+	                                                   	{2} partial {0} {3}
+	                                                   	{{
+	                                                   		{4}get => {1};
+	                                                   	}}
+	                                                   """;
+
 	private const string InitializeMembersTemplate = """
 
 	                                         	void {0}.Initialize()
 	                                         	{{
 	                                         		((global::Cat.Network.INetworkObject)this).PropertyStates = new global::Cat.Network.NetworkPropertyState[Properties.Length];
+	                                         		{1}
 	                                         	}}
 	                                         """;
 }

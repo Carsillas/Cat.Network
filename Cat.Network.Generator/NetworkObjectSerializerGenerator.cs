@@ -35,8 +35,8 @@ internal static class NetworkObjectSerializerGenerator {
 	private static string DeserializeByIndex(NetworkObjectTypeModel model) {
 		return string.Join(
 			"\n",
-			model.Properties.Select((property, index) => $$"""
-					case {{index}}:
+			model.Properties.Select(property => $$"""
+					case {{property.PropertyIndex}}:
 						Deserialize{{property.Name}}(typedTarget, valueData, context);
 						break;
 				"""));
@@ -61,12 +61,12 @@ internal static class NetworkObjectSerializerGenerator {
 	private static string SerializeByIndex(NetworkObjectTypeModel model) {
 		return string.Join(
 			"\n",
-			model.Properties.Select((property, index) => $$"""
-					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{index}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
-						WriteUInt16(writer, {{(ushort)index}});
+			model.Properties.Select(property => $$"""
+					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{property.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
+						WriteUInt16(writer, {{(ushort)property.PropertyIndex}});
 						global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
 						int {{property.Name}}ValueStart = writer.WrittenCount;
-						Serialize{{property.Name}}(writer, typedTarget, context, options, current, {{index}});
+						Serialize{{property.Name}}(writer, typedTarget, context, options, current, {{property.PropertyIndex}});
 						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
 						fieldCount++;
 					}
@@ -77,12 +77,12 @@ internal static class NetworkObjectSerializerGenerator {
 		return string.Join(
 			"\n",
 			model.Properties.Select(property => $$"""
-					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{model.Properties.ToList().IndexOf(property)}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
+					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{property.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
 						WriteUInt32(writer, (uint)global::System.Text.Encoding.UTF8.GetByteCount("{{EscapeStringLiteral(property.Name)}}"));
 						WriteUtf8(writer, "{{EscapeStringLiteral(property.Name)}}");
 						global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
 						int {{property.Name}}ValueStart = writer.WrittenCount;
-						Serialize{{property.Name}}(writer, typedTarget, context, options, current, {{model.Properties.ToList().IndexOf(property)}});
+						Serialize{{property.Name}}(writer, typedTarget, context, options, current, {{property.PropertyIndex}});
 						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
 						fieldCount++;
 					}
@@ -100,7 +100,7 @@ internal static class NetworkObjectSerializerGenerator {
 	private static string SerializeMethod(NetworkObjectTypeModel model, NetworkPropertyModel property) {
 		return $$"""
 			private static void Serialize{{property.Name}}(global::Cat.Network.BufferWriter writer, {{model.FullyQualifiedName}} typedTarget, global::Cat.Network.SerializationContext context, global::Cat.Network.SerializationOptions options, global::Cat.Network.INetworkObject current, int propertyIndex) {
-			{{SerializePropertyBody(property, model.Properties.ToList().IndexOf(property))}}
+			{{SerializePropertyBody(property, property.PropertyIndex)}}
 			}
 			""";
 	}

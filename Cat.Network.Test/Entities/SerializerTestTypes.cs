@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Cat.Network.Test.Entities;
 
 [NetworkObject]
@@ -156,4 +158,16 @@ public partial class DirtyChildState : NetworkObject {
 public partial class DirtyParentState : NetworkObject {
 	[NetworkProperty]
 	public partial DirtyChildState? Child { get; set; }
+}
+
+[NetworkObject]
+public partial class ValueCollectionState : NetworkObject {
+	[NetworkCollection]
+	public partial IList<int> Values { get; }
+}
+
+[NetworkObject]
+public partial class ObjectCollectionState : NetworkObject {
+	[NetworkCollection]
+	public partial IList<DirtyChildState> Children { get; }
 }

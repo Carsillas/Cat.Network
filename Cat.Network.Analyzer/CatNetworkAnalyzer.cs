@@ -9,10 +9,12 @@ namespace Cat.Network.Analyzer;
 	private const string NetworkObjectMetadataName = "Cat.Network.NetworkObject";
 	private const string NetworkObjectAttributeMetadataName = "Cat.Network.NetworkObjectAttribute";
 	private const string NetworkPropertyAttributeMetadataName = "Cat.Network.NetworkPropertyAttribute";
+	private const string NetworkCollectionAttributeMetadataName = "Cat.Network.NetworkCollectionAttribute";
 
 	public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
 		..NetworkObjectAttributeAnalyzer.SupportedDiagnostics,
-		..NetworkPropertyAttributeAnalyzer.SupportedDiagnostics
+		..NetworkPropertyAttributeAnalyzer.SupportedDiagnostics,
+		..NetworkCollectionAttributeAnalyzer.SupportedDiagnostics
 	];
 
 	public override void Initialize(AnalysisContext context) {
@@ -23,13 +25,15 @@ namespace Cat.Network.Analyzer;
 			INamedTypeSymbol? networkObjectType = compilationContext.Compilation.GetTypeByMetadataName(NetworkObjectMetadataName);
 			INamedTypeSymbol? networkObjectAttributeType = compilationContext.Compilation.GetTypeByMetadataName(NetworkObjectAttributeMetadataName);
 			INamedTypeSymbol? networkPropertyAttributeType = compilationContext.Compilation.GetTypeByMetadataName(NetworkPropertyAttributeMetadataName);
+			INamedTypeSymbol? networkCollectionAttributeType = compilationContext.Compilation.GetTypeByMetadataName(NetworkCollectionAttributeMetadataName);
 
-			if (networkObjectType is null || networkObjectAttributeType is null || networkPropertyAttributeType is null) {
+			if (networkObjectType is null || networkObjectAttributeType is null || networkPropertyAttributeType is null || networkCollectionAttributeType is null) {
 				return;
 			}
 
 			NetworkObjectAttributeAnalyzer.Register(compilationContext, networkObjectType, networkObjectAttributeType);
 			NetworkPropertyAttributeAnalyzer.Register(compilationContext, networkObjectType, networkPropertyAttributeType);
+			NetworkCollectionAttributeAnalyzer.Register(compilationContext, networkObjectType, networkCollectionAttributeType);
 		});
 	}
 }

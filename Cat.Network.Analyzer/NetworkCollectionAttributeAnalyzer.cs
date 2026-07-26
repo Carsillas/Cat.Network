@@ -1,0 +1,208 @@
+using System.Collections.Immutable;
+using System.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
+
+namespace Cat.Network.Analyzer;
+
+internal static class NetworkCollectionAttributeAnalyzer {
+	private const string InvalidNetworkCollectionAttributeDiagnosticId = "CN0010";
+	private const string NetworkCollectionAttributeRequiresPartialDiagnosticId = "CN0011";
+	private const string NetworkCollectionAttributeRequiresGetterOnlyDiagnosticId = "CN0012";
+	private const string NetworkCollectionAttributeRequiresIListDiagnosticId = "CN0013";
+	private const string NetworkCollectionAttributeCannotBeInitializedDiagnosticId = "CN0014";
+	private const string NetworkCollectionAttributeRequiresSupportedItemTypeDiagnosticId = "CN0015";
+
+	private static readonly DiagnosticDescriptor InvalidNetworkCollectionAttributeRule = new(
+		InvalidNetworkCollectionAttributeDiagnosticId,
+		"NetworkCollectionAttribute can only be used in NetworkObject-derived types",
+		"Property '{0}' is marked with NetworkCollectionAttribute but its containing type does not inherit NetworkObject",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
+	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresPartialRule = new(
+		NetworkCollectionAttributeRequiresPartialDiagnosticId,
+		"NetworkCollectionAttribute requires a partial property",
+		"Property '{0}' is marked with NetworkCollectionAttribute but is not partial",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
+	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresGetterOnlyRule = new(
+		NetworkCollectionAttributeRequiresGetterOnlyDiagnosticId,
+		"NetworkCollectionAttribute requires a getter-only property",
+		"Property '{0}' is marked with NetworkCollectionAttribute but must be getter-only",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
+	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresIListRule = new(
+		NetworkCollectionAttributeRequiresIListDiagnosticId,
+		"NetworkCollectionAttribute requires IList<T>",
+		"Property '{0}' is marked with NetworkCollectionAttribute but is not of type IList<T>",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
+	private static readonly DiagnosticDescriptor NetworkCollectionAttributeCannotBeInitializedRule = new(
+		NetworkCollectionAttributeCannotBeInitializedDiagnosticId,
+		"NetworkCollectionAttribute properties cannot declare an initializer",
+		"Property '{0}' is marked with NetworkCollectionAttribute but already declares an initializer",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
+	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresSupportedItemTypeRule = new(
+		NetworkCollectionAttributeRequiresSupportedItemTypeDiagnosticId,
+		"NetworkCollectionAttribute requires a supported item type",
+		"Property '{0}' is marked with NetworkCollectionAttribute but item type '{1}' is not supported by network property serialization",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
+	public static ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
+		InvalidNetworkCollectionAttributeRule,
+		NetworkCollectionAttributeRequiresPartialRule,
+		NetworkCollectionAttributeRequiresGetterOnlyRule,
+		NetworkCollectionAttributeRequiresIListRule,
+		NetworkCollectionAttributeCannotBeInitializedRule,
+		NetworkCollectionAttributeRequiresSupportedItemTypeRule
+	];
+
+	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkCollectionAttributeType) {
+		context.RegisterSymbolAction(
+			symbolContext => Analyze(symbolContext, networkObjectType, networkCollectionAttributeType),
+			SymbolKind.Property);
+	}
+
+	private static void Analyze(SymbolAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkCollectionAttributeType) {
+		IPropertySymbol property = (IPropertySymbol)context.Symbol;
+
+		if (!NetworkAnalyzerHelpers.HasAttribute(property, networkCollectionAttributeType)) {
+			return;
+		}
+
+		INamedTypeSymbol containingType = property.ContainingType;
+		if (!SymbolEqualityComparer.Default.Equals(containingType, networkObjectType) && !NetworkAnalyzerHelpers.InheritsFrom(containingType, networkObjectType)) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				InvalidNetworkCollectionAttributeRule,
+				property.Locations.FirstOrDefault(),
+				property.Name));
+			return;
+		}
+
+		if (!NetworkAnalyzerHelpers.IsPartial(property, context.CancellationToken)) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkCollectionAttributeRequiresPartialRule,
+				property.Locations.FirstOrDefault(),
+				property.Name));
+		}
+
+		if (property.GetMethod is null || property.SetMethod is not null) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkCollectionAttributeRequiresGetterOnlyRule,
+				property.Locations.FirstOrDefault(),
+				property.Name));
+		}
+
+		if (property.Type is not INamedTypeSymbol propertyType ||
+		    propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) != "global::System.Collections.Generic.IList<T>") {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkCollectionAttributeRequiresIListRule,
+				property.Locations.FirstOrDefault(),
+				property.Name));
+		} else if (!IsSupportedCollectionItemType(propertyType.TypeArguments[0], networkObjectType)) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkCollectionAttributeRequiresSupportedItemTypeRule,
+				property.Locations.FirstOrDefault(),
+				property.Name,
+				propertyType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+		}
+
+		bool hasInitializer = property.DeclaringSyntaxReferences
+			.Select(reference => reference.GetSyntax(context.CancellationToken))
+			.OfType<PropertyDeclarationSyntax>()
+			.Any(static declaration => declaration.Initializer is not null);
+		if (hasInitializer) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkCollectionAttributeCannotBeInitializedRule,
+				property.Locations.FirstOrDefault(),
+				property.Name));
+		}
+	}
+
+	private static bool IsSupportedCollectionItemType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+		if (type.SpecialType is SpecialType.System_Boolean or
+		    SpecialType.System_Byte or
+		    SpecialType.System_SByte or
+		    SpecialType.System_Int16 or
+		    SpecialType.System_UInt16 or
+		    SpecialType.System_Int32 or
+		    SpecialType.System_UInt32 or
+		    SpecialType.System_Int64 or
+		    SpecialType.System_UInt64 or
+		    SpecialType.System_Single or
+		    SpecialType.System_Double or
+		    SpecialType.System_String) {
+			return true;
+		}
+
+		if (type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Guid") {
+			return true;
+		}
+
+		if (type is INamedTypeSymbol namedType &&
+		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+		    namedType.TypeArguments.Length == 1) {
+			type = namedType.TypeArguments[0];
+		}
+
+		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+			return structType.GetMembers()
+				.OfType<IFieldSymbol>()
+				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
+				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType));
+		}
+
+		return SymbolEqualityComparer.Default.Equals(type, networkObjectType) ||
+		       NetworkAnalyzerHelpers.InheritsFrom((INamedTypeSymbol)type, networkObjectType);
+	}
+
+	private static bool IsSupportedStructFieldType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+		if (type is INamedTypeSymbol namedType &&
+		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+		    namedType.TypeArguments.Length == 1) {
+			type = namedType.TypeArguments[0];
+		}
+
+		if (type.SpecialType is SpecialType.System_Boolean or
+		    SpecialType.System_Byte or
+		    SpecialType.System_SByte or
+		    SpecialType.System_Int16 or
+		    SpecialType.System_UInt16 or
+		    SpecialType.System_Int32 or
+		    SpecialType.System_UInt32 or
+		    SpecialType.System_Int64 or
+		    SpecialType.System_UInt64 or
+		    SpecialType.System_Single or
+		    SpecialType.System_Double or
+		    SpecialType.System_String) {
+			return true;
+		}
+
+		if (type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Guid") {
+			return true;
+		}
+
+		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+			return structType.GetMembers()
+				.OfType<IFieldSymbol>()
+				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
+				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType));
+		}
+
+		return false;
+	}
+}

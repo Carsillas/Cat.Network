@@ -496,6 +496,60 @@ public sealed class SerializerRuntimeTests {
 					BuildIndexField(0, Int32(9))))))));
 	}
 
+	[Test]
+	public void GeneratedNetworkCollectionProperty_IsInitializedWithValueCollectionImplementation() {
+		ValueCollectionState target = new();
+
+		Assert.That(target.Values, Is.TypeOf<NetworkValueList<int>>());
+	}
+
+	[Test]
+	public void GeneratedNetworkCollectionProperty_IsInitializedWithObjectCollectionImplementation() {
+		ObjectCollectionState target = new();
+
+		Assert.That(target.Children, Is.TypeOf<NetworkObjectList<DirtyChildState>>());
+	}
+
+	[Test]
+	public void MutatingValueCollection_MarksOwnerPropertyAsModified() {
+		ValueCollectionState target = new();
+
+		target.Values.Add(7);
+
+		Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+	}
+
+	[Test]
+	public void AddingObjectToCollection_SetsParentAndPropertyIndex() {
+		ObjectCollectionState target = new();
+		DirtyChildState child = new();
+
+		target.Children.Add(child);
+
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)child).Parent, Is.SameAs(target));
+			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(0));
+			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+		});
+	}
+
+	[Test]
+	public void RemovingObjectFromCollection_ClearsParentAndPropertyIndex() {
+		ObjectCollectionState target = new();
+		DirtyChildState child = new();
+
+		target.Children.Add(child);
+		((INetworkObject)target).PropertyStates[0] = NetworkPropertyState.Unchanged;
+
+		target.Children.Remove(child);
+
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)child).Parent, Is.Null);
+			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(-1));
+			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+		});
+	}
+
 	private static void Deserialize(NetworkObject target, TypeCatalogue catalogue, byte[] payload) {
 		Assert.That(catalogue.TryFindSerializer(target.GetType(), out INetworkObjectSerializer? serializer), Is.True);
 		serializer!.Deserialize(target, payload, new SerializationContext(catalogue));

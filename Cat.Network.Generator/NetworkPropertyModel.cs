@@ -17,7 +17,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
 		SymbolDisplayGenericsOptions.IncludeTypeParameters);
 
-	private NetworkPropertyModel(string typeName, string runtimeTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, NetworkPropertySerializationKind serializationKind, bool isNullableValueType, ImmutableArray<NetworkStructFieldModel> structFields) {
+	private NetworkPropertyModel(string typeName, string runtimeTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, int propertyIndex, NetworkPropertySerializationKind serializationKind, bool isNullableValueType, ImmutableArray<NetworkStructFieldModel> structFields) {
 		TypeName = typeName;
 		RuntimeTypeName = runtimeTypeName;
 		DeclaringTypeName = declaringTypeName;
@@ -25,6 +25,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 		Accessibility = accessibility;
 		GetterAccessibility = getterAccessibility;
 		SetterAccessibility = setterAccessibility;
+		PropertyIndex = propertyIndex;
 		SerializationKind = serializationKind;
 		IsNullableValueType = isNullableValueType;
 		StructFields = structFields;
@@ -44,13 +45,15 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 
 	public string SetterAccessibility { get; }
 
+	public int PropertyIndex { get; }
+
 	public NetworkPropertySerializationKind SerializationKind { get; }
 
 	public bool IsNullableValueType { get; }
 
 	public ImmutableArray<NetworkStructFieldModel> StructFields { get; }
 
-	public static NetworkPropertyModel Create(IPropertySymbol property) {
+	public static NetworkPropertyModel Create(IPropertySymbol property, int propertyIndex) {
 		(ITypeSymbol effectiveType, bool isNullableValueType) = GetEffectiveType(property.Type);
 		(NetworkPropertySerializationKind serializationKind, ImmutableArray<NetworkStructFieldModel> structFields) = GetSerializationMetadata(effectiveType);
 
@@ -62,6 +65,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 			GetAccessibility(property.DeclaredAccessibility),
 			GetAccessorAccessibility(property, property.GetMethod),
 			GetAccessorAccessibility(property, property.SetMethod),
+			propertyIndex,
 			serializationKind,
 			isNullableValueType,
 			structFields);
@@ -76,6 +80,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 		       Accessibility == other.Accessibility &&
 		       GetterAccessibility == other.GetterAccessibility &&
 		       SetterAccessibility == other.SetterAccessibility &&
+		       PropertyIndex == other.PropertyIndex &&
 		       SerializationKind == other.SerializationKind &&
 		       IsNullableValueType == other.IsNullableValueType &&
 		       StructFields.SequenceEqual(other.StructFields);
@@ -94,6 +99,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 			hashCode = (hashCode * 397) ^ Accessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ GetterAccessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ SetterAccessibility.GetHashCode();
+			hashCode = (hashCode * 397) ^ PropertyIndex;
 			hashCode = (hashCode * 397) ^ (int)SerializationKind;
 			hashCode = (hashCode * 397) ^ IsNullableValueType.GetHashCode();
 			foreach (NetworkStructFieldModel field in StructFields) hashCode = (hashCode * 397) ^ field.GetHashCode();
