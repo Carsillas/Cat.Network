@@ -138,6 +138,15 @@ public partial class DirtyPrimitiveState : NetworkObject {
 }
 
 [NetworkObject]
+public partial class DirtyPairState : NetworkObject {
+	[NetworkProperty]
+	public partial int First { get; set; }
+
+	[NetworkProperty]
+	public partial int Second { get; set; }
+}
+
+[NetworkObject]
 public partial class DirtyChildState : NetworkObject {
 	[NetworkProperty]
 	public partial int Value { get; set; }

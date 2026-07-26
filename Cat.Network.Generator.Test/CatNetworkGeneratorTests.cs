@@ -298,12 +298,20 @@ public sealed class CatNetworkGeneratorTests {
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
 			Assert.That(runResult.GeneratedTrees, Has.Length.EqualTo(4));
+			Assert.That(generatedSource, Does.Contain("global::System.Range fieldCountRange = writer.Reserve(2);"));
+			Assert.That(generatedSource, Does.Contain("ushort fieldCount = 0;"));
+			Assert.That(generatedSource, Does.Contain("current.PropertyStates[0] != global::Cat.Network.NetworkPropertyState.Unchanged"));
+			Assert.That(generatedSource, Does.Contain("fieldCount++;"));
+			Assert.That(generatedSource, Does.Contain("global::System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(writer.GetSpan(fieldCountRange), fieldCount);"));
 			Assert.That(generatedSource, Does.Contain("global::Cat.Network.NetworkObjectUpdateMode NetworkObjectUpdateMode = (global::Cat.Network.NetworkObjectUpdateMode)valueData[0];"));
 			Assert.That(generatedSource, Does.Contain("case global::Cat.Network.NetworkObjectUpdateMode.Modify:"));
 			Assert.That(generatedSource, Does.Contain("case global::Cat.Network.NetworkObjectUpdateMode.Replace:"));
 			Assert.That(generatedSource, Does.Contain("case global::Cat.Network.NetworkObjectUpdateMode.Clear:"));
 			Assert.That(generatedSource, Does.Contain("global::Game.Child? currentTarget = GetChild(typedTarget);"));
 			Assert.That(generatedSource, Does.Contain("context.TypeCatalogue.TryFindSerializer(currentTarget.GetType(), out global::Cat.Network.INetworkObjectSerializer? nestedSerializer)"));
+			Assert.That(generatedSource, Does.Contain("global::Cat.Network.NetworkPropertyState propertyState = current.PropertyStates[propertyIndex];"));
+			Assert.That(generatedSource, Does.Contain("nestedModifiedSerializer.Serialize(writer, currentValue, context, new global::Cat.Network.SerializationOptions(global::Cat.Network.MemberSelectionMode.Dirty, options.MemberIdentificationMode));"));
+			Assert.That(generatedSource, Does.Contain("nestedReplacementSerializer.Serialize(writer, currentValue, context, new global::Cat.Network.SerializationOptions(global::Cat.Network.MemberSelectionMode.All, options.MemberIdentificationMode));"));
 			Assert.That(generatedSource, Does.Contain("context.TypeCatalogue.TryFindType(replacementTypeId, out global::System.Type? replacementType)"));
 			Assert.That(generatedSource, Does.Contain("global::System.Activator.CreateInstance(replacementType)is not global::Game.Child replacementTarget"));
 			Assert.That(generatedSource, Does.Contain("Name = \"get_Child\""));

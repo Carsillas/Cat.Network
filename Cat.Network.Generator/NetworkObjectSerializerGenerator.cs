@@ -17,7 +17,6 @@ internal static class NetworkObjectSerializerGenerator {
 			model.FullyQualifiedName,
 			SerializeByIndex(model),
 			SerializeByName(model),
-			model.Properties.Length,
 			DeserializeByIndex(model),
 			DeserializeByName(model),
 			SerializeMethods(model),
@@ -63,11 +62,14 @@ internal static class NetworkObjectSerializerGenerator {
 		return string.Join(
 			"\n",
 			model.Properties.Select((property, index) => $$"""
-					WriteUInt16(writer, {{(ushort)index}});
-					global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
-					int {{property.Name}}ValueStart = writer.WrittenCount;
-					Serialize{{property.Name}}(writer, typedTarget, context, options);
-					global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
+					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{index}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
+						WriteUInt16(writer, {{(ushort)index}});
+						global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
+						int {{property.Name}}ValueStart = writer.WrittenCount;
+						Serialize{{property.Name}}(writer, typedTarget, context, options, current, {{index}});
+						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
+						fieldCount++;
+					}
 				"""));
 	}
 
@@ -75,12 +77,15 @@ internal static class NetworkObjectSerializerGenerator {
 		return string.Join(
 			"\n",
 			model.Properties.Select(property => $$"""
-					WriteUInt32(writer, (uint)global::System.Text.Encoding.UTF8.GetByteCount("{{EscapeStringLiteral(property.Name)}}"));
-					WriteUtf8(writer, "{{EscapeStringLiteral(property.Name)}}");
-					global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
-					int {{property.Name}}ValueStart = writer.WrittenCount;
-					Serialize{{property.Name}}(writer, typedTarget, context, options);
-					global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
+					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{model.Properties.ToList().IndexOf(property)}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
+						WriteUInt32(writer, (uint)global::System.Text.Encoding.UTF8.GetByteCount("{{EscapeStringLiteral(property.Name)}}"));
+						WriteUtf8(writer, "{{EscapeStringLiteral(property.Name)}}");
+						global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
+						int {{property.Name}}ValueStart = writer.WrittenCount;
+						Serialize{{property.Name}}(writer, typedTarget, context, options, current, {{model.Properties.ToList().IndexOf(property)}});
+						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
+						fieldCount++;
+					}
 				"""));
 	}
 
@@ -94,8 +99,8 @@ internal static class NetworkObjectSerializerGenerator {
 
 	private static string SerializeMethod(NetworkObjectTypeModel model, NetworkPropertyModel property) {
 		return $$"""
-			private static void Serialize{{property.Name}}(global::Cat.Network.BufferWriter writer, {{model.FullyQualifiedName}} typedTarget, global::Cat.Network.SerializationContext context, global::Cat.Network.SerializationOptions options) {
-			{{SerializePropertyBody(property)}}
+			private static void Serialize{{property.Name}}(global::Cat.Network.BufferWriter writer, {{model.FullyQualifiedName}} typedTarget, global::Cat.Network.SerializationContext context, global::Cat.Network.SerializationOptions options, global::Cat.Network.INetworkObject current, int propertyIndex) {
+			{{SerializePropertyBody(property, model.Properties.ToList().IndexOf(property))}}
 			}
 			""";
 	}
@@ -222,7 +227,7 @@ internal static class NetworkObjectSerializerGenerator {
 		}
 	}
 
-	private static string SerializePropertyBody(NetworkPropertyModel property) {
+	private static string SerializePropertyBody(NetworkPropertyModel property, int propertyIndex) {
 		switch (property.SerializationKind) {
 			case NetworkPropertySerializationKind.Boolean:
 				return SerializeScalarPropertyBody(property, "value ? (byte)1 : (byte)0", 1);
@@ -275,7 +280,7 @@ internal static class NetworkObjectSerializerGenerator {
 			case NetworkPropertySerializationKind.Struct:
 				return SerializeStructPropertyBody(property);
 			case NetworkPropertySerializationKind.NetworkObject:
-				return SerializeNetworkObjectPropertyBody(property);
+				return SerializeNetworkObjectPropertyBody(property, propertyIndex);
 			default:
 				return """
 					return;
@@ -457,9 +462,43 @@ internal static class NetworkObjectSerializerGenerator {
 		};
 	}
 
-	private static string SerializeNetworkObjectPropertyBody(NetworkPropertyModel property) {
+	private static string SerializeNetworkObjectPropertyBody(NetworkPropertyModel property, int propertyIndex) {
 		return $$"""
 			{{property.TypeName}} currentValue = Get{{property.Name}}(typedTarget);
+			if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.Dirty) {
+				global::Cat.Network.NetworkPropertyState propertyState = current.PropertyStates[propertyIndex];
+				if ((propertyState & global::Cat.Network.NetworkPropertyState.Replaced) != 0) {
+					if (currentValue is null) {
+						WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Clear);
+						return;
+					}
+
+					if (!context.TypeCatalogue.TryFindSerializer(currentValue.GetType(), out global::Cat.Network.INetworkObjectSerializer? nestedReplacementSerializer)) {
+						throw new global::System.InvalidOperationException($"Serializer for type '{currentValue.GetType().FullName}' is not registered.");
+					}
+
+					global::System.Guid nestedReplacementTypeId = GetNetworkObjectTypeId(currentValue.GetType());
+					WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Replace);
+					WriteGuid(writer, nestedReplacementTypeId);
+					nestedReplacementSerializer.Serialize(writer, currentValue, context, new global::Cat.Network.SerializationOptions(global::Cat.Network.MemberSelectionMode.All, options.MemberIdentificationMode));
+					return;
+				}
+
+				if ((propertyState & global::Cat.Network.NetworkPropertyState.Modified) != 0) {
+					if (currentValue is null) {
+						return;
+					}
+
+					if (!context.TypeCatalogue.TryFindSerializer(currentValue.GetType(), out global::Cat.Network.INetworkObjectSerializer? nestedModifiedSerializer)) {
+						throw new global::System.InvalidOperationException($"Serializer for type '{currentValue.GetType().FullName}' is not registered.");
+					}
+
+					WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Modify);
+					nestedModifiedSerializer.Serialize(writer, currentValue, context, new global::Cat.Network.SerializationOptions(global::Cat.Network.MemberSelectionMode.Dirty, options.MemberIdentificationMode));
+					return;
+				}
+			}
+
 			if (currentValue is null) {
 				WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Clear);
 				return;
@@ -472,7 +511,7 @@ internal static class NetworkObjectSerializerGenerator {
 			global::System.Guid nestedTypeId = GetNetworkObjectTypeId(currentValue.GetType());
 			WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Replace);
 			WriteGuid(writer, nestedTypeId);
-			nestedSerializer.Serialize(writer, currentValue, context, options);
+			nestedSerializer.Serialize(writer, currentValue, context, new global::Cat.Network.SerializationOptions(global::Cat.Network.MemberSelectionMode.All, options.MemberIdentificationMode));
 			return;
 			""";
 	}
@@ -708,8 +747,10 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      {{
 	                                      	public void Serialize(global::Cat.Network.BufferWriter writer, global::Cat.Network.NetworkObject target, global::Cat.Network.SerializationContext context, global::Cat.Network.SerializationOptions options) {{
 	                                      		{2} typedTarget = ({2})target;
+	                                      		global::Cat.Network.INetworkObject current = typedTarget;
 	                                      		WriteByte(writer, (byte)options.MemberIdentificationMode);
-	                                      		WriteUInt16(writer, (ushort){5});
+	                                      		global::System.Range fieldCountRange = writer.Reserve(2);
+	                                      		ushort fieldCount = 0;
 
 	                                      		switch (options.MemberIdentificationMode) {{
 	                                      			case global::Cat.Network.MemberIdentificationMode.Index: {{
@@ -723,6 +764,8 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      			default:
 	                                      				throw new global::System.InvalidOperationException($"Unsupported member identification mode '{{options.MemberIdentificationMode}}'.");
 	                                      		}}
+
+	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(writer.GetSpan(fieldCountRange), fieldCount);
 
 	                                      	}}
 
@@ -783,14 +826,14 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      			switch (memberIdentificationMode) {{
 	                                      				case global::Cat.Network.MemberIdentificationMode.Index:
 	                                      					switch (memberIndex) {{
-	                                      {6}
+	                                      {5}
 	                                      						default:
 	                                      							break;
 	                                      					}}
 	                                      					break;
 	                                      				case global::Cat.Network.MemberIdentificationMode.Name:
 	                                      					switch (memberName) {{
-	                                      {7}
+	                                      {6}
 	                                      						default:
 	                                      							break;
 	                                      					}}
@@ -799,11 +842,11 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      		}}
 	                                      	}}
 
+	                                      {7}
+
 	                                      {8}
 
 	                                      {9}
-
-	                                      {10}
 
 	                                      	private static void WriteByte(global::Cat.Network.BufferWriter writer, byte value) {{
 	                                      		global::System.Span<byte> span = writer.GetSpan(1);

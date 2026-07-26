@@ -446,6 +446,56 @@ public sealed class SerializerRuntimeTests {
 		});
 	}
 
+	[Test]
+	public void Serialize_DirtyMode_EmitsOnlyDirtyFields() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(DirtyPairState));
+		DirtyPairState target = new();
+
+		target.First = 10;
+		target.Second = 20;
+		((INetworkObject)target).PropertyStates = new[] {
+			NetworkPropertyState.Unchanged,
+			NetworkPropertyState.Unchanged
+		};
+
+		target.Second = 25;
+
+		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(1, Int32(25)))));
+	}
+
+	[Test]
+	public void Serialize_DirtyMode_WithNoDirtyFields_EmitsZeroFieldCount() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(DirtyPrimitiveState));
+		DirtyPrimitiveState target = new();
+
+		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload()));
+	}
+
+	[Test]
+	public void Serialize_DirtyMode_NestedModifiedObject_UsesModifyPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(DirtyParentState), typeof(DirtyChildState));
+		DirtyParentState parent = new();
+		DirtyChildState child = new();
+
+		parent.Child = child;
+		((INetworkObject)parent).PropertyStates[0] = NetworkPropertyState.Unchanged;
+		((INetworkObject)child).PropertyStates[0] = NetworkPropertyState.Unchanged;
+
+		child.Value = 9;
+
+		byte[] payload = Serialize(parent, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, ModifyObject(
+				BuildObjectPayload(
+					BuildIndexField(0, Int32(9))))))));
+	}
+
 	private static void Deserialize(NetworkObject target, TypeCatalogue catalogue, byte[] payload) {
 		Assert.That(catalogue.TryFindSerializer(target.GetType(), out INetworkObjectSerializer? serializer), Is.True);
 		serializer!.Deserialize(target, payload, new SerializationContext(catalogue));
@@ -460,10 +510,14 @@ public sealed class SerializerRuntimeTests {
 		Assert.That(secondPayload, Is.EqualTo(firstPayload));
 	}
 
-	private static byte[] Serialize(NetworkObject target, TypeCatalogue catalogue, MemberIdentificationMode memberIdentificationMode = MemberIdentificationMode.Index) {
+	private static byte[] Serialize(
+		NetworkObject target,
+		TypeCatalogue catalogue,
+		MemberIdentificationMode memberIdentificationMode = MemberIdentificationMode.Index,
+		MemberSelectionMode memberSelectionMode = MemberSelectionMode.All) {
 		Assert.That(catalogue.TryFindSerializer(target.GetType(), out INetworkObjectSerializer? serializer), Is.True);
 		BufferWriter writer = new();
-		serializer!.Serialize(writer, target, new SerializationContext(catalogue), new SerializationOptions(MemberSelectionMode.All, memberIdentificationMode));
+		serializer!.Serialize(writer, target, new SerializationContext(catalogue), new SerializationOptions(memberSelectionMode, memberIdentificationMode));
 		return writer.GetWrittenSpan().ToArray();
 	}
 
