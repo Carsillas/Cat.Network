@@ -177,4 +177,22 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 
 		Assert.That(diagnostics, Is.Empty);
 	}
+
+	[Test]
+	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeIsUsedOnPrivateGetterOnlyPartialIListPropertyWithoutInitializer() {
+		const string source = """
+		                      using System.Collections.Generic;
+		                      using Cat.Network;
+
+		                      [NetworkObject]
+		                      public sealed partial class Player : NetworkObject {
+		                      	[NetworkCollection]
+		                      	private partial IList<int> Scores { get; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics, Is.Empty);
+	}
 }

@@ -1,8 +1,12 @@
 using System.Collections;
+using System.Buffers.Binary;
+using System.Collections.Generic;
 
 namespace Cat.Network;
 
-public abstract class NetworkList<T> : IList<T> {
+public abstract class NetworkList<T> : IList<T>, INetworkCollection {
+	private static NetworkCollectionSerializer.ItemCodec Codec { get; } = NetworkCollectionSerializer.GetCodec<T>();
+
 	protected NetworkList(NetworkObject owner, int propertyIndex) {
 		Owner = owner;
 		PropertyIndex = propertyIndex;
@@ -13,6 +17,8 @@ public abstract class NetworkList<T> : IList<T> {
 	protected int PropertyIndex { get; }
 
 	protected List<T> Items { get; } = [];
+
+	protected List<NetworkCollectionOperation<T>> OperationBuffer { get; } = [];
 
 	public int Count => Items.Count;
 
@@ -30,6 +36,7 @@ public abstract class NetworkList<T> : IList<T> {
 			OnItemRemoving(previous);
 			Items[index] = value;
 			OnItemAdded(value);
+			OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Set, index, value));
 			MarkOwnerModified();
 		}
 	}
@@ -38,6 +45,7 @@ public abstract class NetworkList<T> : IList<T> {
 		ValidateItemForAssignment(item);
 		Items.Add(item);
 		OnItemAdded(item);
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Add, Items.Count - 1, item));
 		MarkOwnerModified();
 	}
 
@@ -51,6 +59,7 @@ public abstract class NetworkList<T> : IList<T> {
 		}
 
 		Items.Clear();
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Clear));
 		MarkOwnerModified();
 	}
 
@@ -74,6 +83,7 @@ public abstract class NetworkList<T> : IList<T> {
 		ValidateItemForAssignment(item);
 		Items.Insert(index, item);
 		OnItemAdded(item);
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Insert, index, item));
 		MarkOwnerModified();
 	}
 
@@ -91,7 +101,115 @@ public abstract class NetworkList<T> : IList<T> {
 		T item = Items[index];
 		OnItemRemoving(item);
 		Items.RemoveAt(index);
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Remove, index));
 		MarkOwnerModified();
+	}
+
+	public void Serialize(BufferWriter writer, SerializationContext context, SerializationOptions options) {
+		Range operationCountRange = writer.Reserve(4);
+		int operationCount = 0;
+
+		if (options.MemberSelectionMode == MemberSelectionMode.All) {
+			WriteOperationType(writer, NetworkCollectionOperationType.Clear);
+			operationCount++;
+
+			for (int index = 0; index < Items.Count; index++) {
+				WriteOperationType(writer, NetworkCollectionOperationType.Add);
+				Range itemLengthRange = writer.Reserve(4);
+				int itemStart = writer.WrittenCount;
+				Codec.SerializeFull(writer, Items[index], context, options);
+				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				operationCount++;
+			}
+		} else {
+			HashSet<int> touchedIndices = [];
+			foreach (NetworkCollectionOperation<T> operation in OperationBuffer) {
+				WriteOperation(writer, operation, context, options);
+				operationCount++;
+				if (operation.Index >= 0) {
+					touchedIndices.Add(operation.Index);
+				}
+			}
+
+			if (Codec.IsNetworkObject) {
+				for (int index = 0; index < Items.Count; index++) {
+					if (touchedIndices.Contains(index) || Items[index] is not NetworkObject item || !NetworkCollectionSerializer.HasDirtyState(item)) {
+						continue;
+					}
+
+					WriteOperationType(writer, NetworkCollectionOperationType.Update);
+					WriteInt32(writer, index);
+					Range itemLengthRange = writer.Reserve(4);
+					int itemStart = writer.WrittenCount;
+					Codec.SerializeUpdate(writer, Items[index], context, options);
+					BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+					operationCount++;
+				}
+			}
+		}
+
+		BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(operationCountRange), operationCount);
+	}
+
+	public void Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
+		if (data.Length < 4) {
+			return;
+		}
+
+		int offset = 0;
+		int operationCount = ReadInt32(data, ref offset);
+
+		for (int operationIndex = 0; operationIndex < operationCount; operationIndex++) {
+			if (data.Length - offset < 1) {
+				return;
+			}
+
+			NetworkCollectionOperationType operationType = (NetworkCollectionOperationType)data[offset];
+			offset++;
+
+			switch (operationType) {
+				case NetworkCollectionOperationType.Add: {
+					int itemLength = ReadInt32(data, ref offset);
+					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
+					offset += itemLength;
+					AddDeserialized(item);
+					break;
+				}
+				case NetworkCollectionOperationType.Insert: {
+					int index = ReadInt32(data, ref offset);
+					int itemLength = ReadInt32(data, ref offset);
+					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
+					offset += itemLength;
+					InsertDeserialized(index, item);
+					break;
+				}
+				case NetworkCollectionOperationType.Remove: {
+					int index = ReadInt32(data, ref offset);
+					RemoveAtDeserialized(index);
+					break;
+				}
+				case NetworkCollectionOperationType.Set: {
+					int index = ReadInt32(data, ref offset);
+					int itemLength = ReadInt32(data, ref offset);
+					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
+					offset += itemLength;
+					SetDeserialized(index, item);
+					break;
+				}
+				case NetworkCollectionOperationType.Clear:
+					ClearDeserialized();
+					break;
+				case NetworkCollectionOperationType.Update: {
+					int index = ReadInt32(data, ref offset);
+					int itemLength = ReadInt32(data, ref offset);
+					Codec.DeserializeUpdate(Items[index], data.Slice(offset, itemLength), context);
+					offset += itemLength;
+					break;
+				}
+				default:
+					return;
+			}
+		}
 	}
 
 	IEnumerator IEnumerable.GetEnumerator() {
@@ -107,6 +225,40 @@ public abstract class NetworkList<T> : IList<T> {
 	protected virtual void OnItemRemoving(T item) {
 	}
 
+	protected void AddDeserialized(T item) {
+		ValidateItemForAssignment(item);
+		Items.Add(item);
+		OnItemAdded(item);
+	}
+
+	protected void InsertDeserialized(int index, T item) {
+		ValidateItemForAssignment(item);
+		Items.Insert(index, item);
+		OnItemAdded(item);
+	}
+
+	protected void SetDeserialized(int index, T item) {
+		T previous = Items[index];
+		OnItemRemoving(previous);
+		ValidateItemForAssignment(item);
+		Items[index] = item;
+		OnItemAdded(item);
+	}
+
+	protected void RemoveAtDeserialized(int index) {
+		T item = Items[index];
+		OnItemRemoving(item);
+		Items.RemoveAt(index);
+	}
+
+	protected void ClearDeserialized() {
+		for (int index = Items.Count - 1; index >= 0; index--) {
+			OnItemRemoving(Items[index]);
+		}
+
+		Items.Clear();
+	}
+
 	protected void MarkOwnerModified() {
 		INetworkObject current = Owner;
 		current.PropertyStates[PropertyIndex] |= NetworkPropertyState.Modified;
@@ -116,5 +268,67 @@ public abstract class NetworkList<T> : IList<T> {
 			parentObject.PropertyStates[current.PropertyIndex] |= NetworkPropertyState.Modified;
 			current = parentObject;
 		}
+	}
+
+	private void WriteOperation(BufferWriter writer, NetworkCollectionOperation<T> operation, SerializationContext context, SerializationOptions options) {
+		WriteOperationType(writer, operation.OperationType);
+		switch (operation.OperationType) {
+			case NetworkCollectionOperationType.Add: {
+				Range itemLengthRange = writer.Reserve(4);
+				int itemStart = writer.WrittenCount;
+				Codec.SerializeFull(writer, operation.Value!, context, options);
+				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				break;
+			}
+			case NetworkCollectionOperationType.Insert: {
+				WriteInt32(writer, operation.Index);
+				Range itemLengthRange = writer.Reserve(4);
+				int itemStart = writer.WrittenCount;
+				Codec.SerializeFull(writer, operation.Value!, context, options);
+				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				break;
+			}
+			case NetworkCollectionOperationType.Remove:
+				WriteInt32(writer, operation.Index);
+				break;
+			case NetworkCollectionOperationType.Set: {
+				WriteInt32(writer, operation.Index);
+				Range itemLengthRange = writer.Reserve(4);
+				int itemStart = writer.WrittenCount;
+				Codec.SerializeFull(writer, operation.Value!, context, options);
+				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				break;
+			}
+			case NetworkCollectionOperationType.Clear:
+				break;
+			case NetworkCollectionOperationType.Update: {
+				WriteInt32(writer, operation.Index);
+				Range itemLengthRange = writer.Reserve(4);
+				int itemStart = writer.WrittenCount;
+				Codec.SerializeUpdate(writer, operation.Value!, context, options);
+				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				break;
+			}
+			default:
+				throw new InvalidOperationException($"Unsupported collection operation '{operation.OperationType}'.");
+		}
+	}
+
+	private static int ReadInt32(ReadOnlySpan<byte> data, ref int offset) {
+		int value = BinaryPrimitives.ReadInt32LittleEndian(data[offset..]);
+		offset += 4;
+		return value;
+	}
+
+	private static void WriteOperationType(BufferWriter writer, NetworkCollectionOperationType operationType) {
+		Span<byte> span = writer.GetSpan(1);
+		span[0] = (byte)operationType;
+		writer.Advance(1);
+	}
+
+	private static void WriteInt32(BufferWriter writer, int value) {
+		Span<byte> span = writer.GetSpan(4);
+		BinaryPrimitives.WriteInt32LittleEndian(span, value);
+		writer.Advance(4);
 	}
 }

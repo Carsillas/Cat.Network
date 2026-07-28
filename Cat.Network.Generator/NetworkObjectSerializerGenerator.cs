@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -33,35 +34,53 @@ internal static class NetworkObjectSerializerGenerator {
 	}
 
 	private static string DeserializeByIndex(NetworkObjectTypeModel model) {
-		return string.Join(
-			"\n",
-			model.Properties.Select(property => $$"""
+		IEnumerable<(int PropertyIndex, string Body)> members = model.Properties
+			.Select(property => (property.PropertyIndex, $$"""
 					case {{property.PropertyIndex}}:
 						Deserialize{{property.Name}}(typedTarget, valueData, context);
 						break;
-				"""));
+				"""))
+			.Concat(model.Collections.Select(collection => (collection.PropertyIndex, $$"""
+					case {{collection.PropertyIndex}}:
+						Deserialize{{collection.Name}}(typedTarget, valueData, context);
+						break;
+				""")))
+			.OrderBy(static member => member.PropertyIndex);
+
+		return string.Join(
+			"\n",
+			members.Select(static member => member.Body));
 	}
 
 	private static string DeserializeByName(NetworkObjectTypeModel model) {
-		return string.Join(
-			"\n",
-			model.Properties.Select(property => $$"""
+		IEnumerable<(int PropertyIndex, string Body)> members = model.Properties
+			.Select(property => (property.PropertyIndex, $$"""
 					case "{{EscapeStringLiteral(property.Name)}}":
 						Deserialize{{property.Name}}(typedTarget, valueData, context);
 						break;
-				"""));
+				"""))
+			.Concat(model.Collections.Select(collection => (collection.PropertyIndex, $$"""
+					case "{{EscapeStringLiteral(collection.Name)}}":
+						Deserialize{{collection.Name}}(typedTarget, valueData, context);
+						break;
+				""")))
+			.OrderBy(static member => member.PropertyIndex);
+
+		return string.Join(
+			"\n",
+			members.Select(static member => member.Body));
 	}
 
 	private static string DeserializeMethods(NetworkObjectTypeModel model) {
 		return string.Join(
 			"\n\n",
-			model.Properties.Select(property => DeserializeMethod(model, property)));
+			model.Properties.Select(property => DeserializeMethod(model, property))
+				.Concat(model.Collections.Select(collection => DeserializeMethod(model, collection))));
 	}
 
 	private static string SerializeByIndex(NetworkObjectTypeModel model) {
-		return string.Join(
-			"\n",
-			model.Properties.Select(property => $$"""
+		IEnumerable<(int PropertyIndex, string Body)> members = model.Properties
+			.Select(property => (property.PropertyIndex, $$"""
 					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{property.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
 						WriteUInt16(writer, {{(ushort)property.PropertyIndex}});
 						global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
@@ -70,13 +89,27 @@ internal static class NetworkObjectSerializerGenerator {
 						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
 						fieldCount++;
 					}
-				"""));
+				"""))
+			.Concat(model.Collections.Select(collection => (collection.PropertyIndex, $$"""
+					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{collection.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
+						WriteUInt16(writer, {{(ushort)collection.PropertyIndex}});
+						global::System.Range {{collection.Name}}LengthRange = writer.Reserve(4);
+						int {{collection.Name}}ValueStart = writer.WrittenCount;
+						Serialize{{collection.Name}}(writer, typedTarget, context, options);
+						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{collection.Name}}LengthRange), (uint)(writer.WrittenCount - {{collection.Name}}ValueStart));
+						fieldCount++;
+					}
+				""")))
+			.OrderBy(static member => member.PropertyIndex);
+
+		return string.Join(
+			"\n",
+			members.Select(static member => member.Body));
 	}
 
 	private static string SerializeByName(NetworkObjectTypeModel model) {
-		return string.Join(
-			"\n",
-			model.Properties.Select(property => $$"""
+		IEnumerable<(int PropertyIndex, string Body)> members = model.Properties
+			.Select(property => (property.PropertyIndex, $$"""
 					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{property.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
 						WriteUInt32(writer, (uint)global::System.Text.Encoding.UTF8.GetByteCount("{{EscapeStringLiteral(property.Name)}}"));
 						WriteUtf8(writer, "{{EscapeStringLiteral(property.Name)}}");
@@ -86,16 +119,36 @@ internal static class NetworkObjectSerializerGenerator {
 						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
 						fieldCount++;
 					}
-				"""));
+				"""))
+			.Concat(model.Collections.Select(collection => (collection.PropertyIndex, $$"""
+					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{collection.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
+						WriteUInt32(writer, (uint)global::System.Text.Encoding.UTF8.GetByteCount("{{EscapeStringLiteral(collection.Name)}}"));
+						WriteUtf8(writer, "{{EscapeStringLiteral(collection.Name)}}");
+						global::System.Range {{collection.Name}}LengthRange = writer.Reserve(4);
+						int {{collection.Name}}ValueStart = writer.WrittenCount;
+						Serialize{{collection.Name}}(writer, typedTarget, context, options);
+						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{collection.Name}}LengthRange), (uint)(writer.WrittenCount - {{collection.Name}}ValueStart));
+						fieldCount++;
+					}
+				""")))
+			.OrderBy(static member => member.PropertyIndex);
+
+		return string.Join(
+			"\n",
+			members.Select(static member => member.Body));
 	}
 
 	private static string SerializeMethods(NetworkObjectTypeModel model) {
 		return string.Join(
 			"\n\n",
-			model.Properties.Select(property => SerializeMethod(model, property)));
+			model.Properties.Select(property => SerializeMethod(model, property))
+				.Concat(model.Collections.Select(collection => SerializeMethod(model, collection))));
 	}
 
-	private static string AccessorMethods(NetworkObjectTypeModel model) => string.Join("\n\n", model.Properties.Select(AccessorMethods));
+	private static string AccessorMethods(NetworkObjectTypeModel model) => string.Join(
+		"\n\n",
+		model.Properties.Select(AccessorMethods)
+			.Concat(model.Collections.Select(AccessorMethods)));
 
 	private static string SerializeMethod(NetworkObjectTypeModel model, NetworkPropertyModel property) {
 		return $$"""
@@ -109,6 +162,26 @@ internal static class NetworkObjectSerializerGenerator {
 		return $$"""
 			private static void Deserialize{{property.Name}}({{model.FullyQualifiedName}} typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context) {
 			{{MaybeWrapNullableValueType(property, DeserializePropertyBody(property))}}
+			}
+			""";
+	}
+
+	private static string SerializeMethod(NetworkObjectTypeModel model, NetworkCollectionModel collection) {
+		return $$"""
+			private static void Serialize{{collection.Name}}(global::Cat.Network.BufferWriter writer, {{model.FullyQualifiedName}} typedTarget, global::Cat.Network.SerializationContext context, global::Cat.Network.SerializationOptions options) {
+				if (Get{{collection.Name}}(typedTarget) is global::Cat.Network.INetworkCollection collectionValue) {
+					collectionValue.Serialize(writer, context, options);
+				}
+			}
+			""";
+	}
+
+	private static string DeserializeMethod(NetworkObjectTypeModel model, NetworkCollectionModel collection) {
+		return $$"""
+			private static void Deserialize{{collection.Name}}({{model.FullyQualifiedName}} typedTarget, global::System.ReadOnlySpan<byte> valueData, global::Cat.Network.SerializationContext context) {
+				if (Get{{collection.Name}}(typedTarget) is global::Cat.Network.INetworkCollection collectionValue) {
+					collectionValue.Deserialize(valueData, context);
+				}
 			}
 			""";
 	}
@@ -730,6 +803,13 @@ internal static class NetworkObjectSerializerGenerator {
 
 			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "set_{{property.Name}}")]
 			private static extern void Set{{property.Name}}({{property.DeclaringTypeName}} target, {{property.TypeName}} value);
+			""";
+	}
+
+	private static string AccessorMethods(NetworkCollectionModel collection) {
+		return $$"""
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "get_{{collection.Name}}")]
+			private static extern {{collection.TypeName}} Get{{collection.Name}}({{collection.DeclaringTypeName}} target);
 			""";
 	}
 

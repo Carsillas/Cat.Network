@@ -167,7 +167,41 @@ public partial class ValueCollectionState : NetworkObject {
 }
 
 [NetworkObject]
+public partial class PrivateCollectionState : NetworkObject {
+	[NetworkCollection]
+	private partial IList<int> Values { get; }
+
+	public void AddValue(int value) {
+		Values.Add(value);
+	}
+
+	public int ValueCount => Values.Count;
+
+	public int GetValue(int index) {
+		return Values[index];
+	}
+}
+
+[NetworkObject]
 public partial class ObjectCollectionState : NetworkObject {
 	[NetworkCollection]
 	public partial IList<DirtyChildState> Children { get; }
+}
+
+[NetworkObject]
+public partial class DeepObjectCollectionLevelThreeState : NetworkObject {
+	[NetworkCollection]
+	public partial IList<DirtyChildState> Children { get; }
+}
+
+[NetworkObject]
+public partial class DeepObjectCollectionLevelTwoState : NetworkObject {
+	[NetworkCollection]
+	public partial IList<DeepObjectCollectionLevelThreeState> Children { get; }
+}
+
+[NetworkObject]
+public partial class DeepObjectCollectionRootState : NetworkObject {
+	[NetworkCollection]
+	public partial IList<DeepObjectCollectionLevelTwoState> Children { get; }
 }

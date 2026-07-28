@@ -265,6 +265,39 @@ public sealed class CatNetworkGeneratorTests {
 	}
 
 	[Test]
+	public void GeneratedPartialClassHeader_DoesNotRepeatBaseTypeOrInterfaces() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Root : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial int Health { get; set; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string propertySource = GetGeneratedSource(runResult, "Game_Root.g.cs");
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(propertySource, Does.Contain("partial class Root : global::Cat.Network.INetworkObject"));
+			Assert.That(propertySource, Does.Not.Contain("partial class Root : global::Cat.Network.NetworkObject"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
 	public void GeneratedSerializerIncludesNetworkObjectUpdateHandling() {
 		const string source = """
 		                      using Cat.Network;
@@ -468,6 +501,43 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(propertySource, Does.Contain("get => __networkCollection_Scores;"));
 			Assert.That(propertySource, Does.Contain("Index = 0"));
 			Assert.That(propertySource, Does.Contain("__networkCollection_Scores = new global::Cat.Network.NetworkValueList<global::System.Int32>(this, 0);"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
+	public void GeneratedSerializerCanAccessPrivateCollectionProperty() {
+		const string source = """
+		                      using System.Collections.Generic;
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Player : NetworkObject {
+		                      	[NetworkCollection]
+		                      	private partial IList<int> Scores { get; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string propertySource = GetGeneratedSource(runResult, "Game_Player.g.cs");
+		string serializerSource = GetGeneratedSource(runResult, "Game_Player_Serializer.g.cs");
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(propertySource, Does.Contain("private partial global::System.Collections.Generic.IList<global::System.Int32> Scores"));
+			Assert.That(propertySource, Does.Contain("get => __networkCollection_Scores;"));
+			Assert.That(serializerSource, Does.Contain("[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_Scores\")]"));
+			Assert.That(serializerSource, Does.Contain("private static extern global::System.Collections.Generic.IList<global::System.Int32> GetScores(global::Game.Player target);"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
 	}

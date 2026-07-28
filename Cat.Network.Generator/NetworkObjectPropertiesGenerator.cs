@@ -16,9 +16,7 @@ internal static class NetworkObjectPropertiesGenerator {
 			Namespace(model),
 			model.TypeId,
 			model.SerializerTypeName,
-			model.Accessibility,
 			model.TypeName,
-			ClassInheritance(model),
 			Properties(model),
 			PartialProperties(model),
 			InitializeMembers(model));
@@ -30,12 +28,6 @@ internal static class NetworkObjectPropertiesGenerator {
 		return string.IsNullOrWhiteSpace(model.Namespace)
 			? string.Empty
 			: string.Format(NamespaceTemplate, model.Namespace);
-	}
-
-	private static string ClassInheritance(NetworkObjectTypeModel model) {
-		return model.TypeName == "NetworkObject" && model.Namespace == "Cat.Network"
-			? " : global::Cat.Network.INetworkObject"
-			: $" : {model.BaseTypeName}, global::Cat.Network.INetworkObject";
 	}
 
 	private static string Properties(NetworkObjectTypeModel model) {
@@ -132,14 +124,13 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                      {0}
 	                                      [global::Cat.Network.NetworkObjectTypeId("{1}")]
 	                                      [global::Cat.Network.NetworkObjectSerializerAttribute<{2}>]
-	                                      {3} partial class {4}{5}
+	                                      partial class {3} : global::Cat.Network.INetworkObject
 	                                      {{
-	                                      	// {4}
+	                                      {4}
+
+	                                      {5}
+
 	                                      {6}
-
-	                                      {7}
-
-	                                      {8}
 	                                      }}
 	                                      """;
 

@@ -15,10 +15,11 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
 		SymbolDisplayGenericsOptions.IncludeTypeParameters);
 
-	private NetworkCollectionModel(string typeName, string itemTypeName, string runtimeItemTypeName, string name, string accessibility, string getterAccessibility, int propertyIndex, bool isNetworkObjectItem, string backingFieldName) {
+	private NetworkCollectionModel(string typeName, string itemTypeName, string runtimeItemTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, int propertyIndex, bool isNetworkObjectItem, string backingFieldName) {
 		TypeName = typeName;
 		ItemTypeName = itemTypeName;
 		RuntimeItemTypeName = runtimeItemTypeName;
+		DeclaringTypeName = declaringTypeName;
 		Name = name;
 		Accessibility = accessibility;
 		GetterAccessibility = getterAccessibility;
@@ -32,6 +33,8 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 	public string ItemTypeName { get; }
 
 	public string RuntimeItemTypeName { get; }
+
+	public string DeclaringTypeName { get; }
 
 	public string Name { get; }
 
@@ -56,6 +59,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 			property.Type.ToDisplayString(FullyQualifiedTypeFormat),
 			itemTypeName,
 			runtimeItemTypeName,
+			property.ContainingType.ToDisplayString(FullyQualifiedTypeFormat),
 			property.Name,
 			GetAccessibility(property.DeclaredAccessibility),
 			GetAccessorAccessibility(property, property.GetMethod),
@@ -69,6 +73,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		       TypeName == other.TypeName &&
 		       ItemTypeName == other.ItemTypeName &&
 		       RuntimeItemTypeName == other.RuntimeItemTypeName &&
+		       DeclaringTypeName == other.DeclaringTypeName &&
 		       Name == other.Name &&
 		       Accessibility == other.Accessibility &&
 		       GetterAccessibility == other.GetterAccessibility &&
@@ -86,6 +91,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 			int hashCode = TypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ ItemTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ RuntimeItemTypeName.GetHashCode();
+			hashCode = (hashCode * 397) ^ DeclaringTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ Name.GetHashCode();
 			hashCode = (hashCode * 397) ^ Accessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ GetterAccessibility.GetHashCode();

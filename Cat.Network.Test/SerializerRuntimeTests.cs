@@ -69,6 +69,60 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RoundTrip_ValueCollectionState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ValueCollectionState));
+		ValueCollectionState original = new();
+		original.Values.Add(3);
+		original.Values.Add(5);
+		original.Values.Add(8);
+
+		AssertRoundTripSerializationEquals(original, new ValueCollectionState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_PrivateCollectionState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(PrivateCollectionState));
+		PrivateCollectionState original = new();
+		original.AddValue(13);
+		original.AddValue(21);
+		original.AddValue(34);
+
+		AssertRoundTripSerializationEquals(original, new PrivateCollectionState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_ObjectCollectionState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ObjectCollectionState), typeof(DirtyChildState));
+		ObjectCollectionState original = new();
+		original.Children.Add(new DirtyChildState { Value = 2 });
+		original.Children.Add(new DirtyChildState { Value = 4 });
+
+		AssertRoundTripSerializationEquals(original, new ObjectCollectionState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_DeepObjectCollectionState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(
+			typeof(DeepObjectCollectionRootState),
+			typeof(DeepObjectCollectionLevelTwoState),
+			typeof(DeepObjectCollectionLevelThreeState),
+			typeof(DirtyChildState));
+		DeepObjectCollectionRootState original = new();
+		DeepObjectCollectionLevelTwoState levelTwoA = new();
+		DeepObjectCollectionLevelThreeState levelThreeA = new();
+		DeepObjectCollectionLevelThreeState levelThreeB = new();
+
+		levelThreeA.Children.Add(new DirtyChildState { Value = 1 });
+		levelThreeA.Children.Add(new DirtyChildState { Value = 2 });
+		levelThreeB.Children.Add(new DirtyChildState { Value = 3 });
+		levelTwoA.Children.Add(levelThreeA);
+		levelTwoA.Children.Add(levelThreeB);
+		original.Children.Add(levelTwoA);
+
+		AssertRoundTripSerializationEquals(original, new DeepObjectCollectionRootState(), catalogue);
+	}
+
+	[Test]
 	public void Serialize_PrimitiveAndStringProperties_InIndexMode() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
 		PrimitiveState target = PrimitiveState.Create(42, "Mira");
@@ -504,6 +558,25 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void PrivateNetworkCollectionProperty_IsInitializedAndUsableThroughPublicMethods() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(PrivateCollectionState));
+		PrivateCollectionState target = new();
+
+		target.AddValue(5);
+		target.AddValue(8);
+
+		byte[] payload = Serialize(target, catalogue);
+		PrivateCollectionState deserialized = new();
+		Deserialize(deserialized, catalogue, payload);
+
+		Assert.Multiple(() => {
+			Assert.That(deserialized.ValueCount, Is.EqualTo(2));
+			Assert.That(deserialized.GetValue(0), Is.EqualTo(5));
+			Assert.That(deserialized.GetValue(1), Is.EqualTo(8));
+		});
+	}
+
+	[Test]
 	public void GeneratedNetworkCollectionProperty_IsInitializedWithObjectCollectionImplementation() {
 		ObjectCollectionState target = new();
 
@@ -548,6 +621,123 @@ public sealed class SerializerRuntimeTests {
 			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(-1));
 			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
 		});
+	}
+
+	[Test]
+	public void Serialize_ValueCollection_UsesCollectionOperations() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ValueCollectionState));
+		ValueCollectionState target = new();
+		target.Values.Add(7);
+		target.Values.Add(9);
+
+		byte[] payload = Serialize(target, catalogue);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionAdd(Int32(7)),
+				CollectionAdd(Int32(9)))))));
+	}
+
+	[Test]
+	public void Serialize_DirtyValueCollection_UsesBufferedOperations() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ValueCollectionState));
+		ValueCollectionState target = new();
+		target.Values.Add(7);
+
+		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionAdd(Int32(7)))))));
+	}
+
+	[Test]
+	public void Deserialize_ValueCollection_AppliesOperations() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ValueCollectionState));
+		ValueCollectionState target = new();
+
+		byte[] payload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionAdd(Int32(3)),
+				CollectionAdd(Int32(5)),
+				CollectionInsert(1, Int32(4)),
+				CollectionSet(0, Int32(2)),
+				CollectionRemove(2))));
+		Deserialize(target, catalogue, payload);
+
+		Assert.That(target.Values, Is.EqualTo(new[] { 2, 4 }));
+	}
+
+	[Test]
+	public void Serialize_DirtyObjectCollection_UsesUpdateOperationForDirtyItem() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ObjectCollectionState), typeof(DirtyChildState));
+		ObjectCollectionState target = new();
+
+		byte[] initialPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionAdd(ObjectItem(
+					typeof(DirtyChildState),
+					BuildObjectPayload(
+						BuildIndexField(0, Int32(1))))))));
+		Deserialize(target, catalogue, initialPayload);
+
+		DirtyChildState child = (DirtyChildState)target.Children.Single();
+		child.Value = 5;
+
+		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+
+		byte[] expectedPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionUpdate(0, BuildObjectPayload(
+					BuildIndexField(0, Int32(5)))))));
+		Assert.That(payload, Is.EqualTo(expectedPayload));
+	}
+
+	[Test]
+	public void Serialize_DirtyNestedObjectCollections_UsesUpdateOperationsAtEachLevel() {
+		TypeCatalogue catalogue = RegisterTypes(
+			typeof(DeepObjectCollectionRootState),
+			typeof(DeepObjectCollectionLevelTwoState),
+			typeof(DeepObjectCollectionLevelThreeState),
+			typeof(DirtyChildState));
+		DeepObjectCollectionRootState target = new();
+
+		byte[] leafInitialPayload = BuildObjectPayload(
+			BuildIndexField(0, Int32(1)));
+		byte[] levelThreeInitialPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionAdd(ObjectItem(typeof(DirtyChildState), leafInitialPayload)))));
+		byte[] levelTwoInitialPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionAdd(ObjectItem(typeof(DeepObjectCollectionLevelThreeState), levelThreeInitialPayload)))));
+		byte[] initialPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionAdd(ObjectItem(typeof(DeepObjectCollectionLevelTwoState), levelTwoInitialPayload)))));
+		Deserialize(target, catalogue, initialPayload);
+
+		DirtyChildState leaf = (DirtyChildState)((DeepObjectCollectionLevelThreeState)((DeepObjectCollectionLevelTwoState)target.Children.Single()).Children.Single()).Children.Single();
+		leaf.Value = 5;
+
+		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+
+		byte[] leafExpectedPayload = BuildObjectPayload(
+			BuildIndexField(0, Int32(5)));
+		byte[] levelThreeExpectedPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionUpdate(0, leafExpectedPayload))));
+		byte[] levelTwoExpectedPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionUpdate(0, levelThreeExpectedPayload))));
+		byte[] expectedPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionUpdate(0, levelTwoExpectedPayload))));
+		Assert.That(payload, Is.EqualTo(expectedPayload));
 	}
 
 	private static void Deserialize(NetworkObject target, TypeCatalogue catalogue, byte[] payload) {
@@ -635,6 +825,38 @@ public sealed class SerializerRuntimeTests {
 
 	private static byte[] ClearObject() {
 		return new[] { (byte)NetworkObjectUpdateMode.Clear };
+	}
+
+	private static byte[] CollectionPayload(params byte[][] operations) {
+		return Concat(Int32(operations.Length), Concat(operations));
+	}
+
+	private static byte[] CollectionAdd(byte[] itemPayload) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Add }, Int32(itemPayload.Length), itemPayload);
+	}
+
+	private static byte[] CollectionInsert(int index, byte[] itemPayload) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Insert }, Int32(index), Int32(itemPayload.Length), itemPayload);
+	}
+
+	private static byte[] CollectionRemove(int index) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Remove }, Int32(index));
+	}
+
+	private static byte[] CollectionSet(int index, byte[] itemPayload) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Set }, Int32(index), Int32(itemPayload.Length), itemPayload);
+	}
+
+	private static byte[] CollectionClear() {
+		return new[] { (byte)NetworkCollectionOperationType.Clear };
+	}
+
+	private static byte[] CollectionUpdate(int index, byte[] itemPayload) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Update }, Int32(index), Int32(itemPayload.Length), itemPayload);
+	}
+
+	private static byte[] ObjectItem(Type type, byte[] objectPayload) {
+		return Concat(new byte[] { 1 }, GuidBytes(GetTypeId(type)), objectPayload);
 	}
 
 	private static byte[] NullableValue(byte[] value) {
