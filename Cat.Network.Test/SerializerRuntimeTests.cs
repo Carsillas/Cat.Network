@@ -101,6 +101,17 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RoundTrip_NullableObjectCollectionState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(NullableObjectCollectionState), typeof(DirtyChildState));
+		NullableObjectCollectionState original = new();
+		original.Children.Add(new DirtyChildState { Value = 2 });
+		original.Children.Add(null);
+		original.Children.Add(new DirtyChildState { Value = 4 });
+
+		AssertRoundTripSerializationEquals(original, new NullableObjectCollectionState(), catalogue);
+	}
+
+	[Test]
 	public void RoundTrip_ValueDictionaryState_PreservesIndexPayload() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(ValueDictionaryState));
 		ValueDictionaryState original = new();
@@ -118,6 +129,16 @@ public sealed class SerializerRuntimeTests {
 		original.Children.Add(6, new DirtyChildState { Value = 8 });
 
 		AssertRoundTripSerializationEquals(original, new ObjectDictionaryState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_NullableObjectDictionaryState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(NullableObjectDictionaryState), typeof(DirtyChildState));
+		NullableObjectDictionaryState original = new();
+		original.Children.Add(2, new DirtyChildState { Value = 4 });
+		original.Children.Add(6, null);
+
+		AssertRoundTripSerializationEquals(original, new NullableObjectDictionaryState(), catalogue);
 	}
 
 	[Test]
@@ -604,6 +625,13 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void GeneratedNullableNetworkCollectionProperty_IsInitializedWithObjectCollectionImplementation() {
+		NullableObjectCollectionState target = new();
+
+		Assert.That(target.Children, Is.TypeOf<NetworkObjectList<DirtyChildState>>());
+	}
+
+	[Test]
 	public void GeneratedNetworkCollectionProperty_IsInitializedWithValueDictionaryImplementation() {
 		ValueDictionaryState target = new();
 
@@ -613,6 +641,13 @@ public sealed class SerializerRuntimeTests {
 	[Test]
 	public void GeneratedNetworkCollectionProperty_IsInitializedWithObjectDictionaryImplementation() {
 		ObjectDictionaryState target = new();
+
+		Assert.That(target.Children, Is.TypeOf<NetworkObjectDictionary<int, DirtyChildState>>());
+	}
+
+	[Test]
+	public void GeneratedNullableNetworkCollectionProperty_IsInitializedWithObjectDictionaryImplementation() {
+		NullableObjectDictionaryState target = new();
 
 		Assert.That(target.Children, Is.TypeOf<NetworkObjectDictionary<int, DirtyChildState>>());
 	}
@@ -665,6 +700,19 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void AddingNullObjectToCollection_DoesNotThrowOrAssignParent() {
+		NullableObjectCollectionState target = new();
+
+		target.Children.Add(null);
+
+		Assert.Multiple(() => {
+			Assert.That(target.Children, Has.Count.EqualTo(1));
+			Assert.That(target.Children[0], Is.Null);
+			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+		});
+	}
+
+	[Test]
 	public void MutatingValueDictionary_MarksOwnerPropertyAsModified() {
 		ValueDictionaryState target = new();
 
@@ -700,6 +748,19 @@ public sealed class SerializerRuntimeTests {
 		Assert.Multiple(() => {
 			Assert.That(((INetworkObject)child).Parent, Is.Null);
 			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(-1));
+			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+		});
+	}
+
+	[Test]
+	public void AddingNullObjectToDictionary_DoesNotThrowOrAssignParent() {
+		NullableObjectDictionaryState target = new();
+
+		target.Children.Add(4, null);
+
+		Assert.Multiple(() => {
+			Assert.That(target.Children.ContainsKey(4), Is.True);
+			Assert.That(target.Children[4], Is.Null);
 			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
 		});
 	}

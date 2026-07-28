@@ -189,6 +189,12 @@ public partial class ObjectCollectionState : NetworkObject {
 }
 
 [NetworkObject]
+public partial class NullableObjectCollectionState : NetworkObject {
+	[NetworkCollection]
+	public partial IList<DirtyChildState?> Children { get; }
+}
+
+[NetworkObject]
 public partial class ValueDictionaryState : NetworkObject {
 	[NetworkCollection]
 	public partial IDictionary<int, string> Values { get; }
@@ -198,6 +204,12 @@ public partial class ValueDictionaryState : NetworkObject {
 public partial class ObjectDictionaryState : NetworkObject {
 	[NetworkCollection]
 	public partial IDictionary<int, DirtyChildState> Children { get; }
+}
+
+[NetworkObject]
+public partial class NullableObjectDictionaryState : NetworkObject {
+	[NetworkCollection]
+	public partial IDictionary<int, DirtyChildState?> Children { get; }
 }
 
 [NetworkObject]

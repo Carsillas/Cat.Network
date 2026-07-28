@@ -132,9 +132,9 @@ internal static class NetworkObjectPropertiesGenerator {
 
 	private static string CollectionConcreteType(NetworkCollectionModel collection) {
 		return collection.Kind switch {
-			NetworkCollectionKind.List when collection.IsNetworkObjectItem => $"global::Cat.Network.NetworkObjectList<{collection.RuntimeItemTypeName}>",
+			NetworkCollectionKind.List when collection.IsNetworkObjectItem => $"global::Cat.Network.NetworkObjectList<{collection.ItemTypeName}>",
 			NetworkCollectionKind.List => $"global::Cat.Network.NetworkValueList<{collection.ItemTypeName}>",
-			NetworkCollectionKind.Dictionary when collection.IsNetworkObjectItem => $"global::Cat.Network.NetworkObjectDictionary<{collection.RuntimeKeyTypeName}, {collection.RuntimeItemTypeName}>",
+			NetworkCollectionKind.Dictionary when collection.IsNetworkObjectItem => $"global::Cat.Network.NetworkObjectDictionary<{collection.RuntimeKeyTypeName}, {collection.ItemTypeName}>",
 			NetworkCollectionKind.Dictionary => $"global::Cat.Network.NetworkValueDictionary<{collection.RuntimeKeyTypeName}, {collection.ItemTypeName}>",
 			_ => throw new global::System.InvalidOperationException($"Unsupported collection kind '{collection.Kind}'.")
 		};

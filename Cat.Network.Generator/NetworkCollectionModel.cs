@@ -10,19 +10,13 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
 		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-	private static readonly SymbolDisplayFormat FullyQualifiedNonNullableTypeFormat = new(
-		SymbolDisplayGlobalNamespaceStyle.Included,
-		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
-		SymbolDisplayGenericsOptions.IncludeTypeParameters);
-
 	private const string IListMetadataName = "global::System.Collections.Generic.IList<T>";
 	private const string IDictionaryMetadataName = "global::System.Collections.Generic.IDictionary<TKey, TValue>";
 
-	private NetworkCollectionModel(NetworkCollectionKind kind, string typeName, string itemTypeName, string runtimeItemTypeName, string? keyTypeName, string? runtimeKeyTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, int propertyIndex, bool isNetworkObjectItem, string backingFieldName) {
+	private NetworkCollectionModel(NetworkCollectionKind kind, string typeName, string itemTypeName, string? keyTypeName, string? runtimeKeyTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, int propertyIndex, bool isNetworkObjectItem, string backingFieldName) {
 		Kind = kind;
 		TypeName = typeName;
 		ItemTypeName = itemTypeName;
-		RuntimeItemTypeName = runtimeItemTypeName;
 		KeyTypeName = keyTypeName;
 		RuntimeKeyTypeName = runtimeKeyTypeName;
 		DeclaringTypeName = declaringTypeName;
@@ -40,8 +34,6 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 	public string TypeName { get; }
 
 	public string ItemTypeName { get; }
-
-	public string RuntimeItemTypeName { get; }
 
 	public string? KeyTypeName { get; }
 
@@ -71,15 +63,13 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		ITypeSymbol? keyType = isDictionary ? propertyType.TypeArguments[0] : null;
 		bool isNetworkObjectItem = InheritsFromNetworkObject(itemType);
 		string itemTypeName = itemType.ToDisplayString(FullyQualifiedTypeFormat);
-		string runtimeItemTypeName = itemType.WithNullableAnnotation(NullableAnnotation.NotAnnotated).ToDisplayString(FullyQualifiedNonNullableTypeFormat);
 		string? keyTypeName = keyType?.ToDisplayString(FullyQualifiedTypeFormat);
-		string? runtimeKeyTypeName = keyType?.WithNullableAnnotation(NullableAnnotation.NotAnnotated).ToDisplayString(FullyQualifiedNonNullableTypeFormat);
+		string? runtimeKeyTypeName = keyType?.WithNullableAnnotation(NullableAnnotation.NotAnnotated).ToDisplayString(FullyQualifiedTypeFormat);
 
 		return new NetworkCollectionModel(
 			kind,
 			property.Type.ToDisplayString(FullyQualifiedTypeFormat),
 			itemTypeName,
-			runtimeItemTypeName,
 			keyTypeName,
 			runtimeKeyTypeName,
 			property.ContainingType.ToDisplayString(FullyQualifiedTypeFormat),
@@ -97,7 +87,6 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		       Kind == other.Kind &&
 		       TypeName == other.TypeName &&
 		       ItemTypeName == other.ItemTypeName &&
-		       RuntimeItemTypeName == other.RuntimeItemTypeName &&
 		       KeyTypeName == other.KeyTypeName &&
 		       RuntimeKeyTypeName == other.RuntimeKeyTypeName &&
 		       DeclaringTypeName == other.DeclaringTypeName &&
@@ -119,7 +108,6 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 			int hashCode = Kind.GetHashCode();
 			hashCode = (hashCode * 397) ^ TypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ ItemTypeName.GetHashCode();
-			hashCode = (hashCode * 397) ^ RuntimeItemTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ (KeyTypeName?.GetHashCode() ?? 0);
 			hashCode = (hashCode * 397) ^ (RuntimeKeyTypeName?.GetHashCode() ?? 0);
 			hashCode = (hashCode * 397) ^ DeclaringTypeName.GetHashCode();
@@ -136,7 +124,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 
 	private static bool InheritsFromNetworkObject(ITypeSymbol type) {
 		for (ITypeSymbol? current = type; current is not null; current = current.BaseType) {
-			if (current.ToDisplayString(FullyQualifiedNonNullableTypeFormat) == "global::Cat.Network.NetworkObject") {
+			if (current.WithNullableAnnotation(NullableAnnotation.NotAnnotated).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Cat.Network.NetworkObject") {
 				return true;
 			}
 		}
