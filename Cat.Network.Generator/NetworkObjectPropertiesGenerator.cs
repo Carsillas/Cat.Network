@@ -19,6 +19,7 @@ internal static class NetworkObjectPropertiesGenerator {
 			model.TypeName,
 			Properties(model),
 			PartialProperties(model),
+			CollectionAccessorMethods(model),
 			InitializeMembers(model));
 
 		return SyntaxFactory.ParseCompilationUnit(source).NormalizeWhitespace().ToFullString();
@@ -77,6 +78,14 @@ internal static class NetworkObjectPropertiesGenerator {
 			collectionInitializers);
 	}
 
+	private static string CollectionAccessorMethods(NetworkObjectTypeModel model) {
+		return string.Join(
+			"\n\n",
+			model.Collections
+				.OrderBy(static collection => collection.PropertyIndex)
+				.Select(CollectionAccessorMethod));
+	}
+
 	private static string PartialProperty(NetworkPropertyModel property) {
 		if (property.SerializationKind == NetworkPropertySerializationKind.NetworkObject) {
 			return string.Format(
@@ -103,18 +112,32 @@ internal static class NetworkObjectPropertiesGenerator {
 		return string.Format(
 			CollectionPartialPropertyTemplate,
 			collection.TypeName,
-			collection.BackingFieldName,
-			collection.Accessibility,
 			collection.Name,
-			collection.GetterAccessibility);
+			collection.GetterAccessibility,
+			CollectionConcreteType(collection),
+			collection.Accessibility);
 	}
 
 	private static string CollectionInitializer(NetworkCollectionModel collection) {
-		string collectionType = collection.IsNetworkObjectItem
-			? $"global::Cat.Network.NetworkObjectList<{collection.RuntimeItemTypeName}>"
-			: $"global::Cat.Network.NetworkValueList<{collection.ItemTypeName}>";
+		return $"((global::Cat.Network.INetworkCollection)Get{collection.Name}(this)).Initialize(this, {collection.PropertyIndex});";
+	}
 
-		return $"{collection.BackingFieldName} = new {collectionType}(this, {collection.PropertyIndex});";
+	private static string CollectionAccessorMethod(NetworkCollectionModel collection) {
+		return string.Format(
+			CollectionAccessorMethodTemplate,
+			collection.Name,
+			collection.TypeName,
+			collection.DeclaringTypeName);
+	}
+
+	private static string CollectionConcreteType(NetworkCollectionModel collection) {
+		return collection.Kind switch {
+			NetworkCollectionKind.List when collection.IsNetworkObjectItem => $"global::Cat.Network.NetworkObjectList<{collection.RuntimeItemTypeName}>",
+			NetworkCollectionKind.List => $"global::Cat.Network.NetworkValueList<{collection.ItemTypeName}>",
+			NetworkCollectionKind.Dictionary when collection.IsNetworkObjectItem => $"global::Cat.Network.NetworkObjectDictionary<{collection.RuntimeKeyTypeName}, {collection.RuntimeItemTypeName}>",
+			NetworkCollectionKind.Dictionary => $"global::Cat.Network.NetworkValueDictionary<{collection.RuntimeKeyTypeName}, {collection.ItemTypeName}>",
+			_ => throw new global::System.InvalidOperationException($"Unsupported collection kind '{collection.Kind}'.")
+		};
 	}
 
 	private const string SourceTemplate = """
@@ -131,6 +154,8 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                      {5}
 
 	                                      {6}
+
+	                                      {7}
 	                                      }}
 	                                      """;
 
@@ -230,12 +255,16 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                                     """;
 
 	private const string CollectionPartialPropertyTemplate = """
-	                                                   	private protected {0} {1} = null!;
-	                                                   	{2} partial {0} {3}
+	                                                   	{4} partial {0} {1}
 	                                                   	{{
-	                                                   		{4}get => {1};
-	                                                   	}}
+	                                                   		{2}get => field;
+	                                                   	}} = new {3}();
 	                                                   """;
+
+	private const string CollectionAccessorMethodTemplate = """
+	                                                 	[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "get_{0}")]
+	                                                 	private static extern {1} Get{0}({2} target);
+	                                                 """;
 
 	private const string InitializeMembersTemplate = """
 

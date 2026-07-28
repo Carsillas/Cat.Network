@@ -189,6 +189,29 @@ public partial class ObjectCollectionState : NetworkObject {
 }
 
 [NetworkObject]
+public partial class ValueDictionaryState : NetworkObject {
+	[NetworkCollection]
+	public partial IDictionary<int, string> Values { get; }
+}
+
+[NetworkObject]
+public partial class ObjectDictionaryState : NetworkObject {
+	[NetworkCollection]
+	public partial IDictionary<int, DirtyChildState> Children { get; }
+}
+
+[NetworkObject]
+public partial class InheritedCollectionBaseState : NetworkObject {
+	[NetworkCollection]
+	public partial IList<int> Values { get; }
+}
+
+[NetworkObject]
+public partial class InheritedCollectionDerivedState : InheritedCollectionBaseState {
+
+}
+
+[NetworkObject]
 public partial class DeepObjectCollectionLevelThreeState : NetworkObject {
 	[NetworkCollection]
 	public partial IList<DirtyChildState> Children { get; }

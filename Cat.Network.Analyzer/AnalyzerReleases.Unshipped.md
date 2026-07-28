@@ -17,6 +17,7 @@
  CN0010  | Usage    | Error    | NetworkCollectionAttribute can only be used in NetworkObject-derived types
  CN0011  | Usage    | Error    | NetworkCollectionAttribute requires a partial property
  CN0012  | Usage    | Error    | NetworkCollectionAttribute requires a getter-only property
- CN0013  | Usage    | Error    | NetworkCollectionAttribute requires IList<T>
+ CN0013  | Usage    | Error    | NetworkCollectionAttribute requires IList<T> or IDictionary<TKey, TValue>
  CN0014  | Usage    | Error    | NetworkCollectionAttribute properties cannot declare an initializer
  CN0015  | Usage    | Error    | NetworkCollectionAttribute requires a supported item type
+ CN0016  | Usage    | Error    | NetworkCollectionAttribute requires a supported dictionary key type

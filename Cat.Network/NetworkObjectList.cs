@@ -1,6 +1,6 @@
 namespace Cat.Network;
 
-public sealed class NetworkObjectList<T>(NetworkObject owner, int propertyIndex) : NetworkList<T>(owner, propertyIndex) where T : NetworkObject {
+public sealed class NetworkObjectList<T> : NetworkList<T> where T : NetworkObject {
 	protected override void ValidateItemForAssignment(T item) {
 		ArgumentNullException.ThrowIfNull(item);
 

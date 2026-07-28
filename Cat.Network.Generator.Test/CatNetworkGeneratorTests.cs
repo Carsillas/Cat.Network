@@ -496,11 +496,50 @@ public sealed class CatNetworkGeneratorTests {
 
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
-			Assert.That(propertySource, Does.Contain("private protected global::System.Collections.Generic.IList<global::System.Int32> __networkCollection_Scores = null!;"));
 			Assert.That(propertySource, Does.Contain("public partial global::System.Collections.Generic.IList<global::System.Int32> Scores"));
-			Assert.That(propertySource, Does.Contain("get => __networkCollection_Scores;"));
+			Assert.That(propertySource, Does.Contain("get => field;"));
+			Assert.That(propertySource, Does.Contain("} = new global::Cat.Network.NetworkValueList<global::System.Int32>();"));
 			Assert.That(propertySource, Does.Contain("Index = 0"));
-			Assert.That(propertySource, Does.Contain("__networkCollection_Scores = new global::Cat.Network.NetworkValueList<global::System.Int32>(this, 0);"));
+			Assert.That(propertySource, Does.Contain("[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_Scores\")]"));
+			Assert.That(propertySource, Does.Contain("private static extern global::System.Collections.Generic.IList<global::System.Int32> GetScores(global::Game.Player target);"));
+			Assert.That(propertySource, Does.Contain("((global::Cat.Network.INetworkCollection)GetScores(this)).Initialize(this, 0);"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
+	public void GeneratedDictionaryCollectionProperty_UsesNetworkDictionaryInitialization() {
+		const string source = """
+		                      using System.Collections.Generic;
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Player : NetworkObject {
+		                      	[NetworkCollection]
+		                      	public partial IDictionary<int, string> Scores { get; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string propertySource = GetGeneratedSource(runResult, "Game_Player.g.cs");
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(propertySource, Does.Contain("public partial global::System.Collections.Generic.IDictionary<global::System.Int32, global::System.String> Scores"));
+			Assert.That(propertySource, Does.Contain("get => field;"));
+			Assert.That(propertySource, Does.Contain("} = new global::Cat.Network.NetworkValueDictionary<global::System.Int32, global::System.String>();"));
+			Assert.That(propertySource, Does.Contain("private static extern global::System.Collections.Generic.IDictionary<global::System.Int32, global::System.String> GetScores(global::Game.Player target);"));
+			Assert.That(propertySource, Does.Contain("((global::Cat.Network.INetworkCollection)GetScores(this)).Initialize(this, 0);"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
 	}
@@ -535,7 +574,8 @@ public sealed class CatNetworkGeneratorTests {
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
 			Assert.That(propertySource, Does.Contain("private partial global::System.Collections.Generic.IList<global::System.Int32> Scores"));
-			Assert.That(propertySource, Does.Contain("get => __networkCollection_Scores;"));
+			Assert.That(propertySource, Does.Contain("get => field;"));
+			Assert.That(propertySource, Does.Contain("} = new global::Cat.Network.NetworkValueList<global::System.Int32>();"));
 			Assert.That(serializerSource, Does.Contain("[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = \"get_Scores\")]"));
 			Assert.That(serializerSource, Does.Contain("private static extern global::System.Collections.Generic.IList<global::System.Int32> GetScores(global::Game.Player target);"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);

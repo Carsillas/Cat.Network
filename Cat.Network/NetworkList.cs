@@ -7,14 +7,9 @@ namespace Cat.Network;
 public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 	private static NetworkCollectionSerializer.ItemCodec Codec { get; } = NetworkCollectionSerializer.GetCodec<T>();
 
-	protected NetworkList(NetworkObject owner, int propertyIndex) {
-		Owner = owner;
-		PropertyIndex = propertyIndex;
-	}
+	protected NetworkObject Owner { get; private set; } = null!;
 
-	protected NetworkObject Owner { get; }
-
-	protected int PropertyIndex { get; }
+	protected int PropertyIndex { get; private set; } = -1;
 
 	protected List<T> Items { get; } = [];
 
@@ -103,6 +98,19 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		Items.RemoveAt(index);
 		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Remove, index));
 		MarkOwnerModified();
+	}
+
+	public void Initialize(NetworkObject owner, int propertyIndex) {
+		if (Owner is not null) {
+			if (ReferenceEquals(Owner, owner) && PropertyIndex == propertyIndex) {
+				return;
+			}
+
+			throw new InvalidOperationException("Network collection is already initialized.");
+		}
+
+		Owner = owner;
+		PropertyIndex = propertyIndex;
 	}
 
 	public void Serialize(BufferWriter writer, SerializationContext context, SerializationOptions options) {

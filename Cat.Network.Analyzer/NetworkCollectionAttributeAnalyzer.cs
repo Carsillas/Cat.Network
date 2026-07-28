@@ -13,6 +13,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 	private const string NetworkCollectionAttributeRequiresIListDiagnosticId = "CN0013";
 	private const string NetworkCollectionAttributeCannotBeInitializedDiagnosticId = "CN0014";
 	private const string NetworkCollectionAttributeRequiresSupportedItemTypeDiagnosticId = "CN0015";
+	private const string NetworkCollectionAttributeRequiresSupportedKeyTypeDiagnosticId = "CN0016";
 
 	private static readonly DiagnosticDescriptor InvalidNetworkCollectionAttributeRule = new(
 		InvalidNetworkCollectionAttributeDiagnosticId,
@@ -40,8 +41,8 @@ internal static class NetworkCollectionAttributeAnalyzer {
 
 	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresIListRule = new(
 		NetworkCollectionAttributeRequiresIListDiagnosticId,
-		"NetworkCollectionAttribute requires IList<T>",
-		"Property '{0}' is marked with NetworkCollectionAttribute but is not of type IList<T>",
+		"NetworkCollectionAttribute requires IList<T> or IDictionary<TKey, TValue>",
+		"Property '{0}' is marked with NetworkCollectionAttribute but is not of type IList<T> or IDictionary<TKey, TValue>",
 		"Usage",
 		DiagnosticSeverity.Error,
 		true);
@@ -62,13 +63,22 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		DiagnosticSeverity.Error,
 		true);
 
+	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresSupportedKeyTypeRule = new(
+		NetworkCollectionAttributeRequiresSupportedKeyTypeDiagnosticId,
+		"NetworkCollectionAttribute requires a supported dictionary key type",
+		"Property '{0}' is marked with NetworkCollectionAttribute but key type '{1}' is not supported for network dictionary serialization",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
 	public static ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
 		InvalidNetworkCollectionAttributeRule,
 		NetworkCollectionAttributeRequiresPartialRule,
 		NetworkCollectionAttributeRequiresGetterOnlyRule,
 		NetworkCollectionAttributeRequiresIListRule,
 		NetworkCollectionAttributeCannotBeInitializedRule,
-		NetworkCollectionAttributeRequiresSupportedItemTypeRule
+		NetworkCollectionAttributeRequiresSupportedItemTypeRule,
+		NetworkCollectionAttributeRequiresSupportedKeyTypeRule
 	];
 
 	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkCollectionAttributeType) {
@@ -107,18 +117,39 @@ internal static class NetworkCollectionAttributeAnalyzer {
 				property.Name));
 		}
 
-		if (property.Type is not INamedTypeSymbol propertyType ||
-		    propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) != "global::System.Collections.Generic.IList<T>") {
+		if (property.Type is not INamedTypeSymbol propertyType) {
 			context.ReportDiagnostic(Diagnostic.Create(
 				NetworkCollectionAttributeRequiresIListRule,
 				property.Locations.FirstOrDefault(),
 				property.Name));
-		} else if (!IsSupportedCollectionItemType(propertyType.TypeArguments[0], networkObjectType)) {
+		} else if (propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Collections.Generic.IList<T>") {
+			if (!IsSupportedCollectionValueType(propertyType.TypeArguments[0], networkObjectType)) {
+				context.ReportDiagnostic(Diagnostic.Create(
+					NetworkCollectionAttributeRequiresSupportedItemTypeRule,
+					property.Locations.FirstOrDefault(),
+					property.Name,
+					propertyType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+			}
+		} else if (propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Collections.Generic.IDictionary<TKey, TValue>") {
+			if (!IsSupportedDictionaryKeyType(propertyType.TypeArguments[0])) {
+				context.ReportDiagnostic(Diagnostic.Create(
+					NetworkCollectionAttributeRequiresSupportedKeyTypeRule,
+					property.Locations.FirstOrDefault(),
+					property.Name,
+					propertyType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+			}
+			if (!IsSupportedCollectionValueType(propertyType.TypeArguments[1], networkObjectType)) {
+				context.ReportDiagnostic(Diagnostic.Create(
+					NetworkCollectionAttributeRequiresSupportedItemTypeRule,
+					property.Locations.FirstOrDefault(),
+					property.Name,
+					propertyType.TypeArguments[1].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+			}
+		} else {
 			context.ReportDiagnostic(Diagnostic.Create(
-				NetworkCollectionAttributeRequiresSupportedItemTypeRule,
+				NetworkCollectionAttributeRequiresIListRule,
 				property.Locations.FirstOrDefault(),
-				property.Name,
-				propertyType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+				property.Name));
 		}
 
 		bool hasInitializer = property.DeclaringSyntaxReferences
@@ -133,23 +164,8 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		}
 	}
 
-	private static bool IsSupportedCollectionItemType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
-		if (type.SpecialType is SpecialType.System_Boolean or
-		    SpecialType.System_Byte or
-		    SpecialType.System_SByte or
-		    SpecialType.System_Int16 or
-		    SpecialType.System_UInt16 or
-		    SpecialType.System_Int32 or
-		    SpecialType.System_UInt32 or
-		    SpecialType.System_Int64 or
-		    SpecialType.System_UInt64 or
-		    SpecialType.System_Single or
-		    SpecialType.System_Double or
-		    SpecialType.System_String) {
-			return true;
-		}
-
-		if (type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Guid") {
+	private static bool IsSupportedCollectionValueType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+		if (IsSupportedScalarOrStringOrGuidType(type)) {
 			return true;
 		}
 
@@ -170,11 +186,66 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		       NetworkAnalyzerHelpers.InheritsFrom((INamedTypeSymbol)type, networkObjectType);
 	}
 
-	private static bool IsSupportedStructFieldType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+	private static bool IsSupportedDictionaryKeyType(ITypeSymbol type) {
 		if (type is INamedTypeSymbol namedType &&
 		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
 		    namedType.TypeArguments.Length == 1) {
-			type = namedType.TypeArguments[0];
+			return false;
+		}
+
+		if (IsSupportedScalarOrStringOrGuidType(type)) {
+			return true;
+		}
+
+		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+			return structType.GetMembers()
+				.OfType<IFieldSymbol>()
+				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
+				.All(IsSupportedDictionaryKeyFieldType);
+		}
+
+		return false;
+	}
+
+	private static bool IsSupportedDictionaryKeyFieldType(IFieldSymbol field) {
+		if (field.Type is INamedTypeSymbol namedType &&
+		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+		    namedType.TypeArguments.Length == 1) {
+			return false;
+		}
+
+		if (IsSupportedScalarOrStringOrGuidType(field.Type)) {
+			return true;
+		}
+
+		if (field.Type.TypeKind == TypeKind.Struct && field.Type is INamedTypeSymbol structType) {
+			return structType.GetMembers()
+				.OfType<IFieldSymbol>()
+				.Where(static nestedField => !nestedField.IsStatic && nestedField.DeclaredAccessibility == Accessibility.Public)
+				.All(IsSupportedDictionaryKeyFieldType);
+		}
+
+		return false;
+	}
+
+	private static bool IsSupportedStructFieldType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+		if (type.SpecialType is SpecialType.System_Boolean or
+		    SpecialType.System_Byte or
+		    SpecialType.System_SByte or
+		    SpecialType.System_Int16 or
+		    SpecialType.System_UInt16 or
+		    SpecialType.System_Int32 or
+		    SpecialType.System_UInt32 or
+		    SpecialType.System_Int64 or
+		    SpecialType.System_UInt64 or
+		    SpecialType.System_Single or
+		    SpecialType.System_Double or
+		    SpecialType.System_String) {
+			return true;
+		}
+
+		if (type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Guid") {
+			return true;
 		}
 
 		if (type.SpecialType is SpecialType.System_Boolean or
@@ -204,5 +275,24 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		}
 
 		return false;
+	}
+
+	private static bool IsSupportedScalarOrStringOrGuidType(ITypeSymbol type) {
+		if (type.SpecialType is SpecialType.System_Boolean or
+		    SpecialType.System_Byte or
+		    SpecialType.System_SByte or
+		    SpecialType.System_Int16 or
+		    SpecialType.System_UInt16 or
+		    SpecialType.System_Int32 or
+		    SpecialType.System_UInt32 or
+		    SpecialType.System_Int64 or
+		    SpecialType.System_UInt64 or
+		    SpecialType.System_Single or
+		    SpecialType.System_Double or
+		    SpecialType.System_String) {
+			return true;
+		}
+
+		return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Guid";
 	}
 }

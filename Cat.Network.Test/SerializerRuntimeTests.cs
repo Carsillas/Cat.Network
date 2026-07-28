@@ -101,6 +101,26 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RoundTrip_ValueDictionaryState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ValueDictionaryState));
+		ValueDictionaryState original = new();
+		original.Values.Add(3, "three");
+		original.Values.Add(5, "five");
+
+		AssertRoundTripSerializationEquals(original, new ValueDictionaryState(), catalogue);
+	}
+
+	[Test]
+	public void RoundTrip_ObjectDictionaryState_PreservesIndexPayload() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ObjectDictionaryState), typeof(DirtyChildState));
+		ObjectDictionaryState original = new();
+		original.Children.Add(2, new DirtyChildState { Value = 4 });
+		original.Children.Add(6, new DirtyChildState { Value = 8 });
+
+		AssertRoundTripSerializationEquals(original, new ObjectDictionaryState(), catalogue);
+	}
+
+	[Test]
 	public void RoundTrip_DeepObjectCollectionState_PreservesIndexPayload() {
 		TypeCatalogue catalogue = RegisterTypes(
 			typeof(DeepObjectCollectionRootState),
@@ -584,6 +604,27 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void GeneratedNetworkCollectionProperty_IsInitializedWithValueDictionaryImplementation() {
+		ValueDictionaryState target = new();
+
+		Assert.That(target.Values, Is.TypeOf<NetworkValueDictionary<int, string>>());
+	}
+
+	[Test]
+	public void GeneratedNetworkCollectionProperty_IsInitializedWithObjectDictionaryImplementation() {
+		ObjectDictionaryState target = new();
+
+		Assert.That(target.Children, Is.TypeOf<NetworkObjectDictionary<int, DirtyChildState>>());
+	}
+
+	[Test]
+	public void InheritedNetworkCollectionProperty_IsInitializedOnDerivedType() {
+		InheritedCollectionDerivedState target = new();
+
+		Assert.That(target.Values, Is.TypeOf<NetworkValueList<int>>());
+	}
+
+	[Test]
 	public void MutatingValueCollection_MarksOwnerPropertyAsModified() {
 		ValueCollectionState target = new();
 
@@ -624,6 +665,46 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void MutatingValueDictionary_MarksOwnerPropertyAsModified() {
+		ValueDictionaryState target = new();
+
+		target.Values.Add(7, "seven");
+
+		Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+	}
+
+	[Test]
+	public void AddingObjectToDictionary_SetsParentAndPropertyIndex() {
+		ObjectDictionaryState target = new();
+		DirtyChildState child = new();
+
+		target.Children.Add(4, child);
+
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)child).Parent, Is.SameAs(target));
+			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(0));
+			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+		});
+	}
+
+	[Test]
+	public void RemovingObjectFromDictionary_ClearsParentAndPropertyIndex() {
+		ObjectDictionaryState target = new();
+		DirtyChildState child = new();
+
+		target.Children.Add(4, child);
+		((INetworkObject)target).PropertyStates[0] = NetworkPropertyState.Unchanged;
+
+		target.Children.Remove(4);
+
+		Assert.Multiple(() => {
+			Assert.That(((INetworkObject)child).Parent, Is.Null);
+			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(-1));
+			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+		});
+	}
+
+	[Test]
 	public void Serialize_ValueCollection_UsesCollectionOperations() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(ValueCollectionState));
 		ValueCollectionState target = new();
@@ -653,6 +734,35 @@ public sealed class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void Serialize_ValueDictionary_UsesCollectionOperations() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ValueDictionaryState));
+		ValueDictionaryState target = new();
+		target.Values.Add(7, "seven");
+		target.Values.Add(9, "nine");
+
+		byte[] payload = Serialize(target, catalogue);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionDictionaryAdd(Int32(7), Utf8("seven")),
+				CollectionDictionaryAdd(Int32(9), Utf8("nine")))))));
+	}
+
+	[Test]
+	public void Serialize_DirtyValueDictionary_UsesBufferedOperations() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ValueDictionaryState));
+		ValueDictionaryState target = new();
+		target.Values.Add(7, "seven");
+
+		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionDictionaryAdd(Int32(7), Utf8("seven")))))));
+	}
+
+	[Test]
 	public void Deserialize_ValueCollection_AppliesOperations() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(ValueCollectionState));
 		ValueCollectionState target = new();
@@ -668,6 +778,26 @@ public sealed class SerializerRuntimeTests {
 		Deserialize(target, catalogue, payload);
 
 		Assert.That(target.Values, Is.EqualTo(new[] { 2, 4 }));
+	}
+
+	[Test]
+	public void Deserialize_ValueDictionary_AppliesOperations() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ValueDictionaryState));
+		ValueDictionaryState target = new();
+
+		byte[] payload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionDictionaryAdd(Int32(3), Utf8("three")),
+				CollectionDictionaryAdd(Int32(5), Utf8("five")),
+				CollectionDictionarySet(Int32(3), Utf8("THREE")),
+				CollectionDictionaryRemove(Int32(5)))));
+		Deserialize(target, catalogue, payload);
+
+		Assert.Multiple(() => {
+			Assert.That(target.Values.Count, Is.EqualTo(1));
+			Assert.That(target.Values[3], Is.EqualTo("THREE"));
+		});
 	}
 
 	[Test]
@@ -692,6 +822,34 @@ public sealed class SerializerRuntimeTests {
 		byte[] expectedPayload = BuildObjectPayload(
 			BuildIndexField(0, CollectionPayload(
 				CollectionUpdate(0, BuildObjectPayload(
+					BuildIndexField(0, Int32(5)))))));
+		Assert.That(payload, Is.EqualTo(expectedPayload));
+	}
+
+	[Test]
+	public void Serialize_DirtyObjectDictionary_UsesUpdateOperationForDirtyValue() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(ObjectDictionaryState), typeof(DirtyChildState));
+		ObjectDictionaryState target = new();
+
+		byte[] initialPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionClear(),
+				CollectionDictionaryAdd(
+					Int32(2),
+					ObjectItem(
+						typeof(DirtyChildState),
+						BuildObjectPayload(
+							BuildIndexField(0, Int32(1))))))));
+		Deserialize(target, catalogue, initialPayload);
+
+		DirtyChildState child = target.Children[2];
+		child.Value = 5;
+
+		byte[] payload = Serialize(target, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+
+		byte[] expectedPayload = BuildObjectPayload(
+			BuildIndexField(0, CollectionPayload(
+				CollectionDictionaryUpdate(Int32(2), BuildObjectPayload(
 					BuildIndexField(0, Int32(5)))))));
 		Assert.That(payload, Is.EqualTo(expectedPayload));
 	}
@@ -853,6 +1011,22 @@ public sealed class SerializerRuntimeTests {
 
 	private static byte[] CollectionUpdate(int index, byte[] itemPayload) {
 		return Concat(new[] { (byte)NetworkCollectionOperationType.Update }, Int32(index), Int32(itemPayload.Length), itemPayload);
+	}
+
+	private static byte[] CollectionDictionaryAdd(byte[] keyPayload, byte[] valuePayload) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Add }, Int32(keyPayload.Length), keyPayload, Int32(valuePayload.Length), valuePayload);
+	}
+
+	private static byte[] CollectionDictionaryRemove(byte[] keyPayload) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Remove }, Int32(keyPayload.Length), keyPayload);
+	}
+
+	private static byte[] CollectionDictionarySet(byte[] keyPayload, byte[] valuePayload) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Set }, Int32(keyPayload.Length), keyPayload, Int32(valuePayload.Length), valuePayload);
+	}
+
+	private static byte[] CollectionDictionaryUpdate(byte[] keyPayload, byte[] valuePayload) {
+		return Concat(new[] { (byte)NetworkCollectionOperationType.Update }, Int32(keyPayload.Length), keyPayload, Int32(valuePayload.Length), valuePayload);
 	}
 
 	private static byte[] ObjectItem(Type type, byte[] objectPayload) {
