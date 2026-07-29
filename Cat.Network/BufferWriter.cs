@@ -5,6 +5,10 @@ public class BufferWriter {
 
 	public int WrittenCount { get; private set; }
 
+	public void Clear() {
+		WrittenCount = 0;
+	}
+
 	public void Advance(int writtenCount) {
 		if (writtenCount < 0) {
 			throw new ArgumentOutOfRangeException(nameof(writtenCount));
