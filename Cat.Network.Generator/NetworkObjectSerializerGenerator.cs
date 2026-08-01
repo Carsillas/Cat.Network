@@ -22,7 +22,9 @@ internal static class NetworkObjectSerializerGenerator {
 			DeserializeByName(model),
 			SerializeMethods(model),
 			DeserializeMethods(model),
-			AccessorMethods(model));
+			AccessorMethods(model),
+			model.Version,
+			UpgradeCases(model));
 
 		return SyntaxFactory.ParseCompilationUnit(source).NormalizeWhitespace().ToFullString();
 	}
@@ -149,6 +151,16 @@ internal static class NetworkObjectSerializerGenerator {
 		"\n\n",
 		model.Properties.Select(AccessorMethods)
 			.Concat(model.Collections.Select(AccessorMethods)));
+
+	private static string UpgradeCases(NetworkObjectTypeModel model) {
+		return string.Join(
+			"\n",
+			model.UpgradeMethods.Select(method => $$"""
+					case {{method.TargetVersion}}:
+						{{model.FullyQualifiedName}}.__CatNetworkUpgradeTo{{method.TargetVersion}}(upgradeReader, upgradeWriter);
+						return true;
+				"""));
+	}
 
 	private static string SerializeMethod(NetworkObjectTypeModel model, NetworkPropertyModel property) {
 		return $$"""
@@ -825,9 +837,12 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      {0}
 	                                      internal sealed class {1} : global::Cat.Network.INetworkObjectSerializer
 	                                      {{
+	                                      	private static ushort SchemaVersion => {10};
+
 	                                      	public void Serialize(global::Cat.Network.BufferWriter writer, global::Cat.Network.NetworkObject target, global::Cat.Network.SerializationContext context, global::Cat.Network.SerializationOptions options) {{
 	                                      		{2} typedTarget = ({2})target;
 	                                      		global::Cat.Network.INetworkObject current = typedTarget;
+	                                      		WriteUInt16(writer, SchemaVersion);
 	                                      		WriteByte(writer, (byte)options.MemberIdentificationMode);
 	                                      		global::System.Range fieldCountRange = writer.Reserve(2);
 	                                      		ushort fieldCount = 0;
@@ -851,8 +866,22 @@ internal static class NetworkObjectSerializerGenerator {
 
 	                                      	public void Deserialize(global::Cat.Network.NetworkObject target, global::System.ReadOnlySpan<byte> data, global::Cat.Network.SerializationContext context) {{
 	                                      		{2} typedTarget = ({2})target;
-	                                      		if (data.Length < 3) {{
+	                                      		if (data.Length < 5) {{
 	                                      			return;
+	                                      		}}
+
+	                                      		ushort payloadVersion = global::System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(data);
+	                                      		data = data[2..];
+	                                      		if (payloadVersion != SchemaVersion) {{
+	                                      			if (payloadVersion > SchemaVersion) {{
+	                                      				return;
+	                                      			}}
+
+	                                      			if (!TryUpgradePayload(payloadVersion, data, context, out byte[] upgradedData)) {{
+	                                      				return;
+	                                      			}}
+
+	                                      			data = upgradedData;
 	                                      		}}
 
 	                                      		global::Cat.Network.MemberIdentificationMode memberIdentificationMode = (global::Cat.Network.MemberIdentificationMode)data[0];
@@ -919,6 +948,45 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      					}}
 	                                      					break;
 	                                      			}}
+	                                      		}}
+	                                      	}}
+
+	                                      	private static bool TryUpgradePayload(ushort payloadVersion, global::System.ReadOnlySpan<byte> data, global::Cat.Network.SerializationContext context, out byte[] upgradedData) {{
+	                                      		upgradedData = global::System.Array.Empty<byte>();
+	                                      		while (payloadVersion < SchemaVersion) {{
+	                                      			if (data.Length < 1) {{
+	                                      				return false;
+	                                      			}}
+
+	                                      			global::Cat.Network.MemberIdentificationMode upgradeMemberIdentificationMode = (global::Cat.Network.MemberIdentificationMode)data[0];
+	                                      			if (upgradeMemberIdentificationMode == global::Cat.Network.MemberIdentificationMode.Index) {{
+	                                      				throw new global::System.InvalidOperationException("Index-mode payloads do not support NetworkObject version upgrades.");
+	                                      			}}
+
+	                                      			if (!global::Cat.Network.NetworkObjectUpgradeReader.TryCreate(data, context, out global::Cat.Network.NetworkObjectUpgradeReader? upgradeReader)) {{
+	                                      				return false;
+	                                      			}}
+
+	                                      			global::Cat.Network.BufferWriter upgradeBuffer = new();
+	                                      			global::Cat.Network.NetworkObjectUpgradeWriter upgradeWriter = new(upgradeBuffer, upgradeReader, context);
+	                                      			ushort targetVersion = (ushort)(payloadVersion + 1);
+	                                      			if (!TryApplyUpgradeStep(targetVersion, upgradeReader, upgradeWriter)) {{
+	                                      				return false;
+	                                      			}}
+
+	                                      			upgradedData = upgradeWriter.Complete();
+	                                      			data = upgradedData;
+	                                      			payloadVersion = targetVersion;
+	                                      		}}
+
+	                                      		return payloadVersion == SchemaVersion;
+	                                      	}}
+
+	                                      	private static bool TryApplyUpgradeStep(ushort targetVersion, global::Cat.Network.NetworkObjectUpgradeReader upgradeReader, global::Cat.Network.NetworkObjectUpgradeWriter upgradeWriter) {{
+	                                      		switch (targetVersion) {{
+	                                      {11}
+	                                      			default:
+	                                      				return false;
 	                                      		}}
 	                                      	}}
 

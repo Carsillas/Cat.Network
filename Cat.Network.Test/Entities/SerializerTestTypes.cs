@@ -18,6 +18,65 @@ public partial class PrimitiveState : NetworkObject {
 	public partial string Name { get; private set; } = string.Empty;
 }
 
+[NetworkObject(Version = 2)]
+public partial class RenamedPrimitiveState : NetworkObject {
+	[NetworkProperty]
+	public partial string DisplayName { get; set; } = string.Empty;
+
+	[NetworkProperty]
+	public partial int Health { get; set; }
+
+	[UpgradeTo(2)]
+	private static void UpgradeToVersion2(NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer) {
+		writer.CopyExcept("Name");
+		writer.Write("DisplayName", reader.Get<string>("Name"));
+	}
+}
+
+[NetworkObject(Version = 3)]
+public partial class VersionedComplexState : NetworkObject {
+	[NetworkProperty]
+	public partial ChildState? Child { get; set; }
+
+	[NetworkProperty]
+	public partial string DisplayName { get; set; } = string.Empty;
+
+	[NetworkProperty]
+	public partial int Health { get; set; }
+
+	[NetworkProperty]
+	public partial Guid? SessionId { get; set; }
+
+	[NetworkProperty]
+	public partial Stats Stats { get; set; }
+
+	[NetworkCollection]
+	public partial IList<int> Values { get; }
+
+	[UpgradeTo(2)]
+	private static void UpgradeToVersion2(NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer) {
+		writer.CopyExcept("Name");
+		writer.Write("DisplayName", reader.Get<string>("Name"));
+	}
+
+	[UpgradeTo(3)]
+	private static void UpgradeToVersion3(NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer) {
+		writer.CopyExcept("LegacyChild");
+		writer.Write("Child", reader.Get<ChildState?>("LegacyChild"));
+	}
+}
+
+[NetworkObject(Version = 3)]
+public partial class MissingSequentialUpgradeState : NetworkObject {
+	[NetworkProperty]
+	public partial int Health { get; set; }
+
+	[UpgradeTo(2)]
+	private static void UpgradeToVersion2(NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer) {
+		writer.CopyExcept();
+	}
+}
+
 [NetworkObject]
 public partial class NullableState : NetworkObject {
 	public static NullableState Create(int? health, Guid? sessionId) {

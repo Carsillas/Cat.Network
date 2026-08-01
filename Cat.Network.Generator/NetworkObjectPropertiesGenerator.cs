@@ -20,7 +20,8 @@ internal static class NetworkObjectPropertiesGenerator {
 			Properties(model),
 			PartialProperties(model),
 			CollectionAccessorMethods(model),
-			InitializeMembers(model));
+			InitializeMembers(model),
+			UpgradeMethods(model));
 
 		return SyntaxFactory.ParseCompilationUnit(source).NormalizeWhitespace().ToFullString();
 	}
@@ -84,6 +85,20 @@ internal static class NetworkObjectPropertiesGenerator {
 			model.Collections
 				.OrderBy(static collection => collection.PropertyIndex)
 				.Select(CollectionAccessorMethod));
+	}
+
+	private static string UpgradeMethods(NetworkObjectTypeModel model) {
+		return string.Join(
+			"\n\n",
+			model.UpgradeMethods.Select(UpgradeMethod));
+	}
+
+	private static string UpgradeMethod(NetworkObjectUpgradeMethodModel method) {
+		return $$"""
+			internal static void __CatNetworkUpgradeTo{{method.TargetVersion}}(global::Cat.Network.NetworkObjectUpgradeReader reader, global::Cat.Network.NetworkObjectUpgradeWriter writer) {
+				{{method.Name}}(reader, writer);
+			}
+			""";
 	}
 
 	private static string PartialProperty(NetworkPropertyModel property) {
@@ -156,6 +171,8 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                      {6}
 
 	                                      {7}
+
+	                                      {8}
 	                                      }}
 	                                      """;
 
