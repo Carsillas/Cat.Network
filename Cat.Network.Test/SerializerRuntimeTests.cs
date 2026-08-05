@@ -10,6 +10,15 @@ public sealed partial class SerializerRuntimeTests {
 		serializer!.Deserialize(target, payload, new SerializationContext(catalogue));
 	}
 
+	private static void Pump(RelayServer server, params RelayClient[] clients) {
+		for (int i = 0; i < 4; i++) {
+			server.Tick();
+			foreach (RelayClient client in clients) {
+				client.Tick();
+			}
+		}
+	}
+
 	private static void AssertRoundTripSerializationEquals<T>(T original, T roundTripTarget, TypeCatalogue catalogue)
 		where T : NetworkObject {
 		byte[] firstPayload = Serialize(original, catalogue);
@@ -211,5 +220,25 @@ public sealed partial class SerializerRuntimeTests {
 		}
 
 		return result;
+	}
+
+	private sealed class RelevantEntityStorage : TestEntityStorage {
+		private HashSet<(Guid ProfileId, Guid EntityId)> RelevantEntities { get; } = [];
+
+		public void Allow(Guid profileId, Guid entityId) {
+			RelevantEntities.Add((profileId, entityId));
+		}
+
+		public void Deny(Guid profileId, Guid entityId) {
+			RelevantEntities.Remove((profileId, entityId));
+		}
+
+		public override void PopulateRelevantEntities(NetworkProfile profile, ICollection<NetworkEntity> entities) {
+			foreach ((Guid profileId, Guid entityId) in RelevantEntities) {
+				if (profileId == profile.Id && TryGetEntity(entityId, out NetworkEntity? entity)) {
+					entities.Add(entity);
+				}
+			}
+		}
 	}
 }

@@ -2,97 +2,59 @@ using System.Buffers.Binary;
 
 namespace Cat.Network;
 
-public abstract class RelayPeer {
+public abstract partial class RelayPeer {
 	private const int GuidSize = 16;
-	private TypeCatalogue TypeCatalogue { get; }
-	private IEntityStorage EntityStorage { get; }
-	
-	private protected RelayPeer(TypeCatalogue typeCatalogue, IEntityStorage entityStorage) {
+
+	protected TypeCatalogue TypeCatalogue { get; }
+	protected BufferWriter MessageWriter { get; } = new();
+
+	private protected RelayPeer(TypeCatalogue typeCatalogue) {
 		ArgumentNullException.ThrowIfNull(typeCatalogue);
-		ArgumentNullException.ThrowIfNull(entityStorage);
 		TypeCatalogue = typeCatalogue.Clone();
-		EntityStorage = entityStorage;
 	}
-	
+
+	internal abstract bool Owns(NetworkEntity entity);
+
 	protected void ProcessMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
+		if (RelayHandshake.IsPing(message)) {
+			sender.Send(RelayHandshake.Pong);
+			return;
+		}
+
+		if (RelayHandshake.IsPong(message)) {
+			return;
+		}
+
 		if (!TryExtractPacketChannel(ref message, out NetworkMessageChannel channel)) {
 			return;
 		}
 
 		switch (channel) {
 			case NetworkMessageChannel.Application:
+				OnApplicationMessage(sender, message);
 				break;
 			case NetworkMessageChannel.EntityMessage:
 				ProcessEntityMessage(sender, message);
 				break;
+			case NetworkMessageChannel.ProfileMessage:
+				ProcessProfileMessage(sender, message);
+				break;
 			default:
-				throw new ArgumentOutOfRangeException();
+				throw new ArgumentOutOfRangeException(nameof(channel), channel, null);
 		}
 	}
 
-	protected void ProcessEntityMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
-		if (!TryExtractEntityMessageKind(ref message, out EntityMessageKind kind)) {
-			return;
-		}
-		
-		if (!TryExtractEntityId(ref message, out Guid entityId)) {
-			return;
-		}
-		
-		switch (kind) {
-			case EntityMessageKind.Create: {
-				if (!TryExtractTypeId(ref message, out Guid typeId)) {
-					return;
-				}
-
-				if (!TypeCatalogue.TryFindType(typeId, out Type? type)) {
-					return;
-				}
-				
-				if (!TypeCatalogue.TryFindSerializer(type, out INetworkObjectSerializer? serializer)) {
-					return;
-				}
-
-				NetworkEntity target = (NetworkEntity)Activator.CreateInstance(type)!;
-
-				if (!TryExtractObjectData(ref message, out ReadOnlySpan<byte> data)) {
-					return;
-				}
-				
-				target.Id = entityId;
-				serializer.Deserialize(target, data, new SerializationContext(TypeCatalogue));
-				EntityStorage.RegisterEntity(target);
-				
-				break;
-			}
-			case EntityMessageKind.Update: {
-				if (!EntityStorage.TryGetEntity(entityId, out NetworkEntity? entity)) {
-					return;
-				}
-				if (!TypeCatalogue.TryFindSerializer(entity.GetType(), out INetworkObjectSerializer? serializer)) {
-					return;
-				}
-
-				if (!TryExtractObjectData(ref message, out ReadOnlySpan<byte> data)) {
-					return;
-				}
-				
-				serializer.Deserialize(entity, data, new SerializationContext(TypeCatalogue));
-				break;
-			}
-				
-			case EntityMessageKind.Delete:
-				break;
-			case EntityMessageKind.Rpc:
-				break;
-			case EntityMessageKind.Broadcast:
-				break;
-			default:
-				throw new ArgumentOutOfRangeException();
-		}
-		
+	protected virtual void OnApplicationMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
 	}
-	
+
+	protected static bool HasDirtyState(NetworkObject target) {
+		return ((INetworkObject)target).PropertyStates.Any(static state => state != NetworkPropertyState.Unchanged);
+	}
+
+	protected static void ClearDirtyState(NetworkObject target) {
+		Array.Fill(((INetworkObject)target).PropertyStates, NetworkPropertyState.Unchanged);
+	}
+
 	private static bool TryExtractPacketChannel(ref ReadOnlySpan<byte> message, out NetworkMessageChannel channel) {
 		channel = default;
 
@@ -102,58 +64,52 @@ public abstract class RelayPeer {
 
 		channel = (NetworkMessageChannel)message[0];
 		message = message[sizeof(NetworkMessageChannel)..];
-		
-		return true;
-	}
-
-	private static bool TryExtractEntityMessageKind(ref ReadOnlySpan<byte> message, out EntityMessageKind kind) {
-		kind = default;
-
-		if (message.Length < sizeof(EntityMessageKind)) {
-			return false;
-		}
-
-		kind = (EntityMessageKind)message[0];
-		message = message[sizeof(EntityMessageKind)..];
 
 		return true;
 	}
 
-	private static bool TryExtractEntityId(ref ReadOnlySpan<byte> message, out Guid guid) {
+	private static bool TryExtractGuid(ref ReadOnlySpan<byte> message, out Guid guid) {
 		guid = Guid.Empty;
-		
+
 		if (message.Length < GuidSize) {
 			return false;
 		}
-		
+
 		guid = new Guid(message[..GuidSize]);
 		message = message[GuidSize..];
-		
+
 		return true;
 	}
 
-	private static bool TryExtractTypeId(ref ReadOnlySpan<byte> message, out Guid typeId) {
-		return TryExtractEntityId(ref message, out typeId);
-	}
-
-	private static bool TryExtractObjectData(ref ReadOnlySpan<byte> message, out ReadOnlySpan<byte> data) {
+	private static bool TryExtractLengthPrefixedData(ref ReadOnlySpan<byte> message, out ReadOnlySpan<byte> data) {
 		data = default;
-		
+
 		if (message.Length < sizeof(int)) {
 			return false;
 		}
 
-		int objectDataByteCount = BinaryPrimitives.ReadInt32LittleEndian(message);
+		int byteCount = BinaryPrimitives.ReadInt32LittleEndian(message);
 		message = message[sizeof(int)..];
 
-		if (objectDataByteCount < 0 || message.Length < objectDataByteCount) {
+		if (byteCount < 0 || message.Length < byteCount) {
 			return false;
 		}
-		
-		data = message[..objectDataByteCount];
-		message = message[objectDataByteCount..];
+
+		data = message[..byteCount];
+		message = message[byteCount..];
 
 		return true;
 	}
-	
+
+	private static void WriteByte(BufferWriter writer, byte value) {
+		Span<byte> span = writer.GetSpan(1);
+		span[0] = value;
+		writer.Advance(1);
+	}
+
+	private static void WriteGuid(BufferWriter writer, Guid value) {
+		Span<byte> span = writer.GetSpan(GuidSize);
+		value.TryWriteBytes(span);
+		writer.Advance(GuidSize);
+	}
 }

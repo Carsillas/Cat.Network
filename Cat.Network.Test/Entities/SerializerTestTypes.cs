@@ -299,3 +299,13 @@ public partial class DeepObjectCollectionRootState : NetworkObject {
 	[NetworkCollection]
 	public partial IList<DeepObjectCollectionLevelTwoState> Children { get; }
 }
+
+[NetworkObject]
+public partial class RelayProfileState : NetworkProfile {
+}
+
+[NetworkObject]
+public partial class RelayValueState : NetworkEntity {
+	[NetworkProperty]
+	public partial int Value { get; set; }
+}

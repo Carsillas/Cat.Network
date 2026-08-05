@@ -1,9 +1,16 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Cat.Network;
 
 public sealed class MemoryRelayDaemon : IDaemon {
 	private readonly List<PendingConnection> pendingConnections = [];
-	private readonly Queue<IRelayTransport> acceptedConnections = [];
+	private readonly Queue<AcceptedConnection> acceptedConnections = [];
 	private readonly Dictionary<IRelayTransport, PendingConnection> pendingConnectionsByTransport = [];
+	private Func<NetworkProfile> ProfileFactory { get; }
+
+	public MemoryRelayDaemon(Func<NetworkProfile> profileFactory) {
+		ProfileFactory = profileFactory ?? throw new ArgumentNullException(nameof(profileFactory));
+	}
 
 	public MemoryRelayTransport Connect() {
 		var clientTransport = new MemoryRelayTransport();
@@ -33,13 +40,21 @@ public sealed class MemoryRelayDaemon : IDaemon {
 				pendingConnections.RemoveAt(i);
 				connection.Transport.MessageReceived -= OnPendingConnectionMessageReceived;
 				pendingConnectionsByTransport.Remove(connection.Transport);
-				acceptedConnections.Enqueue(connection.Transport);
+				acceptedConnections.Enqueue(new AcceptedConnection(connection.Transport, ProfileFactory()));
 			}
 		}
 	}
 
-	public bool TryAcceptConnection(out IRelayTransport transport) {
-		return acceptedConnections.TryDequeue(out transport!);
+	public bool TryAcceptConnection([NotNullWhen(true)] out IRelayTransport? transport, [NotNullWhen(true)] out NetworkProfile? profile) {
+		if (acceptedConnections.TryDequeue(out AcceptedConnection? connection)) {
+			transport = connection.Transport;
+			profile = connection.Profile;
+			return true;
+		}
+
+		transport = null;
+		profile = null;
+		return false;
 	}
 
 	private void OnPendingConnectionMessageReceived(IRelayTransport sender, ReadOnlySpan<byte> message) {
@@ -56,5 +71,10 @@ public sealed class MemoryRelayDaemon : IDaemon {
 		public IRelayTransport Transport { get; } = transport;
 		public bool PingSent { get; set; }
 		public bool Accepted { get; set; }
+	}
+
+	private sealed class AcceptedConnection(IRelayTransport transport, NetworkProfile profile) {
+		public IRelayTransport Transport { get; } = transport;
+		public NetworkProfile Profile { get; } = profile;
 	}
 }

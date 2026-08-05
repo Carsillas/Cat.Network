@@ -6,6 +6,7 @@ public class TypeCatalogue {
 	
 	private Dictionary<Guid, Type> Types { get; } = [];
 	private Dictionary<Type, INetworkObjectSerializer> Serializers { get; } = [];
+	private Dictionary<Type, Guid> TypeIds { get; } = [];
 
 	public TypeCatalogue Clone() {
 		TypeCatalogue clone = new TypeCatalogue();
@@ -14,6 +15,9 @@ public class TypeCatalogue {
 		}
 		foreach (KeyValuePair<Type, INetworkObjectSerializer> entry in Serializers) {
 			clone.Serializers.Add(entry.Key, entry.Value);
+		}
+		foreach (KeyValuePair<Type, Guid> entry in TypeIds) {
+			clone.TypeIds.Add(entry.Key, entry.Value);
 		}
 
 		return clone;
@@ -57,6 +61,7 @@ public class TypeCatalogue {
 		}
 
 		Types[typeId.Id] = type;
+		TypeIds[type] = typeId.Id;
 		Serializers[type] = serializer;
 	}
 	
@@ -67,5 +72,10 @@ public class TypeCatalogue {
 	public bool TryFindSerializer(Type type, [NotNullWhen(true)] out INetworkObjectSerializer? serializer) {
 		ArgumentNullException.ThrowIfNull(type);
 		return Serializers.TryGetValue(type, out serializer);
+	}
+
+	public bool TryFindTypeId(Type type, out Guid id) {
+		ArgumentNullException.ThrowIfNull(type);
+		return TypeIds.TryGetValue(type, out id);
 	}
 }
