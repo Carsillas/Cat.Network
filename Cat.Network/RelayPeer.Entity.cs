@@ -1,14 +1,12 @@
-using System.Buffers.Binary;
-
 namespace Cat.Network;
 
 public abstract partial class RelayPeer {
 	private void ProcessEntityMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
-		if (!TryExtractEntityMessageKind(ref message, out EntityMessageKind kind)) {
+		if (!message.TryConsumeEntityMessageKind(out EntityMessageKind kind)) {
 			return;
 		}
 
-		if (!TryExtractGuid(ref message, out Guid entityId)) {
+		if (!message.TryConsumeGuid(out Guid entityId)) {
 			return;
 		}
 
@@ -17,23 +15,23 @@ public abstract partial class RelayPeer {
 				OnAssignOwnerMessage(sender, entityId);
 				break;
 			case EntityMessageKind.RequestOwnershipTransfer:
-				if (TryExtractGuid(ref message, out Guid ownerProfileId)) {
+				if (message.TryConsumeGuid(out Guid ownerProfileId)) {
 					OnOwnershipTransferRequestMessage(sender, entityId, ownerProfileId);
 				}
 
 				break;
 			case EntityMessageKind.Create:
-				if (!TryExtractGuid(ref message, out Guid typeId)) {
+				if (!message.TryConsumeGuid(out Guid typeId)) {
 					return;
 				}
 
-				if (TryExtractLengthPrefixedData(ref message, out ReadOnlySpan<byte> createData)) {
+				if (message.TryConsumeLengthPrefixedData(out ReadOnlySpan<byte> createData)) {
 					OnCreateEntityMessage(sender, entityId, typeId, createData);
 				}
 
 				break;
 			case EntityMessageKind.Update:
-				if (TryExtractLengthPrefixedData(ref message, out ReadOnlySpan<byte> updateData)) {
+				if (message.TryConsumeLengthPrefixedData(out ReadOnlySpan<byte> updateData)) {
 					OnUpdateEntityMessage(sender, entityId, updateData);
 				}
 
@@ -42,13 +40,13 @@ public abstract partial class RelayPeer {
 				OnDeleteEntityMessage(sender, entityId);
 				break;
 			case EntityMessageKind.Rpc:
-				if (TryExtractLengthPrefixedData(ref message, out ReadOnlySpan<byte> rpcData)) {
+				if (message.TryConsumeLengthPrefixedData(out ReadOnlySpan<byte> rpcData)) {
 					OnRpcMessage(sender, entityId, rpcData);
 				}
 
 				break;
 			case EntityMessageKind.Broadcast:
-				if (TryExtractLengthPrefixedData(ref message, out ReadOnlySpan<byte> broadcastData)) {
+				if (message.TryConsumeLengthPrefixedData(out ReadOnlySpan<byte> broadcastData)) {
 					OnBroadcastMessage(sender, entityId, broadcastData);
 				}
 
@@ -111,11 +109,11 @@ public abstract partial class RelayPeer {
 		}
 
 		WriteEntityMessageHeader(writer, EntityMessageKind.Create, entity.Id);
-		WriteGuid(writer, typeId);
+		writer.WriteGuid(typeId);
 		Range lengthRange = writer.Reserve(sizeof(int));
 		int dataStart = writer.WrittenCount;
 		serializer.Serialize(writer, entity, new SerializationContext(TypeCatalogue), new SerializationOptions(MemberSelectionMode.All, MemberIdentificationMode.Index));
-		BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(lengthRange), writer.WrittenCount - dataStart);
+		writer.WriteInt32(lengthRange, writer.WrittenCount - dataStart);
 		return true;
 	}
 
@@ -128,7 +126,7 @@ public abstract partial class RelayPeer {
 		Range lengthRange = writer.Reserve(sizeof(int));
 		int dataStart = writer.WrittenCount;
 		serializer.Serialize(writer, entity, new SerializationContext(TypeCatalogue), new SerializationOptions(MemberSelectionMode.Dirty, MemberIdentificationMode.Index));
-		BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(lengthRange), writer.WrittenCount - dataStart);
+		writer.WriteInt32(lengthRange, writer.WrittenCount - dataStart);
 		return true;
 	}
 
@@ -142,25 +140,12 @@ public abstract partial class RelayPeer {
 
 	protected static void WriteOwnershipTransferRequestMessage(BufferWriter writer, Guid entityId, Guid ownerProfileId) {
 		WriteEntityMessageHeader(writer, EntityMessageKind.RequestOwnershipTransfer, entityId);
-		WriteGuid(writer, ownerProfileId);
+		writer.WriteGuid(ownerProfileId);
 	}
 
-	private static void WriteEntityMessageHeader(BufferWriter writer, EntityMessageKind kind, Guid entityId) {
-		WriteByte(writer, (byte)NetworkMessageChannel.EntityMessage);
-		WriteByte(writer, (byte)kind);
-		WriteGuid(writer, entityId);
-	}
-
-	private static bool TryExtractEntityMessageKind(ref ReadOnlySpan<byte> message, out EntityMessageKind kind) {
-		kind = default;
-
-		if (message.Length < sizeof(EntityMessageKind)) {
-			return false;
-		}
-
-		kind = (EntityMessageKind)message[0];
-		message = message[sizeof(EntityMessageKind)..];
-
-		return true;
+	protected static void WriteEntityMessageHeader(BufferWriter writer, EntityMessageKind kind, Guid entityId) {
+		writer.WriteByte((byte)NetworkMessageChannel.EntityMessage);
+		writer.WriteByte((byte)kind);
+		writer.WriteGuid(entityId);
 	}
 }

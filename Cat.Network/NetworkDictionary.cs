@@ -166,7 +166,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 			}
 		}
 
-		BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(operationCountRange), operationCount);
+		writer.WriteInt32(operationCountRange, operationCount);
 	}
 
 	public void Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
@@ -331,7 +331,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		Range keyLengthRange = writer.Reserve(4);
 		int keyStart = writer.WrittenCount;
 		KeyCodec.SerializeFull(writer, key, context, options);
-		BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(keyLengthRange), writer.WrittenCount - keyStart);
+		writer.WriteInt32(keyLengthRange, writer.WrittenCount - keyStart);
 	}
 
 	private static void WriteValue(BufferWriter writer, TValue value, SerializationContext context, SerializationOptions options, bool update) {
@@ -343,7 +343,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 			ValueCodec.SerializeFull(writer, value, context, options);
 		}
 
-		BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(valueLengthRange), writer.WrittenCount - valueStart);
+		writer.WriteInt32(valueLengthRange, writer.WrittenCount - valueStart);
 	}
 
 	private static int ReadInt32(ReadOnlySpan<byte> data, ref int offset) {
@@ -353,9 +353,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 	}
 
 	private static void WriteOperationType(BufferWriter writer, NetworkCollectionOperationType operationType) {
-		Span<byte> span = writer.GetSpan(1);
-		span[0] = (byte)operationType;
-		writer.Advance(1);
+		writer.WriteByte((byte)operationType);
 	}
 
 	private readonly record struct NetworkDictionaryOperation<TStoredKey, TStoredValue>(NetworkCollectionOperationType OperationType, TStoredKey Key, TStoredValue? Value = default) where TStoredKey : notnull;

@@ -77,6 +77,14 @@ public partial class RelayClient {
 		UnregisterEntity(entity);
 	}
 
+	protected override void OnRpcMessage(IRelayTransport sender, Guid entityId, ReadOnlySpan<byte> data) {
+		InvokeReceivedMessage(entityId, data, rpc: true);
+	}
+
+	protected override void OnBroadcastMessage(IRelayTransport sender, Guid entityId, ReadOnlySpan<byte> data) {
+		InvokeReceivedMessage(entityId, data, rpc: false);
+	}
+
 	private void ProcessOutgoingMessages(IRelayTransport transport) {
 		foreach (NetworkEntity entity in Entities) {
 			if (EntitiesToSpawn.Contains(entity) || EntitiesToDelete.Contains(entity) || !Owns(entity) || !HasDirtyState(entity)) {
@@ -109,6 +117,11 @@ public partial class RelayClient {
 
 		EntitiesToDelete.Clear();
 
+		while (OutgoingMessageWriters.TryDequeue(out BufferWriter? writer)) {
+			transport.Send(writer.GetWrittenSpan());
+			ReturnMessageWriter(writer);
+		}
+
 		foreach (OwnershipTransferRequest request in OwnershipTransferRequests) {
 			MessageWriter.Clear();
 			WriteOwnershipTransferRequestMessage(MessageWriter, request.EntityId, request.NewOwnerProfileId);
@@ -138,4 +151,21 @@ public partial class RelayClient {
 	}
 
 	private readonly record struct OwnershipTransferRequest(Guid EntityId, Guid NewOwnerProfileId);
+
+	private void InvokeReceivedMessage(Guid entityId, ReadOnlySpan<byte> data, bool rpc) {
+		if (!TryGetEntity(entityId, out NetworkEntity? entity) ||
+		    !data.TryConsumeGuid(out Guid instigatorProfileId) ||
+		    !TryGetProfile(instigatorProfileId, out NetworkProfile? instigator) ||
+		    !data.TryConsumeUInt64(out ulong messageId)) {
+			return;
+		}
+
+		INetworkRpcTarget rpcTarget = entity;
+		SerializationContext context = new(TypeCatalogue);
+		if (rpc) {
+			rpcTarget.TryInvokeRpc(this, instigator, messageId, data, context);
+		} else {
+			rpcTarget.TryInvokeBroadcast(this, instigator, messageId, data, context);
+		}
+	}
 }

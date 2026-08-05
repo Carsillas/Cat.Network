@@ -5,11 +5,25 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
+        <IsPackable>true</IsPackable>
+        <PackageId>Cat.Network</PackageId>
+        <Title>Cat.Network</Title>
+        <Authors>Carsillas</Authors>
+        <Description>Attribute-driven network object serialization, version upgrades, dirty-state deltas, relay ownership, profile relevancy, and source-generated serializers for .NET.</Description>
+        <PackageTags>networking;serialization;source-generator;analyzer;relay;net8</PackageTags>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Cat.Network.Analyzer\Cat.Network.Analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all"/>
         <ProjectReference Include="..\Cat.Network.Generator\Cat.Network.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\README.md" Pack="true" PackagePath="\"/>
+        <None Include="..\Cat.Network.Analyzer\bin\$(Configuration)\netstandard2.0\Cat.Network.Analyzer.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+        <None Include="..\Cat.Network.Generator\bin\$(Configuration)\netstandard2.0\Cat.Network.Generator.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
     </ItemGroup>
 
 </Project>

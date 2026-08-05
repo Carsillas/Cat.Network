@@ -126,7 +126,7 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 				Range itemLengthRange = writer.Reserve(4);
 				int itemStart = writer.WrittenCount;
 				Codec.SerializeFull(writer, Items[index], context, options);
-				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				writer.WriteInt32(itemLengthRange, writer.WrittenCount - itemStart);
 				operationCount++;
 			}
 		} else {
@@ -146,17 +146,17 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 					}
 
 					WriteOperationType(writer, NetworkCollectionOperationType.Update);
-					WriteInt32(writer, index);
+					writer.WriteInt32(index);
 					Range itemLengthRange = writer.Reserve(4);
 					int itemStart = writer.WrittenCount;
 					Codec.SerializeUpdate(writer, Items[index], context, options);
-					BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+					writer.WriteInt32(itemLengthRange, writer.WrittenCount - itemStart);
 					operationCount++;
 				}
 			}
 		}
 
-		BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(operationCountRange), operationCount);
+		writer.WriteInt32(operationCountRange, operationCount);
 	}
 
 	public void Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
@@ -285,36 +285,36 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 				Range itemLengthRange = writer.Reserve(4);
 				int itemStart = writer.WrittenCount;
 				Codec.SerializeFull(writer, operation.Value!, context, options);
-				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				writer.WriteInt32(itemLengthRange, writer.WrittenCount - itemStart);
 				break;
 			}
 			case NetworkCollectionOperationType.Insert: {
-				WriteInt32(writer, operation.Index);
+				writer.WriteInt32(operation.Index);
 				Range itemLengthRange = writer.Reserve(4);
 				int itemStart = writer.WrittenCount;
 				Codec.SerializeFull(writer, operation.Value!, context, options);
-				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				writer.WriteInt32(itemLengthRange, writer.WrittenCount - itemStart);
 				break;
 			}
 			case NetworkCollectionOperationType.Remove:
-				WriteInt32(writer, operation.Index);
+				writer.WriteInt32(operation.Index);
 				break;
 			case NetworkCollectionOperationType.Set: {
-				WriteInt32(writer, operation.Index);
+				writer.WriteInt32(operation.Index);
 				Range itemLengthRange = writer.Reserve(4);
 				int itemStart = writer.WrittenCount;
 				Codec.SerializeFull(writer, operation.Value!, context, options);
-				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				writer.WriteInt32(itemLengthRange, writer.WrittenCount - itemStart);
 				break;
 			}
 			case NetworkCollectionOperationType.Clear:
 				break;
 			case NetworkCollectionOperationType.Update: {
-				WriteInt32(writer, operation.Index);
+				writer.WriteInt32(operation.Index);
 				Range itemLengthRange = writer.Reserve(4);
 				int itemStart = writer.WrittenCount;
 				Codec.SerializeUpdate(writer, operation.Value!, context, options);
-				BinaryPrimitives.WriteInt32LittleEndian(writer.GetSpan(itemLengthRange), writer.WrittenCount - itemStart);
+				writer.WriteInt32(itemLengthRange, writer.WrittenCount - itemStart);
 				break;
 			}
 			default:
@@ -329,14 +329,6 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 	}
 
 	private static void WriteOperationType(BufferWriter writer, NetworkCollectionOperationType operationType) {
-		Span<byte> span = writer.GetSpan(1);
-		span[0] = (byte)operationType;
-		writer.Advance(1);
-	}
-
-	private static void WriteInt32(BufferWriter writer, int value) {
-		Span<byte> span = writer.GetSpan(4);
-		BinaryPrimitives.WriteInt32LittleEndian(span, value);
-		writer.Advance(4);
+		writer.WriteByte((byte)operationType);
 	}
 }

@@ -22,48 +22,46 @@ internal static class NetworkObjectUpgradeCodec {
 		Type? nullableUnderlyingType = Nullable.GetUnderlyingType(type);
 		if (nullableUnderlyingType is not null) {
 			if (value is null) {
-				WriteByte(writer, 0);
+				writer.WriteByte(0);
 				return;
 			}
 
-			WriteByte(writer, 1);
+			writer.WriteByte(1);
 			SerializeValue(writer, nullableUnderlyingType, value, context, stringLengthPrefixed, networkObjectAsProperty);
 			return;
 		}
 
 		if (type == typeof(bool)) {
-			WriteByte(writer, (bool)value! ? (byte)1 : (byte)0);
+			writer.WriteByte((bool)value! ? (byte)1 : (byte)0);
 		} else if (type == typeof(byte)) {
-			WriteByte(writer, (byte)value!);
+			writer.WriteByte((byte)value!);
 		} else if (type == typeof(sbyte)) {
-			WriteByte(writer, unchecked((byte)(sbyte)value!));
+			writer.WriteByte(unchecked((byte)(sbyte)value!));
 		} else if (type == typeof(short)) {
-			WriteInt16(writer, (short)value!);
+			writer.WriteInt16((short)value!);
 		} else if (type == typeof(ushort)) {
-			WriteUInt16(writer, (ushort)value!);
+			writer.WriteUInt16((ushort)value!);
 		} else if (type == typeof(int)) {
-			WriteInt32(writer, (int)value!);
+			writer.WriteInt32((int)value!);
 		} else if (type == typeof(uint)) {
-			WriteUInt32(writer, (uint)value!);
+			writer.WriteUInt32((uint)value!);
 		} else if (type == typeof(long)) {
-			WriteInt64(writer, (long)value!);
+			writer.WriteInt64((long)value!);
 		} else if (type == typeof(ulong)) {
-			WriteUInt64(writer, (ulong)value!);
+			writer.WriteUInt64((ulong)value!);
 		} else if (type == typeof(float)) {
-			WriteSingle(writer, (float)value!);
+			writer.WriteSingle((float)value!);
 		} else if (type == typeof(double)) {
-			WriteDouble(writer, (double)value!);
+			writer.WriteDouble((double)value!);
 		} else if (type == typeof(string)) {
 			string stringValue = (string?)value ?? throw new InvalidOperationException("String upgrade fields cannot be null.");
 			if (stringLengthPrefixed) {
-				byte[] stringData = System.Text.Encoding.UTF8.GetBytes(stringValue);
-				WriteUInt32(writer, (uint)stringData.Length);
-				WriteBytes(writer, stringData);
+				writer.WriteLengthPrefixedUtf8(stringValue);
 			} else {
-				WriteUtf8(writer, stringValue);
+				writer.WriteUtf8(stringValue);
 			}
 		} else if (type == typeof(Guid)) {
-			WriteGuid(writer, (Guid)value!);
+			writer.WriteGuid((Guid)value!);
 		} else if (typeof(NetworkObject).IsAssignableFrom(type)) {
 			SerializeNetworkObject(writer, value, context, networkObjectAsProperty);
 		} else if (type.IsValueType && IsSupportedStructType(type)) {
@@ -157,7 +155,7 @@ internal static class NetworkObjectUpgradeCodec {
 	private static void SerializeNetworkObject(BufferWriter writer, object? value, SerializationContext context, bool networkObjectAsProperty) {
 		if (networkObjectAsProperty) {
 			if (value is null) {
-				WriteByte(writer, (byte)NetworkObjectUpdateMode.Clear);
+				writer.WriteByte((byte)NetworkObjectUpdateMode.Clear);
 				return;
 			}
 
@@ -166,8 +164,8 @@ internal static class NetworkObjectUpgradeCodec {
 				throw new InvalidOperationException($"Serializer for type '{networkObject.GetType().FullName}' is not registered.");
 			}
 
-			WriteByte(writer, (byte)NetworkObjectUpdateMode.Replace);
-			WriteGuid(writer, GetNetworkObjectTypeId(networkObject.GetType()));
+			writer.WriteByte((byte)NetworkObjectUpdateMode.Replace);
+			writer.WriteGuid(GetNetworkObjectTypeId(networkObject.GetType()));
 			serializer.Serialize(writer, networkObject, context, new SerializationOptions(MemberSelectionMode.All, MemberIdentificationMode.Name));
 			return;
 		}
@@ -364,76 +362,4 @@ internal static class NetworkObjectUpgradeCodec {
 		return value;
 	}
 
-	private static void WriteByte(BufferWriter writer, byte value) {
-		Span<byte> span = writer.GetSpan(1);
-		span[0] = value;
-		writer.Advance(1);
-	}
-
-	private static void WriteUInt16(BufferWriter writer, ushort value) {
-		Span<byte> span = writer.GetSpan(2);
-		BinaryPrimitives.WriteUInt16LittleEndian(span, value);
-		writer.Advance(2);
-	}
-
-	private static void WriteInt16(BufferWriter writer, short value) {
-		Span<byte> span = writer.GetSpan(2);
-		BinaryPrimitives.WriteInt16LittleEndian(span, value);
-		writer.Advance(2);
-	}
-
-	private static void WriteUInt32(BufferWriter writer, uint value) {
-		Span<byte> span = writer.GetSpan(4);
-		BinaryPrimitives.WriteUInt32LittleEndian(span, value);
-		writer.Advance(4);
-	}
-
-	private static void WriteInt32(BufferWriter writer, int value) {
-		Span<byte> span = writer.GetSpan(4);
-		BinaryPrimitives.WriteInt32LittleEndian(span, value);
-		writer.Advance(4);
-	}
-
-	private static void WriteUInt64(BufferWriter writer, ulong value) {
-		Span<byte> span = writer.GetSpan(8);
-		BinaryPrimitives.WriteUInt64LittleEndian(span, value);
-		writer.Advance(8);
-	}
-
-	private static void WriteInt64(BufferWriter writer, long value) {
-		Span<byte> span = writer.GetSpan(8);
-		BinaryPrimitives.WriteInt64LittleEndian(span, value);
-		writer.Advance(8);
-	}
-
-	private static void WriteSingle(BufferWriter writer, float value) {
-		Span<byte> span = writer.GetSpan(4);
-		BinaryPrimitives.WriteSingleLittleEndian(span, value);
-		writer.Advance(4);
-	}
-
-	private static void WriteDouble(BufferWriter writer, double value) {
-		Span<byte> span = writer.GetSpan(8);
-		BinaryPrimitives.WriteDoubleLittleEndian(span, value);
-		writer.Advance(8);
-	}
-
-	private static void WriteGuid(BufferWriter writer, Guid value) {
-		Span<byte> span = writer.GetSpan(16);
-		value.TryWriteBytes(span);
-		writer.Advance(16);
-	}
-
-	private static void WriteUtf8(BufferWriter writer, string value) {
-		int byteCount = System.Text.Encoding.UTF8.GetByteCount(value);
-		Span<byte> span = writer.GetSpan(byteCount);
-		int written = System.Text.Encoding.UTF8.GetBytes(value, span);
-		writer.Advance(written);
-	}
-
-	private static void WriteBytes(BufferWriter writer, ReadOnlySpan<byte> value) {
-		Span<byte> span = writer.GetSpan(value.Length);
-		value.CopyTo(span);
-		writer.Advance(value.Length);
-	}
 }

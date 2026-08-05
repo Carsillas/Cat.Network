@@ -1,79 +1,85 @@
-name: Publish NuGet Packages
+name: Build And Publish
 
 on:
   push:
+    branches:
+      - main
     tags:
-      - 'v*'  # Only run on version tags like v1.2.3
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  CONFIGURATION: Release
 
 jobs:
-  publish-generator:
+  verify:
+    name: Build And Test
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.extract_version.outputs.version }}
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
-
-      - name: Extract version from tag
-        id: extract_version
-        run: |
-          RAW_TAG=${GITHUB_REF##refs/tags/}
-          VERSION=${RAW_TAG#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Restore dependencies
-        run: dotnet restore Cat.Network.Generator.sln
-
-      - name: Build
-        run: dotnet build Cat.Network.Generator.sln --configuration Release --no-restore
-
-      - name: Pack
-        run: dotnet pack Cat.Network.Generator/Cat.Network.Generator.csproj -c Release -o out -p:PackageVersion=${{ steps.extract_version.outputs.version }}
-
-      - name: Push to NuGet
-        run: dotnet nuget push out/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
-
-  wait-for-nuget:
-    runs-on: ubuntu-latest
-    needs: publish-generator
-    steps:
-      - name: Wait for NuGet propagation
-        run: |
-          PACKAGE="Carsillas.Cat.Network.Generator"
-          VERSION="${{ needs.publish-generator.outputs.version }}"
-          echo "Waiting for $PACKAGE@$VERSION to be available on nuget.org..."
-          for i in {1..50}; do
-            curl -sSf https://api.nuget.org/v3-flatcontainer/${PACKAGE,,}/$VERSION/${PACKAGE,,}.$VERSION.nupkg && break
-            echo "Still waiting... ($i)"
-            sleep 10
-          done
-
-  publish-library:
-    runs-on: ubuntu-latest
-    needs: [publish-generator, wait-for-nuget]
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Add latest Cat.Network.Generator package
-        run: dotnet add Cat.Network/Cat.Network.csproj package Carsillas.Cat.Network.Generator --version ${{ needs.publish-generator.outputs.version }}
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
         run: dotnet restore Cat.Network.sln
 
       - name: Build
-        run: dotnet build Cat.Network.sln --configuration Release --no-restore
+        run: dotnet build Cat.Network.sln --configuration ${{ env.CONFIGURATION }} --no-restore -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test Cat.Network.sln --configuration ${{ env.CONFIGURATION }} --no-build --verbosity normal
 
       - name: Pack
-        run: dotnet pack Cat.Network/Cat.Network.csproj -c Release -o out -p:PackageVersion=${{ needs.publish-generator.outputs.version }}
+        run: dotnet pack Cat.Network/Cat.Network.csproj --configuration ${{ env.CONFIGURATION }} --no-build --output artifacts -p:ContinuousIntegrationBuild=true
 
-      - name: Push to NuGet
-        run: dotnet nuget push out/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+      - name: Upload Package Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package
+          path: artifacts/*.nupkg
+
+  publish:
+    name: Publish NuGet Package
+    runs-on: ubuntu-latest
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Extract Version
+        id: version
+        shell: bash
+        run: |
+          RAW_TAG="${GITHUB_REF##refs/tags/}"
+          VERSION="${RAW_TAG#v}"
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: dotnet restore Cat.Network.sln
+
+      - name: Build
+        run: dotnet build Cat.Network.sln --configuration ${{ env.CONFIGURATION }} --no-restore -p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test Cat.Network.sln --configuration ${{ env.CONFIGURATION }} --no-build --verbosity normal
+
+      - name: Pack
+        run: dotnet pack Cat.Network/Cat.Network.csproj --configuration ${{ env.CONFIGURATION }} --no-build --output artifacts -p:PackageVersion=${{ steps.version.outputs.value }} -p:ContinuousIntegrationBuild=true
+
+      - name: Push To NuGet
+        run: dotnet nuget push artifacts/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate

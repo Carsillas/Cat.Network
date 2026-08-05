@@ -1,165 +1,413 @@
-# Cat.Network Protocol
+# Cat.Network
 
-This document describes the current protocol payload format delivered to message handlers. Multi-byte numeric fields are little-endian unless a later section explicitly says otherwise.
+Cat.Network is an attribute-driven networking and serialization library for .NET. It uses analyzers and source generators to create serializers, property dirty-state tracking, clone implementations, entity/profile relay messages, and name-based schema upgrades from ordinary partial C# classes.
 
-Transport implementations may apply their own framing on the wire, such as a length prefix, but that framing is not part of the protocol payload described here.
+## Project Setup
 
-## Packet Structure
+Reference `Cat.Network` from the project that declares your network types. The runtime package is expected to carry the analyzer and source generator, so consumers get diagnostics and generated implementations from a single reference.
 
-Every protocol payload begins with a one-byte message channel. Channel-specific fields follow after that.
+```xml
+<PackageReference Include="Cat.Network" Version="x.y.z" />
+```
 
-| Offset | Size | Field | Type | Description |
-|---:|---:|---|---|---|
-| 0 | 1 byte | Channel | `NetworkMessageChannel` | Selects how the remaining payload bytes should be interpreted. |
-| 1 | Variable | Channel Payload | Channel-specific | Payload format depends on `Channel`. |
+When working from source, reference `Cat.Network/Cat.Network.csproj`.
 
-## NetworkMessageChannel
+## Define Network Objects
 
-`NetworkMessageChannel` is encoded as a single byte.
+Network object types must inherit `NetworkObject`, be `partial`, and be marked with `[NetworkObject]`. Networked properties must be `partial` and marked with `[NetworkProperty]`.
+
+```csharp
+using Cat.Network;
+
+[NetworkObject]
+public partial class PlayerState : NetworkObject {
+	[NetworkProperty]
+	public partial int Health { get; set; }
+
+	[NetworkProperty]
+	public partial string Name { get; set; } = string.Empty;
+}
+```
+
+The generator creates:
+
+- a stable type id attribute
+- a serializer for concrete network object types
+- property dirty-state tracking
+- a covariant `Clone()` implementation
+- collection initialization for `[NetworkCollection]` members
+
+Only members marked with `[NetworkProperty]` or `[NetworkCollection]` participate in serialization.
+
+## Supported Member Types
+
+Network properties support:
+
+- primitive numeric types, `bool`, `string`, and `Guid`
+- nullable value types such as `int?` and `Guid?`
+- structs whose public instance fields are supported member types
+- nested `NetworkObject` references
+
+Network collections support `IList<T>` and `IDictionary<TKey, TValue>` through getter-only partial properties.
+
+```csharp
+[NetworkObject]
+public partial class InventoryState : NetworkObject {
+	[NetworkCollection]
+	public partial IList<int> ItemIds { get; }
+
+	[NetworkCollection]
+	public partial IDictionary<int, string> Labels { get; }
+}
+```
+
+Collection properties are initialized by generated code. Do not assign them yourself.
+
+## Register Types
+
+Runtime serialization uses a `TypeCatalogue`. Register every concrete network object type that may be serialized or deserialized.
+
+```csharp
+TypeCatalogue catalogue = new();
+catalogue.Register(typeof(PlayerState));
+catalogue.Register(typeof(InventoryState));
+```
+
+## Serialize And Deserialize
+
+Use the generated serializer through the catalogue.
+
+```csharp
+PlayerState player = new() {
+	Health = 100,
+	Name = "Ada"
+};
+
+BufferWriter writer = new();
+SerializationContext context = new(catalogue);
+
+if (!catalogue.TryFindSerializer(typeof(PlayerState), out INetworkObjectSerializer? serializer)) {
+	throw new InvalidOperationException("PlayerState is not registered.");
+}
+
+serializer.Serialize(
+	writer,
+	player,
+	context,
+	new SerializationOptions(MemberSelectionMode.All, MemberIdentificationMode.Name));
+
+PlayerState copy = new();
+serializer.Deserialize(copy, writer.GetWrittenSpan(), context);
+```
+
+Use `MemberSelectionMode.All` for full payloads and `MemberSelectionMode.Dirty` for deltas. Use `MemberIdentificationMode.Index` for compact network payloads and `MemberIdentificationMode.Name` for storage payloads that may need schema upgrades.
+
+## Version Upgrades
+
+Set the current schema version on `[NetworkObject]`. Upgrade methods are static methods marked with `[UpgradeTo(version)]` and must upgrade exactly one version step at a time.
+
+```csharp
+[NetworkObject(Version = 2)]
+public partial class PlayerState : NetworkObject {
+	[NetworkProperty]
+	public partial string DisplayName { get; set; } = string.Empty;
+
+	[NetworkProperty]
+	public partial int Health { get; set; }
+
+	[UpgradeTo(2)]
+	private static void UpgradeToVersion2(NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer) {
+		writer.CopyExcept("Name");
+		writer.Write("DisplayName", reader.Get<string>("Name"));
+	}
+}
+```
+
+Upgrade rules:
+
+- upgrades only run for name-mode payloads
+- index-mode payloads throw if an upgrade is required
+- each `[UpgradeTo]` method moves from `version - 1` to `version`
+- missing sequential upgrade steps make deserialization fail
+- `CopyExcept(...)` copies unchanged old fields by name
+- `Write(name, value)` writes fields in the new schema shape
+
+## Clone Behavior
+
+Concrete network object types get a covariant `Clone()` implementation. Network properties are copied; nested `NetworkObject` properties are cloned recursively. Strings are copied by reference. Network collections are not copied. The clone has fresh property state generated by normal assignments rather than copying the source object's dirty-state array.
+
+```csharp
+PlayerState snapshot = player.Clone();
+```
+
+## Relay Entities And Profiles
+
+`NetworkEntity` is the replicated object base class. `NetworkProfile` represents a connected client identity and is distributed through a separate profile channel.
+
+```csharp
+[NetworkObject]
+public partial class PlayerProfile : NetworkProfile {
+	[NetworkProperty]
+	public partial string DisplayName { get; set; } = string.Empty;
+}
+
+[NetworkObject]
+public partial class ProjectileEntity : NetworkEntity {
+	[NetworkProperty]
+	public partial int Damage { get; set; }
+}
+```
+
+Create a catalogue containing both profile and entity types:
+
+```csharp
+TypeCatalogue catalogue = new();
+catalogue.Register(typeof(PlayerProfile));
+catalogue.Register(typeof(ProjectileEntity));
+```
+
+## Relay Server
+
+The server accepts transports from an `IDaemon`, receives a `NetworkProfile` for each accepted connection, and asks `IEntityStorage` which entities are relevant to each profile.
+
+```csharp
+public sealed class WorldStorage : IEntityStorage {
+	private readonly Dictionary<Guid, NetworkEntity> entities = [];
+
+	public bool RegisterEntity(NetworkEntity entity) => entities.TryAdd(entity.Id, entity);
+	public bool UnregisterEntity(Guid id) => entities.Remove(id);
+	public bool TryGetEntity(Guid id, out NetworkEntity? entity) => entities.TryGetValue(id, out entity);
+
+	public void PopulateRelevantEntities(NetworkProfile profile, ICollection<NetworkEntity> results) {
+		foreach (NetworkEntity entity in entities.Values) {
+			results.Add(entity);
+		}
+	}
+}
+
+IDaemon daemon = new MemoryRelayDaemon(() => new PlayerProfile());
+RelayServer server = new(daemon, catalogue, new WorldStorage());
+server.Tick();
+```
+
+Real storage implementations can use spatial partitioning or other world-state indexes inside `PopulateRelevantEntities`. The relay reuses caller-provided collections and diffs relevant ids against each client's known ids.
+
+## Relay Client
+
+Clients connect to a transport, then `Tick()` pumps incoming messages and sends entity diffs the client owns.
+
+```csharp
+RelayClient client = new(catalogue);
+client.Connect(((MemoryRelayDaemon)daemon).Connect());
+
+ProjectileEntity projectile = new() {
+	Damage = 25
+};
+
+client.Spawn(projectile);
+client.Tick();
+```
+
+Owned entities send dirty-state updates automatically during `Tick()`. Clients can delete owned entities or request ownership transfer:
+
+```csharp
+client.Delete(projectile);
+client.AssignOwner(projectile, otherProfileId);
+```
+
+`NetworkEntity.IsOwner` reports whether the local peer owns that entity.
+
+## RPCs And Broadcasts
+
+Entity-scoped messages are declared as partial `void` methods on `NetworkEntity` types.
+
+```csharp
+[NetworkObject]
+public partial class PlayerEntity : NetworkEntity {
+	[RPC]
+	public partial void RequestHeal(int amount);
+
+	[Broadcast]
+	public partial void PlayImpact(int effectId);
+}
+```
+
+The generated methods are the public API you call from gameplay code:
+
+```csharp
+player.RequestHeal(10);
+player.PlayImpact(4);
+```
+
+RPC behavior:
+
+- RPCs may be invoked by any client that knows the entity.
+- If the caller owns the entity, the receive handler is invoked locally immediately.
+- If the caller does not own the entity, the client serializes the arguments immediately and queues an RPC packet.
+- The server forwards the RPC to the entity owner and adds the caller profile as the instigator.
+- The receiving client resolves the instigator profile and invokes the generated handler.
+
+Broadcast behavior:
+
+- Broadcasts may only be invoked by the entity owner.
+- The owner invokes the receive handler locally immediately.
+- The client serializes the arguments immediately and queues a broadcast packet.
+- The server forwards the broadcast to clients that already know the entity, except the owner, and adds the owner profile as the instigator.
+
+RPC and broadcast parameters must be supported serializable types. `NetworkEntity` parameters are intentionally rejected because the server supplies identity through the `NetworkProfile instigator` receive parameter.
+
+Supported message parameter types include:
+
+- primitive numeric types, `bool`, `string`, and `Guid`
+- nullable value types
+- supported structs
+- `NetworkObject` types
+
+### Event Receive Mode
+
+The default receive mode generates an event. The generated delegate includes `RelayClient` and `NetworkProfile instigator` before the declared message parameters.
+
+```csharp
+PlayerEntity player = GetPlayer();
+
+player.RequestHealReceived += (RelayClient client, NetworkProfile instigator, int amount) => {
+	// React to a locally invoked or received RPC.
+};
+```
+
+Event mode is useful when entities are mostly replicated data and behavior lives in systems or proxy-side code.
+
+### Explicit Receive Mode
+
+Use `NetworkMessageReceiveMode.Explicit` when the entity itself should handle the message.
+
+```csharp
+[NetworkObject]
+public partial class DoorEntity : NetworkEntity {
+	[RPC(NetworkMessageReceiveMode.Explicit)]
+	public partial void RequestOpen();
+
+	void DoorEntity.RPC.RequestOpen(RelayClient client, NetworkProfile instigator) {
+		if (!IsOwner) {
+			return;
+		}
+
+		// Validate instigator and update replicated state.
+	}
+}
+```
+
+The generator creates a nested `RPC` or `Broadcast` interface containing the receive signature. Implement explicit handlers with explicit interface implementation so the handler is not accidentally callable as a normal public method. The analyzer warns when a public method matches an explicit handler signature.
+
+### Message Identity And Inheritance
+
+Message ids are stable hashes of the method name and parameter types in order. Parameter names do not affect identity, but they are preserved in generated delegates and interfaces.
+
+Abstract entity bases can declare RPCs and broadcasts. A derived class that declares no new messages inherits the nearest generated dispatch implementation. A derived class that declares additional messages gets generated dispatch for both inherited and newly declared messages.
+
+## Protocol Reference
+
+This section describes the current protocol payload format delivered to message handlers. Multi-byte numeric fields are little-endian. Transport implementations may apply their own framing, but that framing is not part of this payload.
+
+Every payload begins with a one-byte `NetworkMessageChannel`.
 
 | Value | Name | Payload |
 |---:|---|---|
 | 0 | `Application` | Application-defined payload. |
-| 1 | `EntityMessage` | Entity message payload. The next byte is `EntityMessageKind`. |
+| 1 | `EntityMessage` | Entity message payload. |
+| 2 | `ProfileMessage` | Profile message payload. |
 
-## EntityMessage Channel
+### Entity Messages
 
-When `NetworkMessageChannel` is `EntityMessage`, the channel payload begins with `EntityMessageKind`.
+Entity messages start with:
 
-| Offset | Size | Field | Type | Description |
-|---:|---:|---|---|---|
-| 1 | 1 byte | Entity Message Kind | `EntityMessageKind` | Selects the entity message format. |
-| 2 | Variable | Entity Payload | Kind-specific | Payload format depends on `EntityMessageKind`. |
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 1 byte | `NetworkMessageChannel.EntityMessage` |
+| 1 | 1 byte | `EntityMessageKind` |
+| 2 | 16 bytes | Entity id |
 
-## EntityMessageKind
+`EntityMessageKind` values:
 
-`EntityMessageKind` is encoded as a single byte.
-
-| Value | Name | Description |
-|------:|---|---|
-|     0 | `Create` | Create/spawn an entity. Payload includes an entity type id and object data. |
-|     1 | `Update` | Update entity state. Payload includes object data. |
-|     2 | `Delete` | Delete/despawn an entity. Payload format TBD. |
-|     3 | `Rpc` | Invoke an entity RPC. Payload format TBD. |
-|     4 | `Broadcast` | Broadcast an entity-scoped message. Payload format TBD. |
-
-## Create Message
-
-`Create` entity messages currently use this layout after the `EntityMessageKind` byte:
-
-| Offset | Size | Field | Type | Description |
-|---:|---:|---|---|---|
-| 2 | 16 bytes | Entity Id | `Guid` | Unique id for the created entity. |
-| 18 | 16 bytes | Type Id | `Guid` | Stable type identifier for the entity type. |
-| 34 | Variable | Object Data | Object payload | Serialized member data for the created object. |
-
-## Update Message
-
-`Update` entity messages currently use this layout after the `EntityMessageKind` byte:
-
-| Offset | Size | Field | Type | Description |
-|---:|---:|---|---|---|
-| 2 | 16 bytes | Entity Id | `Guid` | Unique id for the target entity. |
-| 18 | Variable | Object Data | Object payload | Serialized member data for the target object. |
-
-## Object Data
-
-Object data is a self-delimiting sequence of serialized fields.
-
-| Order | Size | Field | Type | Description |
-|---:|---:|---|---|---|
-| 1 | 1 byte | Member Identification Mode | `MemberIdentificationMode` | Controls how each field is identified. |
-| 2 | 2 bytes | Field Count | `ushort` | Number of serialized fields that follow. |
-| 3 | Variable | Field Entries | Repeated | One entry per serialized field. |
-
-Each field entry has this shape:
-
-- Identifier:
-  - `Index` mode: `2 bytes` for the member index as a `ushort`.
-  - `Name` mode: `4 bytes` for UTF-8 byte length, followed by the UTF-8 member name bytes.
-- `4 bytes` for the serialized value byte length.
-- `N bytes` of serialized value data, where `N` is the preceding value byte length.
-
-For non-`NetworkObject` member types, the value bytes are the serialized representation of that member.
-
-For nullable value types such as `int?`, `Guid?`, or `float?`, the value bytes use this nested shape:
-
-- `1 byte` presence flag
-- if the flag is `0`, the value is `null` and no additional bytes are present
-- if the flag is `1`, the remaining bytes are the serialized representation of the underlying non-nullable value type
-
-Any other presence flag value is invalid.
-
-For struct member types, the value bytes are the serialized representation of that struct's public instance fields in ascending ordinal field-name order.
-
-- only public instance fields are included
-- supported struct field types are the same scalar types already supported as member values:
-  - primitive numeric types
-  - `bool`
-  - `string`
-  - `Guid`
-  - nullable versions of those value types
-- supported nested struct fields recurse using this same struct-field encoding
-- nullable nested struct fields use the nullable struct encoding described below
-- `NetworkObject` fields inside structs are not supported
-- unsupported struct field types make the containing struct unsupported for generated deserialization
-- cyclic or self-recursive struct layouts are not supported
-
-Struct field values are encoded sequentially with no per-field identifier metadata:
-
-- fixed-width primitive and `Guid` fields use their normal little-endian byte representation
-- `string` fields use `4 bytes` of UTF-8 byte length followed by the UTF-8 bytes
-- nullable value-type fields use the nullable value-type encoding described above
-- nested struct fields use their own sequential struct payload directly inline
-
-Nullable struct member types use this nested shape:
-
-- `1 byte` presence flag
-- if the flag is `0`, the value is `null` and no additional struct bytes are present
-- if the flag is `1`, the remaining bytes are the serialized struct payload described above
-
-Any other presence flag value is invalid.
-
-For `NetworkObject` member types, the value bytes contain a nested object update payload:
-
-- `1 byte` object update mode
-- mode-specific content
-
-The nested object update modes are:
-
-- `Modify`:
-  - the remaining bytes are passed directly to the existing nested object's deserializer
-- `Replace`:
-  - `16 bytes` type id as a `Guid`
-  - the remaining bytes are passed to the replacement object's deserializer
-  - the containing deserializer is responsible for constructing the replacement object from `TypeCatalogue` and assigning it before deserializing the payload
-- `Clear`:
-  - no additional bytes are required
-  - the containing deserializer clears the existing nested object reference
-
-## MemberIdentificationMode
-
-`MemberIdentificationMode` is encoded as a single byte.
-
-| Value | Name | Description |
+| Value | Name | Payload after entity id |
 |---:|---|---|
-| 0 | `Index` | Members are identified by their generated numeric index. Intended for network payloads. |
-| 1 | `Name` | Members are identified by their UTF-8 name. Intended for storage-oriented payloads. |
+| 0 | `AssignOwner` | Empty. The receiver becomes owner if it knows the entity. |
+| 1 | `RequestOwnershipTransfer` | `Guid` target owner profile id. |
+| 2 | `Create` | `Guid` type id, `int` object byte count, object data. |
+| 3 | `Update` | `int` object byte count, object data. |
+| 4 | `Delete` | Empty. |
+| 5 | `Rpc` | `int` byte count followed by `ulong` message id and parameter payloads. Server-forwarded RPC payloads include the instigator profile id before the message id. |
+| 6 | `Broadcast` | `int` byte count followed by `ulong` message id and parameter payloads. Server-forwarded broadcast payloads include the instigator profile id before the message id. |
 
-## ObjectUpdateMode
+### Profile Messages
 
-`ObjectUpdateMode` is encoded as a single byte inside the value payload for `NetworkObject`-typed members.
+Profile messages start with:
 
-| Value | Name | Description |
+| Offset | Size | Field |
+|---:|---:|---|
+| 0 | 1 byte | `NetworkMessageChannel.ProfileMessage` |
+| 1 | 1 byte | `ProfileMessageKind` |
+| 2 | 16 bytes | Profile id |
+
+`ProfileMessageKind` values:
+
+| Value | Name | Payload after profile id |
 |---:|---|---|
-| 0 | `Modify` | Apply the nested payload to the existing object instance. |
-| 1 | `Replace` | Construct a replacement object from the nested type id and apply the nested payload to it. |
-| 2 | `Clear` | Clear the current nested object reference without applying a nested payload. |
+| 0 | `Assign` | Empty. Assigns the local client profile id. |
+| 1 | `CreateOrUpdate` | `Guid` type id, `int` profile byte count, object data. |
+| 2 | `Delete` | Empty. Removes a profile from the client. |
 
-## Notes
+### Object Data
 
-- The protocol payload begins at `NetworkMessageChannel`.
-- Transport-level framing, buffering, and packet reassembly are transport responsibilities.
-- Multi-byte numeric fields in object data are little-endian.
-- `Index` mode is intended for over-the-wire payloads.
-- `Name` mode is intended for disk or storage payloads.
+Object data is versioned and self-delimiting.
+
+| Order | Size | Field |
+|---:|---:|---|
+| 1 | 2 bytes | Schema version (`ushort`) |
+| 2 | 1 byte | `MemberIdentificationMode` |
+| 3 | 2 bytes | Field count (`ushort`) |
+| 4 | Variable | Field entries |
+
+Each field entry has:
+
+- identifier:
+  - `Index`: `ushort` member index
+  - `Name`: `uint` UTF-8 name byte count followed by name bytes
+- `uint` serialized value byte count
+- serialized value bytes
+
+`MemberIdentificationMode.Index` is intended for over-the-wire payloads. `MemberIdentificationMode.Name` is intended for storage payloads and is the only mode that supports schema upgrades.
+
+For nested `NetworkObject` properties, the value payload starts with `NetworkObjectUpdateMode`:
+
+| Value | Name | Meaning |
+|---:|---|---|
+| 0 | `Modify` | Apply a dirty payload to the existing nested object. |
+| 1 | `Replace` | Read a nested type id and full payload, then replace the object. |
+| 2 | `Clear` | Clear the nested object reference. |
+
+Struct values are encoded by public instance fields in ascending ordinal field-name order. Strings inside struct payloads are length-prefixed because more field data may follow.
+
+### RPC And Broadcast Data
+
+Client-authored RPC and broadcast payloads contain:
+
+| Order | Size | Field |
+|---:|---:|---|
+| 1 | 8 bytes | Message id (`ulong`) |
+| 2 | Variable | Parameter entries |
+
+Server-forwarded RPC and broadcast payloads contain:
+
+| Order | Size | Field |
+|---:|---:|---|
+| 1 | 16 bytes | Instigator profile id (`Guid`) |
+| 2 | 8 bytes | Message id (`ulong`) |
+| 3 | Variable | Parameter entries |
+
+Each declared parameter is encoded in declaration order:
+
+- `int` parameter byte count
+- parameter bytes
+
+Parameter bytes use the same scalar, nullable, struct, string, `Guid`, and `NetworkObject` encodings used by generated serializers.

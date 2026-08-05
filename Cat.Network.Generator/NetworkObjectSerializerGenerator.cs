@@ -84,21 +84,21 @@ internal static class NetworkObjectSerializerGenerator {
 		IEnumerable<(int PropertyIndex, string Body)> members = model.Properties
 			.Select(property => (property.PropertyIndex, $$"""
 					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{property.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
-						WriteUInt16(writer, {{(ushort)property.PropertyIndex}});
+						writer.WriteUInt16({{(ushort)property.PropertyIndex}});
 						global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
 						int {{property.Name}}ValueStart = writer.WrittenCount;
 						Serialize{{property.Name}}(writer, typedTarget, context, options, current, {{property.PropertyIndex}});
-						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
+						writer.WriteUInt32({{property.Name}}LengthRange, (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
 						fieldCount++;
 					}
 				"""))
 			.Concat(model.Collections.Select(collection => (collection.PropertyIndex, $$"""
 					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{collection.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
-						WriteUInt16(writer, {{(ushort)collection.PropertyIndex}});
+						writer.WriteUInt16({{(ushort)collection.PropertyIndex}});
 						global::System.Range {{collection.Name}}LengthRange = writer.Reserve(4);
 						int {{collection.Name}}ValueStart = writer.WrittenCount;
 						Serialize{{collection.Name}}(writer, typedTarget, context, options);
-						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{collection.Name}}LengthRange), (uint)(writer.WrittenCount - {{collection.Name}}ValueStart));
+						writer.WriteUInt32({{collection.Name}}LengthRange, (uint)(writer.WrittenCount - {{collection.Name}}ValueStart));
 						fieldCount++;
 					}
 				""")))
@@ -113,23 +113,21 @@ internal static class NetworkObjectSerializerGenerator {
 		IEnumerable<(int PropertyIndex, string Body)> members = model.Properties
 			.Select(property => (property.PropertyIndex, $$"""
 					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{property.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
-						WriteUInt32(writer, (uint)global::System.Text.Encoding.UTF8.GetByteCount("{{EscapeStringLiteral(property.Name)}}"));
-						WriteUtf8(writer, "{{EscapeStringLiteral(property.Name)}}");
+						writer.WriteLengthPrefixedUtf8("{{EscapeStringLiteral(property.Name)}}");
 						global::System.Range {{property.Name}}LengthRange = writer.Reserve(4);
 						int {{property.Name}}ValueStart = writer.WrittenCount;
 						Serialize{{property.Name}}(writer, typedTarget, context, options, current, {{property.PropertyIndex}});
-						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{property.Name}}LengthRange), (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
+						writer.WriteUInt32({{property.Name}}LengthRange, (uint)(writer.WrittenCount - {{property.Name}}ValueStart));
 						fieldCount++;
 					}
 				"""))
 			.Concat(model.Collections.Select(collection => (collection.PropertyIndex, $$"""
 					if (options.MemberSelectionMode == global::Cat.Network.MemberSelectionMode.All || current.PropertyStates[{{collection.PropertyIndex}}] != global::Cat.Network.NetworkPropertyState.Unchanged) {
-						WriteUInt32(writer, (uint)global::System.Text.Encoding.UTF8.GetByteCount("{{EscapeStringLiteral(collection.Name)}}"));
-						WriteUtf8(writer, "{{EscapeStringLiteral(collection.Name)}}");
+						writer.WriteLengthPrefixedUtf8("{{EscapeStringLiteral(collection.Name)}}");
 						global::System.Range {{collection.Name}}LengthRange = writer.Reserve(4);
 						int {{collection.Name}}ValueStart = writer.WrittenCount;
 						Serialize{{collection.Name}}(writer, typedTarget, context, options);
-						global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(writer.GetSpan({{collection.Name}}LengthRange), (uint)(writer.WrittenCount - {{collection.Name}}ValueStart));
+						writer.WriteUInt32({{collection.Name}}LengthRange, (uint)(writer.WrittenCount - {{collection.Name}}ValueStart));
 						fieldCount++;
 					}
 				""")))
@@ -321,25 +319,25 @@ internal static class NetworkObjectSerializerGenerator {
 			case NetworkPropertySerializationKind.SByte:
 				return SerializeScalarPropertyBody(property, "unchecked((byte)value)", 1);
 			case NetworkPropertySerializationKind.Int16:
-				return SerializeBinaryPrimitivePropertyBody(property, "WriteInt16LittleEndian", 2);
+				return SerializeBinaryPrimitivePropertyBody(property, "WriteInt16");
 			case NetworkPropertySerializationKind.UInt16:
-				return SerializeBinaryPrimitivePropertyBody(property, "WriteUInt16LittleEndian", 2);
+				return SerializeBinaryPrimitivePropertyBody(property, "WriteUInt16");
 			case NetworkPropertySerializationKind.Int32:
-				return SerializeBinaryPrimitivePropertyBody(property, "WriteInt32LittleEndian", 4);
+				return SerializeBinaryPrimitivePropertyBody(property, "WriteInt32");
 			case NetworkPropertySerializationKind.UInt32:
-				return SerializeBinaryPrimitivePropertyBody(property, "WriteUInt32LittleEndian", 4);
+				return SerializeBinaryPrimitivePropertyBody(property, "WriteUInt32");
 			case NetworkPropertySerializationKind.Int64:
-				return SerializeBinaryPrimitivePropertyBody(property, "WriteInt64LittleEndian", 8);
+				return SerializeBinaryPrimitivePropertyBody(property, "WriteInt64");
 			case NetworkPropertySerializationKind.UInt64:
-				return SerializeBinaryPrimitivePropertyBody(property, "WriteUInt64LittleEndian", 8);
+				return SerializeBinaryPrimitivePropertyBody(property, "WriteUInt64");
 			case NetworkPropertySerializationKind.Single:
-				return SerializeBinaryPrimitivePropertyBody(property, "WriteSingleLittleEndian", 4);
+				return SerializeBinaryPrimitivePropertyBody(property, "WriteSingle");
 			case NetworkPropertySerializationKind.Double:
-				return SerializeBinaryPrimitivePropertyBody(property, "WriteDoubleLittleEndian", 8);
+				return SerializeBinaryPrimitivePropertyBody(property, "WriteDouble");
 			case NetworkPropertySerializationKind.String:
 				return $$"""
 					global::System.String value = Get{{property.Name}}(typedTarget);
-					WriteUtf8(writer, value);
+					writer.WriteUtf8(value);
 					return;
 					""";
 			case NetworkPropertySerializationKind.Guid:
@@ -347,19 +345,19 @@ internal static class NetworkObjectSerializerGenerator {
 					return $$"""
 						{{property.TypeName}} currentValue = Get{{property.Name}}(typedTarget);
 						if (!currentValue.HasValue) {
-							WriteByte(writer, 0);
+							writer.WriteByte(0);
 							return;
 						}
 
-						WriteByte(writer, 1);
-						WriteGuid(writer, currentValue.Value);
+						writer.WriteByte(1);
+						writer.WriteGuid(currentValue.Value);
 						return;
 						""";
 				}
 
 				return $$"""
 					global::System.Guid value = Get{{property.Name}}(typedTarget);
-					WriteGuid(writer, value);
+					writer.WriteGuid(value);
 					return;
 					""";
 			case NetworkPropertySerializationKind.Struct:
@@ -378,45 +376,41 @@ internal static class NetworkObjectSerializerGenerator {
 			return $$"""
 				{{property.TypeName}} currentValue = Get{{property.Name}}(typedTarget);
 				if (!currentValue.HasValue) {
-					WriteByte(writer, 0);
+					writer.WriteByte(0);
 					return;
 				}
 
 				{{property.RuntimeTypeName}} value = currentValue.Value;
-				WriteByte(writer, 1);
-				WriteByte(writer, {{writtenValueExpression}});
+				writer.WriteByte(1);
+				writer.WriteByte({{writtenValueExpression}});
 				return;
 				""";
 		}
 
 		return $$"""
 			{{property.RuntimeTypeName}} value = Get{{property.Name}}(typedTarget);
-			WriteByte(writer, {{writtenValueExpression}});
+			writer.WriteByte({{writtenValueExpression}});
 			return;
 			""";
 	}
 
-	private static string SerializeBinaryPrimitivePropertyBody(NetworkPropertyModel property, string writeMethod, int byteLength) {
+	private static string SerializeBinaryPrimitivePropertyBody(NetworkPropertyModel property, string writeMethod) {
 		if (property.IsNullableValueType) {
 			return $$"""
 				{{property.TypeName}} currentValue = Get{{property.Name}}(typedTarget);
 				if (!currentValue.HasValue) {
-					WriteByte(writer, 0);
+					writer.WriteByte(0);
 					return;
 				}
 
-				WriteByte(writer, 1);
-				global::System.Span<byte> span = writer.GetSpan({{byteLength}});
-				global::System.Buffers.Binary.BinaryPrimitives.{{writeMethod}}(span, currentValue.Value);
-				writer.Advance({{byteLength}});
+				writer.WriteByte(1);
+				writer.{{writeMethod}}(currentValue.Value);
 				return;
 				""";
 		}
 
 		return $$"""
-			global::System.Span<byte> span = writer.GetSpan({{byteLength}});
-			global::System.Buffers.Binary.BinaryPrimitives.{{writeMethod}}(span, Get{{property.Name}}(typedTarget));
-			writer.Advance({{byteLength}});
+			writer.{{writeMethod}}(Get{{property.Name}}(typedTarget));
 			return;
 			""";
 	}
@@ -431,11 +425,11 @@ internal static class NetworkObjectSerializerGenerator {
 			return $$"""
 				{{property.TypeName}} currentValue = Get{{property.Name}}(typedTarget);
 				if (!currentValue.HasValue) {
-					WriteByte(writer, 0);
+					writer.WriteByte(0);
 					return;
 				}
 
-				WriteByte(writer, 1);
+				writer.WriteByte(1);
 				{{fieldBodies}}
 				return;
 				""";
@@ -467,9 +461,9 @@ internal static class NetworkObjectSerializerGenerator {
 				return $$"""
 					{{field.TypeName}} {{fieldPath}} = {{targetExpression}}.{{field.Name}};
 					if (!{{fieldPath}}.HasValue) {
-						WriteByte(writer, 0);
+						writer.WriteByte(0);
 					} else {
-						WriteByte(writer, 1);
+						writer.WriteByte(1);
 						{{nestedBody}}
 					}
 					""";
@@ -478,9 +472,9 @@ internal static class NetworkObjectSerializerGenerator {
 			return $$"""
 				{{field.TypeName}} {{fieldPath}} = {{targetExpression}}.{{field.Name}};
 				if (!{{fieldPath}}.HasValue) {
-					WriteByte(writer, 0);
+					writer.WriteByte(0);
 				} else {
-					WriteByte(writer, 1);
+					writer.WriteByte(1);
 					{{SerializeNonNullableStructFieldWrite(field, fieldPath + ".Value")}}
 				}
 				""";
@@ -503,45 +497,43 @@ internal static class NetworkObjectSerializerGenerator {
 	private static string SerializeNonNullableStructFieldWrite(NetworkStructFieldModel field, string valueExpression) {
 		return field.SerializationKind switch {
 			NetworkPropertySerializationKind.Boolean => $$"""
-				WriteByte(writer, {{valueExpression}} ? (byte)1 : (byte)0);
+				writer.WriteByte({{valueExpression}} ? (byte)1 : (byte)0);
 				""",
 			NetworkPropertySerializationKind.Byte => $$"""
-				WriteByte(writer, {{valueExpression}});
+				writer.WriteByte({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.SByte => $$"""
-				WriteByte(writer, unchecked((byte){{valueExpression}}));
+				writer.WriteByte(unchecked((byte){{valueExpression}}));
 				""",
 			NetworkPropertySerializationKind.Int16 => $$"""
-				WriteInt16(writer, {{valueExpression}});
+				writer.WriteInt16({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.UInt16 => $$"""
-				WriteUInt16(writer, {{valueExpression}});
+				writer.WriteUInt16({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.Int32 => $$"""
-				WriteInt32(writer, {{valueExpression}});
+				writer.WriteInt32({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.UInt32 => $$"""
-				WriteUInt32(writer, {{valueExpression}});
+				writer.WriteUInt32({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.Int64 => $$"""
-				WriteInt64(writer, {{valueExpression}});
+				writer.WriteInt64({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.UInt64 => $$"""
-				WriteUInt64(writer, {{valueExpression}});
+				writer.WriteUInt64({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.Single => $$"""
-				WriteSingle(writer, {{valueExpression}});
+				writer.WriteSingle({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.Double => $$"""
-				WriteDouble(writer, {{valueExpression}});
+				writer.WriteDouble({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.String => $$"""
-				byte[] stringData = global::System.Text.Encoding.UTF8.GetBytes({{valueExpression}});
-				WriteUInt32(writer, (uint)stringData.Length);
-				WriteBytes(writer, stringData);
+				writer.WriteLengthPrefixedUtf8({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.Guid => $$"""
-				WriteBytes(writer, {{valueExpression}}.ToByteArray());
+				writer.WriteGuid({{valueExpression}});
 				""",
 			_ => string.Empty
 		};
@@ -554,7 +546,7 @@ internal static class NetworkObjectSerializerGenerator {
 				global::Cat.Network.NetworkPropertyState propertyState = current.PropertyStates[propertyIndex];
 				if ((propertyState & global::Cat.Network.NetworkPropertyState.Replaced) != 0) {
 					if (currentValue is null) {
-						WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Clear);
+						writer.WriteByte((byte)global::Cat.Network.NetworkObjectUpdateMode.Clear);
 						return;
 					}
 
@@ -563,8 +555,8 @@ internal static class NetworkObjectSerializerGenerator {
 					}
 
 					global::System.Guid nestedReplacementTypeId = GetNetworkObjectTypeId(currentValue.GetType());
-					WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Replace);
-					WriteGuid(writer, nestedReplacementTypeId);
+					writer.WriteByte((byte)global::Cat.Network.NetworkObjectUpdateMode.Replace);
+					writer.WriteGuid(nestedReplacementTypeId);
 					nestedReplacementSerializer.Serialize(writer, currentValue, context, new global::Cat.Network.SerializationOptions(global::Cat.Network.MemberSelectionMode.All, options.MemberIdentificationMode));
 					return;
 				}
@@ -578,14 +570,14 @@ internal static class NetworkObjectSerializerGenerator {
 						throw new global::System.InvalidOperationException($"Serializer for type '{currentValue.GetType().FullName}' is not registered.");
 					}
 
-					WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Modify);
+					writer.WriteByte((byte)global::Cat.Network.NetworkObjectUpdateMode.Modify);
 					nestedModifiedSerializer.Serialize(writer, currentValue, context, new global::Cat.Network.SerializationOptions(global::Cat.Network.MemberSelectionMode.Dirty, options.MemberIdentificationMode));
 					return;
 				}
 			}
 
 			if (currentValue is null) {
-				WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Clear);
+				writer.WriteByte((byte)global::Cat.Network.NetworkObjectUpdateMode.Clear);
 				return;
 			}
 
@@ -594,8 +586,8 @@ internal static class NetworkObjectSerializerGenerator {
 			}
 
 			global::System.Guid nestedTypeId = GetNetworkObjectTypeId(currentValue.GetType());
-			WriteByte(writer, (byte)global::Cat.Network.NetworkObjectUpdateMode.Replace);
-			WriteGuid(writer, nestedTypeId);
+			writer.WriteByte((byte)global::Cat.Network.NetworkObjectUpdateMode.Replace);
+			writer.WriteGuid(nestedTypeId);
 			nestedSerializer.Serialize(writer, currentValue, context, new global::Cat.Network.SerializationOptions(global::Cat.Network.MemberSelectionMode.All, options.MemberIdentificationMode));
 			return;
 			""";
@@ -842,8 +834,8 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      	public void Serialize(global::Cat.Network.BufferWriter writer, global::Cat.Network.NetworkObject target, global::Cat.Network.SerializationContext context, global::Cat.Network.SerializationOptions options) {{
 	                                      		{2} typedTarget = ({2})target;
 	                                      		global::Cat.Network.INetworkObject current = typedTarget;
-	                                      		WriteUInt16(writer, SchemaVersion);
-	                                      		WriteByte(writer, (byte)options.MemberIdentificationMode);
+	                                      		writer.WriteUInt16(SchemaVersion);
+	                                      		writer.WriteByte((byte)options.MemberIdentificationMode);
 	                                      		global::System.Range fieldCountRange = writer.Reserve(2);
 	                                      		ushort fieldCount = 0;
 
@@ -860,7 +852,7 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      				throw new global::System.InvalidOperationException($"Unsupported member identification mode '{{options.MemberIdentificationMode}}'.");
 	                                      		}}
 
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(writer.GetSpan(fieldCountRange), fieldCount);
+	                                      		writer.WriteUInt16(fieldCountRange, fieldCount);
 
 	                                      	}}
 
@@ -995,79 +987,6 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      {8}
 
 	                                      {9}
-
-	                                      	private static void WriteByte(global::Cat.Network.BufferWriter writer, byte value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(1);
-	                                      		span[0] = value;
-	                                      		writer.Advance(1);
-	                                      	}}
-
-	                                      	private static void WriteBytes(global::Cat.Network.BufferWriter writer, global::System.ReadOnlySpan<byte> value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(value.Length);
-	                                      		value.CopyTo(span);
-	                                      		writer.Advance(value.Length);
-	                                      	}}
-
-	                                      	private static void WriteUInt16(global::Cat.Network.BufferWriter writer, ushort value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(2);
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(span, value);
-	                                      		writer.Advance(2);
-	                                      	}}
-
-	                                      	private static void WriteInt16(global::Cat.Network.BufferWriter writer, short value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(2);
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteInt16LittleEndian(span, value);
-	                                      		writer.Advance(2);
-	                                      	}}
-
-	                                      	private static void WriteUInt32(global::Cat.Network.BufferWriter writer, uint value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(4);
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(span, value);
-	                                      		writer.Advance(4);
-	                                      	}}
-
-	                                      	private static void WriteInt32(global::Cat.Network.BufferWriter writer, int value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(4);
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(span, value);
-	                                      		writer.Advance(4);
-	                                      	}}
-
-	                                      	private static void WriteUInt64(global::Cat.Network.BufferWriter writer, ulong value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(8);
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteUInt64LittleEndian(span, value);
-	                                      		writer.Advance(8);
-	                                      	}}
-
-	                                      	private static void WriteInt64(global::Cat.Network.BufferWriter writer, long value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(8);
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteInt64LittleEndian(span, value);
-	                                      		writer.Advance(8);
-	                                      	}}
-
-	                                      	private static void WriteSingle(global::Cat.Network.BufferWriter writer, float value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(4);
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteSingleLittleEndian(span, value);
-	                                      		writer.Advance(4);
-	                                      	}}
-
-	                                      	private static void WriteDouble(global::Cat.Network.BufferWriter writer, double value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(8);
-	                                      		global::System.Buffers.Binary.BinaryPrimitives.WriteDoubleLittleEndian(span, value);
-	                                      		writer.Advance(8);
-	                                      	}}
-
-	                                      	private static void WriteGuid(global::Cat.Network.BufferWriter writer, global::System.Guid value) {{
-	                                      		global::System.Span<byte> span = writer.GetSpan(16);
-	                                      		value.TryWriteBytes(span);
-	                                      		writer.Advance(16);
-	                                      	}}
-
-	                                      	private static void WriteUtf8(global::Cat.Network.BufferWriter writer, string value) {{
-	                                      		int byteCount = global::System.Text.Encoding.UTF8.GetByteCount(value);
-	                                      		global::System.Span<byte> span = writer.GetSpan(byteCount);
-	                                      		int written = global::System.Text.Encoding.UTF8.GetBytes(value, span);
-	                                      		writer.Advance(written);
-	                                      	}}
 
 	                                      	private static global::System.Guid GetNetworkObjectTypeId(global::System.Type type) {{
 	                                      		global::Cat.Network.NetworkObjectTypeId? typeId = global::System.Attribute.GetCustomAttribute(type, typeof(global::Cat.Network.NetworkObjectTypeId), false) as global::Cat.Network.NetworkObjectTypeId;

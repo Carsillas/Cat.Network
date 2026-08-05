@@ -14,11 +14,12 @@ internal static class NetworkObjectPropertiesGenerator {
 		string source = string.Format(
 			SourceTemplate,
 			Namespace(model),
-			model.TypeId,
-			model.SerializerTypeName,
+			Attributes(model),
 			model.TypeName,
 			Properties(model),
 			PartialProperties(model),
+			CloneMethod(model),
+			PropertyAccessorMethods(model),
 			CollectionAccessorMethods(model),
 			InitializeMembers(model),
 			UpgradeMethods(model));
@@ -30,6 +31,17 @@ internal static class NetworkObjectPropertiesGenerator {
 		return string.IsNullOrWhiteSpace(model.Namespace)
 			? string.Empty
 			: string.Format(NamespaceTemplate, model.Namespace);
+	}
+
+	private static string Attributes(NetworkObjectTypeModel model) {
+		if (model.IsAbstract) {
+			return string.Empty;
+		}
+
+		return string.Format(
+			AttributesTemplate,
+			model.TypeId,
+			model.SerializerTypeName);
 	}
 
 	private static string Properties(NetworkObjectTypeModel model) {
@@ -64,6 +76,50 @@ internal static class NetworkObjectPropertiesGenerator {
 		return string.Join(
 			"\n\n",
 			model.DeclaredProperties.Select(PartialProperty).Concat(model.DeclaredCollections.Select(CollectionPartialProperty)));
+	}
+
+	private static string CloneMethod(NetworkObjectTypeModel model) {
+		if (model.IsAbstract) {
+			return $$"""
+				public abstract override {{model.FullyQualifiedName}} Clone();
+				""";
+		}
+
+		string assignments = string.Join(
+			"\n",
+			model.Properties
+				.OrderBy(static property => property.PropertyIndex)
+				.Select(CloneAssignment));
+
+		return $$"""
+			public override {{model.FullyQualifiedName}} Clone()
+			{
+				{{model.FullyQualifiedName}} clone = new {{model.FullyQualifiedName}}();
+				{{assignments}}
+				return clone;
+			}
+			""";
+	}
+
+	private static string CloneAssignment(NetworkPropertyModel property) {
+		if (property.SerializationKind == NetworkPropertySerializationKind.NetworkObject) {
+			return $$"""
+				if (Get{{property.Name}}(this) is {{property.RuntimeTypeName}} {{property.Name}}Value)
+				{
+					Set{{property.Name}}(clone, ({{property.TypeName}}){{property.Name}}Value.Clone());
+				}
+				""";
+		}
+
+		return $"Set{property.Name}(clone, Get{property.Name}(this));";
+	}
+
+	private static string PropertyAccessorMethods(NetworkObjectTypeModel model) {
+		return string.Join(
+			"\n\n",
+			model.Properties
+				.OrderBy(static property => property.PropertyIndex)
+				.Select(PropertyAccessorMethods));
 	}
 
 	private static string InitializeMembers(NetworkObjectTypeModel model) {
@@ -145,6 +201,16 @@ internal static class NetworkObjectPropertiesGenerator {
 			collection.DeclaringTypeName);
 	}
 
+	private static string PropertyAccessorMethods(NetworkPropertyModel property) {
+		return $$"""
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "get_{{property.Name}}")]
+			private static extern {{property.TypeName}} Get{{property.Name}}({{property.DeclaringTypeName}} target);
+
+			[global::System.Runtime.CompilerServices.UnsafeAccessor(global::System.Runtime.CompilerServices.UnsafeAccessorKind.Method, Name = "set_{{property.Name}}")]
+			private static extern void Set{{property.Name}}({{property.DeclaringTypeName}} target, {{property.TypeName}} value);
+			""";
+	}
+
 	private static string CollectionConcreteType(NetworkCollectionModel collection) {
 		return collection.Kind switch {
 			NetworkCollectionKind.List when collection.IsNetworkObjectItem => $"global::Cat.Network.NetworkObjectList<{collection.ItemTypeName}>",
@@ -160,10 +226,11 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                      #nullable enable
 	                                      #pragma warning disable CS0628
 	                                      {0}
-	                                      [global::Cat.Network.NetworkObjectTypeId("{1}")]
-	                                      [global::Cat.Network.NetworkObjectSerializerAttribute<{2}>]
-	                                      partial class {3} : global::Cat.Network.INetworkObject
+	                                      {1}
+	                                      partial class {2} : global::Cat.Network.INetworkObject
 	                                      {{
+	                                      {3}
+
 	                                      {4}
 
 	                                      {5}
@@ -173,6 +240,8 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                      {7}
 
 	                                      {8}
+
+	                                      {9}
 	                                      }}
 	                                      """;
 
@@ -181,6 +250,11 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                         namespace {0};
 
 	                                         """;
+
+	private const string AttributesTemplate = """
+	                                          [global::Cat.Network.NetworkObjectTypeId("{0}")]
+	                                          [global::Cat.Network.NetworkObjectSerializerAttribute<{1}>]
+	                                          """;
 
 	private const string PropertiesTemplate = """
 

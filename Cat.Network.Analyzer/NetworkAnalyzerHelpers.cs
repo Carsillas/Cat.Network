@@ -34,4 +34,11 @@ internal static class NetworkAnalyzerHelpers {
 			.OfType<PropertyDeclarationSyntax>()
 			.Any(declaration => declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
 	}
+
+	public static bool IsPartial(IMethodSymbol method, CancellationToken cancellationToken) {
+		return method.DeclaringSyntaxReferences
+			.Select(reference => reference.GetSyntax(cancellationToken))
+			.OfType<MethodDeclarationSyntax>()
+			.Any(declaration => declaration.Modifiers.Any(SyntaxKind.PartialKeyword));
+	}
 }

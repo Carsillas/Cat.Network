@@ -34,6 +34,138 @@ public sealed class CatNetworkGeneratorTests {
 	}
 
 	[Test]
+	public void GeneratedRpcIncludesEventInterfaceStubAndDispatch() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class PlayerProfile : NetworkProfile {
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkEntity {
+		                      	[RPC]
+		                      	public partial void TookDamage(int amount, string label);
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string propertySource = GetGeneratedSource(runResult, "Game_Player.g.cs");
+		string messageSource = GetGeneratedSource(runResult, "Game_Player_Messages.g.cs");
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(propertySource, Does.Contain("partial class Player : global::Cat.Network.INetworkObject"));
+			Assert.That(propertySource, Does.Not.Contain("TookDamage"));
+			Assert.That(messageSource, Does.Contain("partial class Player : global::Cat.Network.INetworkRpcTarget, global::Game.Player.RPC"));
+			Assert.That(messageSource, Does.Contain("public partial interface RPC"));
+			Assert.That(messageSource, Does.Contain("public delegate void TookDamageRpcHandler(global::Cat.Network.RelayClient client, global::Cat.Network.NetworkProfile instigator, global::System.Int32 amount, global::System.String label);"));
+			Assert.That(messageSource, Does.Contain("public event TookDamageRpcHandler? TookDamageReceived;"));
+			Assert.That(messageSource, Does.Contain("void global::Game.Player.RPC.RaiseTookDamage(global::Cat.Network.RelayClient client, global::Cat.Network.NetworkProfile instigator, global::System.Int32 amount, global::System.String label)"));
+			Assert.That(messageSource, Does.Contain("public partial void TookDamage(global::System.Int32 amount, global::System.String label)"));
+			Assert.That(messageSource, Does.Contain("client.RentRpcMessageWriter(this, "));
+			Assert.That(messageSource, Does.Contain("client.QueueRentedMessageWriter(writer);"));
+			Assert.That(messageSource, Does.Contain("bool global::Cat.Network.INetworkRpcTarget.TryInvokeRpc("));
+			Assert.That(messageSource, Does.Contain("((global::Game.Player.RPC)this).RaiseTookDamage(client, instigator, amount, label);"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
+	public void GeneratedRpcDispatchCanLiveOnAbstractDeclaringBaseWithoutDerivedMessageStub() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public abstract partial class Actor : NetworkEntity {
+		                      	[RPC]
+		                      	public partial void TookDamage(int amount);
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : Actor {
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string actorMessageSource = GetGeneratedSource(runResult, "Game_Actor_Messages.g.cs");
+		bool generatedPlayerMessages = runResult.GeneratedTrees.Any(tree => tree.FilePath.Contains("Game_Player_Messages.g.cs", StringComparison.Ordinal));
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(actorMessageSource, Does.Contain("partial class Actor : global::Cat.Network.INetworkRpcTarget, global::Game.Actor.RPC"));
+			Assert.That(actorMessageSource, Does.Contain("bool global::Cat.Network.INetworkRpcTarget.TryInvokeRpc("));
+			Assert.That(actorMessageSource, Does.Contain("((global::Game.Actor.RPC)this).RaiseTookDamage(client, instigator, amount);"));
+			Assert.That(generatedPlayerMessages, Is.False);
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
+	public void GeneratedBroadcastIncludesOwnerGuardAndExplicitReceiveHook() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkEntity {
+		                      	[Broadcast(NetworkMessageReceiveMode.Explicit)]
+		                      	public partial void PlayImpact(int effectId);
+
+		                      	void Player.Broadcast.PlayImpact(RelayClient client, NetworkProfile instigator, int effectId) {
+		                      	}
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string propertySource = GetGeneratedSource(runResult, "Game_Player.g.cs");
+		string messageSource = GetGeneratedSource(runResult, "Game_Player_Messages.g.cs");
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(propertySource, Does.Contain("partial class Player : global::Cat.Network.INetworkObject"));
+			Assert.That(propertySource, Does.Not.Contain("PlayImpact"));
+			Assert.That(messageSource, Does.Contain("partial class Player : global::Cat.Network.INetworkRpcTarget, global::Game.Player.Broadcast"));
+			Assert.That(messageSource, Does.Contain("public partial interface Broadcast"));
+			Assert.That(messageSource, Does.Contain("void PlayImpact(global::Cat.Network.RelayClient client, global::Cat.Network.NetworkProfile instigator, global::System.Int32 effectId);"));
+			Assert.That(messageSource, Does.Contain("if (!IsOwner)"));
+			Assert.That(messageSource, Does.Contain("client.RentBroadcastMessageWriter(this, "));
+			Assert.That(messageSource, Does.Contain("client.QueueRentedMessageWriter(writer);"));
+			Assert.That(messageSource, Does.Contain("((global::Game.Player.Broadcast)this).PlayImpact(client, instigator, effectId);"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
 	public void GeneratedRootPropertiesDoNotReferenceObjectProperties() {
 		const string source = """
 		                      using Cat.Network;
@@ -335,7 +467,7 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(generatedSource, Does.Contain("ushort fieldCount = 0;"));
 			Assert.That(generatedSource, Does.Contain("current.PropertyStates[0] != global::Cat.Network.NetworkPropertyState.Unchanged"));
 			Assert.That(generatedSource, Does.Contain("fieldCount++;"));
-			Assert.That(generatedSource, Does.Contain("global::System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(writer.GetSpan(fieldCountRange), fieldCount);"));
+			Assert.That(generatedSource, Does.Contain("writer.WriteUInt16(fieldCountRange, fieldCount);"));
 			Assert.That(generatedSource, Does.Contain("global::Cat.Network.NetworkObjectUpdateMode NetworkObjectUpdateMode = (global::Cat.Network.NetworkObjectUpdateMode)valueData[0];"));
 			Assert.That(generatedSource, Does.Contain("case global::Cat.Network.NetworkObjectUpdateMode.Modify:"));
 			Assert.That(generatedSource, Does.Contain("case global::Cat.Network.NetworkObjectUpdateMode.Replace:"));
@@ -830,7 +962,7 @@ public sealed class CatNetworkGeneratorTests {
 		int startIndex = source.IndexOf(startMarker, StringComparison.Ordinal);
 		Assert.That(startIndex, Is.GreaterThanOrEqualTo(0), $"Could not find tail start marker: {startMarker}");
 
-		int helperIndex = source.IndexOf("private static void WriteByte(", startIndex, StringComparison.Ordinal);
+		int helperIndex = source.IndexOf("private static global::System.Guid GetNetworkObjectTypeId(", startIndex, StringComparison.Ordinal);
 		int classCloseIndex = helperIndex >= 0
 			? helperIndex
 			: source.LastIndexOf('}');

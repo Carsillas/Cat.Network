@@ -56,6 +56,59 @@ public partial class RelayServer {
 		}
 	}
 
+	protected override void OnRpcMessage(IRelayTransport sender, Guid entityId, ReadOnlySpan<byte> data) {
+		if (!ClientsByTransport.TryGetValue(sender, out RemoteClient? client) ||
+		    !EntityStorage.TryGetEntity(entityId, out _) ||
+		    IsOwner(client, entityId) ||
+		    !OwnerProfileIdsByEntityId.TryGetValue(entityId, out Guid ownerProfileId) ||
+		    !ClientsByProfileId.TryGetValue(ownerProfileId, out RemoteClient? ownerClient) ||
+		    !ownerClient.KnownEntityIds.Contains(entityId)) {
+			return;
+		}
+
+		MessageWriter.Clear();
+		WriteForwardedRpcMessage(MessageWriter, entityId, client.Profile.Id, data);
+		ownerClient.Transport.Send(MessageWriter.GetWrittenSpan());
+	}
+
+	protected override void OnBroadcastMessage(IRelayTransport sender, Guid entityId, ReadOnlySpan<byte> data) {
+		if (!ClientsByTransport.TryGetValue(sender, out RemoteClient? ownerClient) ||
+		    !EntityStorage.TryGetEntity(entityId, out _) ||
+		    !IsOwner(ownerClient, entityId)) {
+			return;
+		}
+
+		MessageWriter.Clear();
+		WriteForwardedBroadcastMessage(MessageWriter, entityId, ownerClient.Profile.Id, data);
+		ReadOnlySpan<byte> message = MessageWriter.GetWrittenSpan();
+		foreach (RemoteClient client in Clients) {
+			if (ReferenceEquals(client, ownerClient) || !client.KnownEntityIds.Contains(entityId)) {
+				continue;
+			}
+
+			client.Transport.Send(message);
+		}
+	}
+
+	private static void WriteForwardedRpcMessage(BufferWriter writer, Guid entityId, Guid instigatorProfileId, ReadOnlySpan<byte> data) {
+		WriteForwardedMessage(writer, EntityMessageKind.Rpc, entityId, instigatorProfileId, data);
+	}
+
+	private static void WriteForwardedBroadcastMessage(BufferWriter writer, Guid entityId, Guid instigatorProfileId, ReadOnlySpan<byte> data) {
+		WriteForwardedMessage(writer, EntityMessageKind.Broadcast, entityId, instigatorProfileId, data);
+	}
+
+	private static void WriteForwardedMessage(BufferWriter writer, EntityMessageKind kind, Guid entityId, Guid instigatorProfileId, ReadOnlySpan<byte> data) {
+		WriteEntityMessageHeader(writer, kind, entityId);
+		Range lengthRange = writer.Reserve(sizeof(int));
+		int dataStart = writer.WrittenCount;
+		writer.WriteGuid(instigatorProfileId);
+		Span<byte> payload = writer.GetSpan(data.Length);
+		data.CopyTo(payload);
+		writer.Advance(data.Length);
+		writer.WriteInt32(lengthRange, writer.WrittenCount - dataStart);
+	}
+
 	private bool IsOwner(RemoteClient client, Guid entityId) {
 		return OwnerProfileIdsByEntityId.TryGetValue(entityId, out Guid ownerProfileId) &&
 		       ownerProfileId == client.Profile.Id;

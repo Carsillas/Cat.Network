@@ -152,6 +152,142 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RelayRpc_NonOwnerInvocation_ForwardsToOwnerWithInstigatorProfile() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayMessageState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient ownerClient = new(catalogue);
+		RelayClient instigatorClient = new(catalogue);
+
+		ownerClient.Connect(daemon.Connect());
+		instigatorClient.Connect(daemon.Connect());
+		Pump(server, ownerClient, instigatorClient);
+
+		RelayMessageState entity = new();
+		ownerClient.Spawn(entity);
+		Pump(server, ownerClient, instigatorClient);
+		Assert.That(instigatorClient.TryGetEntity(entity.Id, out NetworkEntity? proxyEntity), Is.True);
+
+		int receivedValue = 0;
+		Guid receivedInstigatorId = Guid.Empty;
+		entity.ApplyValueReceived += (_, instigator, value) => {
+			receivedInstigatorId = instigator.Id;
+			receivedValue = value;
+		};
+
+		((RelayMessageState)proxyEntity!).ApplyValue(42);
+		Pump(server, ownerClient, instigatorClient);
+
+		Assert.Multiple(() => {
+			Assert.That(receivedValue, Is.EqualTo(42));
+			Assert.That(receivedInstigatorId, Is.EqualTo(instigatorClient.Profile!.Id));
+		});
+	}
+
+	[Test]
+	public void RelayRpc_NonOwnerInvocation_SerializesSupportedParameterTypesDirectly() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayMessageState), typeof(RelayMessagePayload));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient ownerClient = new(catalogue);
+		RelayClient instigatorClient = new(catalogue);
+
+		ownerClient.Connect(daemon.Connect());
+		instigatorClient.Connect(daemon.Connect());
+		Pump(server, ownerClient, instigatorClient);
+
+		RelayMessageState entity = new();
+		ownerClient.Spawn(entity);
+		Pump(server, ownerClient, instigatorClient);
+		Assert.That(instigatorClient.TryGetEntity(entity.Id, out NetworkEntity? proxyEntity), Is.True);
+
+		RelayMessagePayload? receivedPayload = null;
+		RelayMessagePoint receivedPoint = default;
+		int? receivedCount = null;
+		entity.ApplyPayloadReceived += (_, _, payload, point, count) => {
+			receivedPayload = payload;
+			receivedPoint = point;
+			receivedCount = count;
+		};
+
+		((RelayMessageState)proxyEntity!).ApplyPayload(
+			new RelayMessagePayload { Label = "Payload", Value = 14 },
+			new RelayMessagePoint { X = 9, Name = "North" },
+			3);
+		Pump(server, ownerClient, instigatorClient);
+
+		Assert.Multiple(() => {
+			Assert.That(receivedPayload, Is.Not.Null);
+			Assert.That(receivedPayload!.Label, Is.EqualTo("Payload"));
+			Assert.That(receivedPayload.Value, Is.EqualTo(14));
+			Assert.That(receivedPoint.X, Is.EqualTo(9));
+			Assert.That(receivedPoint.Name, Is.EqualTo("North"));
+			Assert.That(receivedCount, Is.EqualTo(3));
+		});
+	}
+
+	[Test]
+	public void RelayBroadcast_OwnerInvocation_InvokesLocallyAndForwardsToOtherClients() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayMessageState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient ownerClient = new(catalogue);
+		RelayClient observerClient = new(catalogue);
+
+		ownerClient.Connect(daemon.Connect());
+		observerClient.Connect(daemon.Connect());
+		Pump(server, ownerClient, observerClient);
+
+		RelayMessageState entity = new();
+		ownerClient.Spawn(entity);
+		Pump(server, ownerClient, observerClient);
+		Assert.That(observerClient.TryGetEntity(entity.Id, out NetworkEntity? proxyEntity), Is.True);
+
+		int localCount = 0;
+		int remoteCount = 0;
+		int remoteValue = 0;
+		Guid remoteInstigatorId = Guid.Empty;
+		entity.PublishValueReceived += (_, _, _) => localCount++;
+		((RelayMessageState)proxyEntity!).PublishValueReceived += (_, instigator, value) => {
+			remoteCount++;
+			remoteInstigatorId = instigator.Id;
+			remoteValue = value;
+		};
+
+		entity.PublishValue(7);
+		Assert.That(localCount, Is.EqualTo(1));
+
+		Pump(server, ownerClient, observerClient);
+
+		Assert.Multiple(() => {
+			Assert.That(localCount, Is.EqualTo(1));
+			Assert.That(remoteCount, Is.EqualTo(1));
+			Assert.That(remoteValue, Is.EqualTo(7));
+			Assert.That(remoteInstigatorId, Is.EqualTo(ownerClient.Profile!.Id));
+		});
+	}
+
+	[Test]
+	public void RelayBroadcast_NonOwnerInvocation_Throws() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayMessageState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient ownerClient = new(catalogue);
+		RelayClient observerClient = new(catalogue);
+
+		ownerClient.Connect(daemon.Connect());
+		observerClient.Connect(daemon.Connect());
+		Pump(server, ownerClient, observerClient);
+
+		RelayMessageState entity = new();
+		ownerClient.Spawn(entity);
+		Pump(server, ownerClient, observerClient);
+		Assert.That(observerClient.TryGetEntity(entity.Id, out NetworkEntity? proxyEntity), Is.True);
+
+		Assert.That(() => ((RelayMessageState)proxyEntity!).PublishValue(7), Throws.TypeOf<InvalidOperationException>());
+	}
+
+	[Test]
 	public void RelayClientOwnedUpdate_SendsDirtyStateToServerAndOtherClients() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());

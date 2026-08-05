@@ -31,20 +31,20 @@ internal static class NetworkCollectionSerializer {
 				isNetworkObject: false,
 				serializeFull: (writer, value, context, options) => {
 					if (value is null) {
-						WriteByte(writer, 0);
+						writer.WriteByte(0);
 						return;
 					}
 
-					WriteByte(writer, 1);
+					writer.WriteByte(1);
 					underlyingCodec.SerializeFullObject(writer, value, context, options);
 				},
 				serializeUpdate: (writer, value, context, options) => {
 					if (value is null) {
-						WriteByte(writer, 0);
+						writer.WriteByte(0);
 						return;
 					}
 
-					WriteByte(writer, 1);
+					writer.WriteByte(1);
 					underlyingCodec.SerializeUpdateObject(writer, value, context, options);
 				},
 				deserializeFull: (ReadOnlySpan<byte> data, ref int offset, SerializationContext context) => {
@@ -64,8 +64,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(bool)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteByte(writer, (bool)value! ? (byte)1 : (byte)0),
-				serializeUpdate: static (writer, value, _, _) => WriteByte(writer, (bool)value! ? (byte)1 : (byte)0),
+				serializeFull: static (writer, value, _, _) => writer.WriteByte((bool)value! ? (byte)1 : (byte)0),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteByte((bool)value! ? (byte)1 : (byte)0),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadByte(data, ref offset) != 0,
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("Boolean collection items do not support update operations."));
 		}
@@ -73,8 +73,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(byte)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteByte(writer, (byte)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteByte(writer, (byte)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteByte((byte)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteByte((byte)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadByte(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("Byte collection items do not support update operations."));
 		}
@@ -82,8 +82,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(sbyte)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteByte(writer, unchecked((byte)(sbyte)value!)),
-				serializeUpdate: static (writer, value, _, _) => WriteByte(writer, unchecked((byte)(sbyte)value!)),
+				serializeFull: static (writer, value, _, _) => writer.WriteByte(unchecked((byte)(sbyte)value!)),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteByte(unchecked((byte)(sbyte)value!)),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => unchecked((sbyte)ReadByte(data, ref offset)),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("SByte collection items do not support update operations."));
 		}
@@ -91,8 +91,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(short)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteInt16(writer, (short)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteInt16(writer, (short)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteInt16((short)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteInt16((short)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadInt16(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("Int16 collection items do not support update operations."));
 		}
@@ -100,8 +100,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(ushort)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteUInt16(writer, (ushort)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteUInt16(writer, (ushort)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteUInt16((ushort)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteUInt16((ushort)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadUInt16(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("UInt16 collection items do not support update operations."));
 		}
@@ -109,8 +109,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(int)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteInt32(writer, (int)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteInt32(writer, (int)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteInt32((int)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteInt32((int)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadInt32(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("Int32 collection items do not support update operations."));
 		}
@@ -118,8 +118,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(uint)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteUInt32(writer, (uint)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteUInt32(writer, (uint)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteUInt32((uint)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteUInt32((uint)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadUInt32(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("UInt32 collection items do not support update operations."));
 		}
@@ -127,8 +127,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(long)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteInt64(writer, (long)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteInt64(writer, (long)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteInt64((long)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteInt64((long)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadInt64(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("Int64 collection items do not support update operations."));
 		}
@@ -136,8 +136,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(ulong)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteUInt64(writer, (ulong)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteUInt64(writer, (ulong)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteUInt64((ulong)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteUInt64((ulong)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadUInt64(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("UInt64 collection items do not support update operations."));
 		}
@@ -145,8 +145,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(float)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteSingle(writer, (float)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteSingle(writer, (float)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteSingle((float)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteSingle((float)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadSingle(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("Single collection items do not support update operations."));
 		}
@@ -154,8 +154,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(double)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteDouble(writer, (double)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteDouble(writer, (double)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteDouble((double)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteDouble((double)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadDouble(data, ref offset),
 				deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("Double collection items do not support update operations."));
 		}
@@ -163,8 +163,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(string)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteUtf8(writer, (string)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteUtf8(writer, (string)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteUtf8((string)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteUtf8((string)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => {
 					string value = System.Text.Encoding.UTF8.GetString(data[offset..]);
 					offset = data.Length;
@@ -176,8 +176,8 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(Guid)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => WriteGuid(writer, (Guid)value!),
-				serializeUpdate: static (writer, value, _, _) => WriteGuid(writer, (Guid)value!),
+				serializeFull: static (writer, value, _, _) => writer.WriteGuid((Guid)value!),
+				serializeUpdate: static (writer, value, _, _) => writer.WriteGuid((Guid)value!),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => {
 					if (data.Length - offset < 16) {
 						throw new InvalidOperationException("Collection item Guid payload is truncated.");
@@ -195,17 +195,17 @@ internal static class NetworkCollectionSerializer {
 				isNetworkObject: true,
 				serializeFull: static (writer, value, context, options) => {
 					if (value is null) {
-						WriteByte(writer, 0);
+						writer.WriteByte(0);
 						return;
 					}
 
-					WriteByte(writer, 1);
+					writer.WriteByte(1);
 					NetworkObject networkObject = (NetworkObject)value;
 					if (!context.TypeCatalogue.TryFindSerializer(networkObject.GetType(), out INetworkObjectSerializer? serializer)) {
 						throw new InvalidOperationException($"Serializer for type '{networkObject.GetType().FullName}' is not registered.");
 					}
 
-					WriteGuid(writer, GetNetworkObjectTypeId(networkObject.GetType()));
+					writer.WriteGuid(GetNetworkObjectTypeId(networkObject.GetType()));
 					serializer.Serialize(
 						writer,
 						networkObject,
@@ -415,73 +415,6 @@ internal static class NetworkCollectionSerializer {
 		double value = BinaryPrimitives.ReadDoubleLittleEndian(data[offset..]);
 		offset += 8;
 		return value;
-	}
-
-	private static void WriteByte(BufferWriter writer, byte value) {
-		Span<byte> span = writer.GetSpan(1);
-		span[0] = value;
-		writer.Advance(1);
-	}
-
-	private static void WriteUInt16(BufferWriter writer, ushort value) {
-		Span<byte> span = writer.GetSpan(2);
-		BinaryPrimitives.WriteUInt16LittleEndian(span, value);
-		writer.Advance(2);
-	}
-
-	private static void WriteInt16(BufferWriter writer, short value) {
-		Span<byte> span = writer.GetSpan(2);
-		BinaryPrimitives.WriteInt16LittleEndian(span, value);
-		writer.Advance(2);
-	}
-
-	private static void WriteUInt32(BufferWriter writer, uint value) {
-		Span<byte> span = writer.GetSpan(4);
-		BinaryPrimitives.WriteUInt32LittleEndian(span, value);
-		writer.Advance(4);
-	}
-
-	private static void WriteInt32(BufferWriter writer, int value) {
-		Span<byte> span = writer.GetSpan(4);
-		BinaryPrimitives.WriteInt32LittleEndian(span, value);
-		writer.Advance(4);
-	}
-
-	private static void WriteUInt64(BufferWriter writer, ulong value) {
-		Span<byte> span = writer.GetSpan(8);
-		BinaryPrimitives.WriteUInt64LittleEndian(span, value);
-		writer.Advance(8);
-	}
-
-	private static void WriteInt64(BufferWriter writer, long value) {
-		Span<byte> span = writer.GetSpan(8);
-		BinaryPrimitives.WriteInt64LittleEndian(span, value);
-		writer.Advance(8);
-	}
-
-	private static void WriteSingle(BufferWriter writer, float value) {
-		Span<byte> span = writer.GetSpan(4);
-		BinaryPrimitives.WriteSingleLittleEndian(span, value);
-		writer.Advance(4);
-	}
-
-	private static void WriteDouble(BufferWriter writer, double value) {
-		Span<byte> span = writer.GetSpan(8);
-		BinaryPrimitives.WriteDoubleLittleEndian(span, value);
-		writer.Advance(8);
-	}
-
-	private static void WriteGuid(BufferWriter writer, Guid value) {
-		Span<byte> span = writer.GetSpan(16);
-		value.TryWriteBytes(span);
-		writer.Advance(16);
-	}
-
-	private static void WriteUtf8(BufferWriter writer, string value) {
-		int byteCount = System.Text.Encoding.UTF8.GetByteCount(value);
-		Span<byte> span = writer.GetSpan(byteCount);
-		int written = System.Text.Encoding.UTF8.GetBytes(value, span);
-		writer.Advance(written);
 	}
 
 	private readonly record struct FieldCodec(FieldInfo Field, ItemCodec Codec);

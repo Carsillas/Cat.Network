@@ -13,6 +13,8 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 	private const string NetworkPropertyAttributeMetadataName = "Cat.Network.NetworkPropertyAttribute";
 	private const string NetworkCollectionAttributeMetadataName = "Cat.Network.NetworkCollectionAttribute";
 	private const string UpgradeToAttributeMetadataName = "Cat.Network.UpgradeToAttribute";
+	private const string RPCAttributeMetadataName = "Cat.Network.RPCAttribute";
+	private const string BroadcastAttributeMetadataName = "Cat.Network.BroadcastAttribute";
 
 	private static readonly SymbolDisplayFormat FullyQualifiedTypeFormat = new(
 		SymbolDisplayGlobalNamespaceStyle.Included,
@@ -20,12 +22,14 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
 		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-	private NetworkObjectTypeModel(string @namespace, string typeName, string fullyQualifiedName, string baseTypeName, bool hasBaseProperties, string hintName, string serializerHintName, string accessibility, string serializerTypeName, string typeId, ushort version, ImmutableArray<NetworkPropertyModel> declaredProperties, ImmutableArray<NetworkCollectionModel> declaredCollections, ImmutableArray<NetworkPropertyModel> properties, ImmutableArray<NetworkCollectionModel> collections, ImmutableArray<NetworkObjectUpgradeMethodModel> upgradeMethods) {
+	private NetworkObjectTypeModel(string @namespace, string typeName, string fullyQualifiedName, string baseTypeName, bool hasBaseProperties, bool isAbstract, bool isNetworkEntity, string hintName, string serializerHintName, string accessibility, string serializerTypeName, string typeId, ushort version, ImmutableArray<NetworkPropertyModel> declaredProperties, ImmutableArray<NetworkCollectionModel> declaredCollections, ImmutableArray<NetworkPropertyModel> properties, ImmutableArray<NetworkCollectionModel> collections, ImmutableArray<NetworkObjectUpgradeMethodModel> upgradeMethods, ImmutableArray<NetworkMessageMethodModel> declaredRpcs, ImmutableArray<NetworkMessageMethodModel> rpcs, ImmutableArray<NetworkMessageMethodModel> declaredBroadcasts, ImmutableArray<NetworkMessageMethodModel> broadcasts) {
 		Namespace = @namespace;
 		TypeName = typeName;
 		FullyQualifiedName = fullyQualifiedName;
 		BaseTypeName = baseTypeName;
 		HasBaseProperties = hasBaseProperties;
+		IsAbstract = isAbstract;
+		IsNetworkEntity = isNetworkEntity;
 		HintName = hintName;
 		SerializerHintName = serializerHintName;
 		Accessibility = accessibility;
@@ -37,6 +41,10 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		Properties = properties;
 		Collections = collections;
 		UpgradeMethods = upgradeMethods;
+		DeclaredRpcs = declaredRpcs;
+		Rpcs = rpcs;
+		DeclaredBroadcasts = declaredBroadcasts;
+		Broadcasts = broadcasts;
 	}
 
 	public string Namespace { get; }
@@ -48,6 +56,10 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 	public string BaseTypeName { get; }
 
 	public bool HasBaseProperties { get; }
+
+	public bool IsAbstract { get; }
+
+	public bool IsNetworkEntity { get; }
 
 	public string HintName { get; }
 
@@ -71,6 +83,14 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 
 	public ImmutableArray<NetworkObjectUpgradeMethodModel> UpgradeMethods { get; }
 
+	public ImmutableArray<NetworkMessageMethodModel> DeclaredRpcs { get; }
+
+	public ImmutableArray<NetworkMessageMethodModel> Rpcs { get; }
+
+	public ImmutableArray<NetworkMessageMethodModel> DeclaredBroadcasts { get; }
+
+	public ImmutableArray<NetworkMessageMethodModel> Broadcasts { get; }
+
 	public static NetworkObjectTypeModel Create(INamedTypeSymbol type) {
 		string @namespace = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
 		string typeName = type.Name;
@@ -89,8 +109,9 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		ushort version = GetVersion(type);
 		(ImmutableArray<NetworkPropertyModel> declaredProperties, ImmutableArray<NetworkCollectionModel> declaredCollections, ImmutableArray<NetworkPropertyModel> properties, ImmutableArray<NetworkCollectionModel> collections) = GetNetworkMembers(type);
 		ImmutableArray<NetworkObjectUpgradeMethodModel> upgradeMethods = GetUpgradeMethods(type);
+		(ImmutableArray<NetworkMessageMethodModel> declaredRpcs, ImmutableArray<NetworkMessageMethodModel> rpcs, ImmutableArray<NetworkMessageMethodModel> declaredBroadcasts, ImmutableArray<NetworkMessageMethodModel> broadcasts) = GetNetworkMessages(type);
 
-		return new NetworkObjectTypeModel(@namespace, typeName, fullyQualifiedName, baseTypeName, hasBaseProperties, hintName, serializerHintName, GetAccessibility(type.DeclaredAccessibility), serializerTypeName, typeId, version, declaredProperties, declaredCollections, properties, collections, upgradeMethods);
+		return new NetworkObjectTypeModel(@namespace, typeName, fullyQualifiedName, baseTypeName, hasBaseProperties, type.IsAbstract, InheritsFrom(type, "global::Cat.Network.NetworkEntity"), hintName, serializerHintName, GetAccessibility(type.DeclaredAccessibility), serializerTypeName, typeId, version, declaredProperties, declaredCollections, properties, collections, upgradeMethods, declaredRpcs, rpcs, declaredBroadcasts, broadcasts);
 	}
 
 	public bool Equals(NetworkObjectTypeModel? other) {
@@ -100,6 +121,8 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		       FullyQualifiedName == other.FullyQualifiedName &&
 		       BaseTypeName == other.BaseTypeName &&
 		       HasBaseProperties == other.HasBaseProperties &&
+		       IsAbstract == other.IsAbstract &&
+		       IsNetworkEntity == other.IsNetworkEntity &&
 		       HintName == other.HintName &&
 		       SerializerHintName == other.SerializerHintName &&
 		       Accessibility == other.Accessibility &&
@@ -110,7 +133,11 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		       DeclaredCollections.SequenceEqual(other.DeclaredCollections) &&
 		       Properties.SequenceEqual(other.Properties) &&
 		       Collections.SequenceEqual(other.Collections) &&
-		       UpgradeMethods.SequenceEqual(other.UpgradeMethods);
+		       UpgradeMethods.SequenceEqual(other.UpgradeMethods) &&
+		       DeclaredRpcs.SequenceEqual(other.DeclaredRpcs) &&
+		       Rpcs.SequenceEqual(other.Rpcs) &&
+		       DeclaredBroadcasts.SequenceEqual(other.DeclaredBroadcasts) &&
+		       Broadcasts.SequenceEqual(other.Broadcasts);
 	}
 
 	public override bool Equals(object? obj) {
@@ -124,6 +151,8 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 			hashCode = (hashCode * 397) ^ FullyQualifiedName.GetHashCode();
 			hashCode = (hashCode * 397) ^ BaseTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ HasBaseProperties.GetHashCode();
+			hashCode = (hashCode * 397) ^ IsAbstract.GetHashCode();
+			hashCode = (hashCode * 397) ^ IsNetworkEntity.GetHashCode();
 			hashCode = (hashCode * 397) ^ HintName.GetHashCode();
 			hashCode = (hashCode * 397) ^ SerializerHintName.GetHashCode();
 			hashCode = (hashCode * 397) ^ Accessibility.GetHashCode();
@@ -135,6 +164,10 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 			foreach (NetworkPropertyModel property in Properties) hashCode = (hashCode * 397) ^ property.GetHashCode();
 			foreach (NetworkCollectionModel collection in Collections) hashCode = (hashCode * 397) ^ collection.GetHashCode();
 			foreach (NetworkObjectUpgradeMethodModel upgradeMethod in UpgradeMethods) hashCode = (hashCode * 397) ^ upgradeMethod.GetHashCode();
+			foreach (NetworkMessageMethodModel rpc in DeclaredRpcs) hashCode = (hashCode * 397) ^ rpc.GetHashCode();
+			foreach (NetworkMessageMethodModel rpc in Rpcs) hashCode = (hashCode * 397) ^ rpc.GetHashCode();
+			foreach (NetworkMessageMethodModel broadcast in DeclaredBroadcasts) hashCode = (hashCode * 397) ^ broadcast.GetHashCode();
+			foreach (NetworkMessageMethodModel broadcast in Broadcasts) hashCode = (hashCode * 397) ^ broadcast.GetHashCode();
 
 			return hashCode;
 		}
@@ -166,6 +199,36 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 			.OrderBy(static method => method.TargetVersion)
 			.ThenBy(static method => method.Name, StringComparer.Ordinal)
 			.ToImmutableArray();
+	}
+
+	private static (ImmutableArray<NetworkMessageMethodModel> DeclaredRpcs, ImmutableArray<NetworkMessageMethodModel> Rpcs, ImmutableArray<NetworkMessageMethodModel> DeclaredBroadcasts, ImmutableArray<NetworkMessageMethodModel> Broadcasts) GetNetworkMessages(INamedTypeSymbol type) {
+		ImmutableArray<INamedTypeSymbol> inheritanceChain = GetInheritanceChain(type);
+		ImmutableArray<NetworkMessageMethodModel>.Builder declaredRpcs = ImmutableArray.CreateBuilder<NetworkMessageMethodModel>();
+		ImmutableArray<NetworkMessageMethodModel>.Builder rpcs = ImmutableArray.CreateBuilder<NetworkMessageMethodModel>();
+		ImmutableArray<NetworkMessageMethodModel>.Builder declaredBroadcasts = ImmutableArray.CreateBuilder<NetworkMessageMethodModel>();
+		ImmutableArray<NetworkMessageMethodModel>.Builder broadcasts = ImmutableArray.CreateBuilder<NetworkMessageMethodModel>();
+
+		foreach (INamedTypeSymbol currentType in inheritanceChain) {
+			foreach (IMethodSymbol method in currentType.GetMembers().OfType<IMethodSymbol>().OrderBy(static method => method.Name, StringComparer.Ordinal)) {
+				foreach (AttributeData attribute in method.GetAttributes()) {
+					if (attribute.AttributeClass?.ToDisplayString() == RPCAttributeMetadataName) {
+						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Rpc);
+						rpcs.Add(model);
+						if (SymbolEqualityComparer.Default.Equals(currentType, type)) {
+							declaredRpcs.Add(model);
+						}
+					} else if (attribute.AttributeClass?.ToDisplayString() == BroadcastAttributeMetadataName) {
+						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Broadcast);
+						broadcasts.Add(model);
+						if (SymbolEqualityComparer.Default.Equals(currentType, type)) {
+							declaredBroadcasts.Add(model);
+						}
+					}
+				}
+			}
+		}
+
+		return (declaredRpcs.ToImmutable(), rpcs.ToImmutable(), declaredBroadcasts.ToImmutable(), broadcasts.ToImmutable());
 	}
 
 	private static ushort GetUpgradeTargetVersion(AttributeData attribute) {
@@ -235,6 +298,16 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		}
 
 		return builder.ToImmutable();
+	}
+
+	private static bool InheritsFrom(INamedTypeSymbol type, string fullyQualifiedBaseTypeName) {
+		for (ITypeSymbol? current = type; current is not null; current = current.BaseType) {
+			if (current.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == fullyQualifiedBaseTypeName) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private static string CreateStableTypeId(INamedTypeSymbol type) {

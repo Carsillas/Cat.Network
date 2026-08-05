@@ -19,7 +19,10 @@ public sealed class CatNetworkGenerator : IIncrementalGenerator {
 		context.RegisterSourceOutput(networkObjectTypes, static (sourceProductionContext, models) => {
 			foreach (NetworkObjectTypeModel model in models) {
 				NetworkObjectPropertiesGenerator.Generate(sourceProductionContext, model);
-				NetworkObjectSerializerGenerator.Generate(sourceProductionContext, model);
+				NetworkObjectMessagesGenerator.Generate(sourceProductionContext, model);
+				if (!model.IsAbstract) {
+					NetworkObjectSerializerGenerator.Generate(sourceProductionContext, model);
+				}
 			}
 		});
 	}

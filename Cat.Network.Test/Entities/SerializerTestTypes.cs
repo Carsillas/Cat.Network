@@ -16,6 +16,8 @@ public partial class PrimitiveState : NetworkObject {
 
 	[NetworkProperty]
 	public partial string Name { get; private set; } = string.Empty;
+
+	public int IgnoredValue { get; set; }
 }
 
 [NetworkObject(Version = 2)]
@@ -308,4 +310,32 @@ public partial class RelayProfileState : NetworkProfile {
 public partial class RelayValueState : NetworkEntity {
 	[NetworkProperty]
 	public partial int Value { get; set; }
+}
+
+[NetworkObject]
+public partial class RelayMessageState : NetworkEntity {
+	
+	[RPC]
+	public partial void ApplyValue(int value);
+
+	[RPC]
+	public partial void ApplyPayload(RelayMessagePayload payload, RelayMessagePoint point, int? count);
+
+	[Broadcast]
+	public partial void PublishValue(int value);
+	
+}
+
+[NetworkObject]
+public partial class RelayMessagePayload : NetworkObject {
+	[NetworkProperty]
+	public partial string Label { get; set; } = string.Empty;
+
+	[NetworkProperty]
+	public partial int Value { get; set; }
+}
+
+public struct RelayMessagePoint {
+	public int X;
+	public string Name;
 }

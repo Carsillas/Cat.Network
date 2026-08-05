@@ -25,3 +25,8 @@
  CN0018  | Usage    | Error    | UpgradeToAttribute requires a static upgrade method with the expected signature
  CN0019  | Usage    | Error    | UpgradeToAttribute target versions must be unique
  CN0020  | Usage    | Error    | UpgradeToAttribute target version must be supported by the NetworkObject schema version
+ CN0021  | Usage    | Error    | RPCAttribute and BroadcastAttribute can only be used in NetworkEntity-derived types
+ CN0022  | Usage    | Error    | RPCAttribute and BroadcastAttribute require non-generic partial void methods without ref, out, or in parameters
+ CN0023  | Usage    | Error    | RPCAttribute and BroadcastAttribute require supported parameter types
+ CN0024  | Usage    | Error    | RPCAttribute and BroadcastAttribute parameters cannot be NetworkEntity types
+ CN0025  | Usage    | Warning  | Explicit RPCAttribute and BroadcastAttribute receive handlers should use explicit interface implementation
