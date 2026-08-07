@@ -539,12 +539,14 @@ public sealed class CatNetworkGeneratorTests {
 						global::Cat.Network.INetworkObject oldNetworkValue = oldValue;
 						oldNetworkValue.Parent = null;
 						oldNetworkValue.PropertyIndex = -1;
+						oldNetworkValue.IsCollectionItem = false;
 					}
 					if (value is not null)
 					{
 						global::Cat.Network.INetworkObject attachedValue = value;
 						attachedValue.Parent = this;
 						attachedValue.PropertyIndex = propertyIndex;
+						attachedValue.IsCollectionItem = false;
 					}
 					global::Cat.Network.INetworkObject current = this;
 					current.PropertyStates[propertyIndex] |= global::Cat.Network.NetworkPropertyState.Replaced;
@@ -554,6 +556,20 @@ public sealed class CatNetworkGeneratorTests {
 						parentObject.PropertyStates[current.PropertyIndex] |= global::Cat.Network.NetworkPropertyState.Modified;
 						current = parentObject;
 					}
+					global::Cat.Network.PropertyChangedEventArgs propertyChangedArgs = new global::Cat.Network.PropertyChangedEventArgs
+					{
+						Index = 0,
+						Name = nameof(Child)
+					};
+					((global::Cat.Network.INetworkObject)this).OnPropertyChanged(propertyChangedArgs);
+					global::Cat.Network.PropertyChangedEventArgs<global::Game.Child?> args = new global::Cat.Network.PropertyChangedEventArgs<global::Game.Child?>
+					{
+						Index = 0,
+						Name = nameof(Child),
+						PreviousValue = oldValue,
+						CurrentValue = field
+					};
+					ChildChanged?.Invoke(this, args);
 				}
 			}
 			""";
@@ -561,6 +577,10 @@ public sealed class CatNetworkGeneratorTests {
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
 			AssertGeneratedSourceEqual(expectedPropertyBlock, ExtractMemberBlock(propertySource, "public partial global::Game.Child? Child"));
+			Assert.That(propertySource, Does.Contain("public event global::Cat.Network.NetworkPropertyChanged<global::Game.Parent, global::Game.Child?>? ChildChanged;"));
+			Assert.That(propertySource, Does.Not.Contain("private void OnChildChanged("));
+			Assert.That(propertySource, Does.Contain("((global::Cat.Network.INetworkObject)this).OnPropertyChanged(propertyChangedArgs);"));
+			Assert.That(propertySource, Does.Contain("ChildChanged?.Invoke(this, args);"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
 	}
@@ -596,6 +616,12 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(propertySource, Does.Contain("current.PropertyStates[0] |= global::Cat.Network.NetworkPropertyState.Replaced;"));
 			Assert.That(propertySource, Does.Contain("while (current.Parent is global::Cat.Network.NetworkObject parent)"));
 			Assert.That(propertySource, Does.Contain("parentObject.PropertyStates[current.PropertyIndex] |= global::Cat.Network.NetworkPropertyState.Modified;"));
+			Assert.That(propertySource, Does.Contain("public event global::Cat.Network.NetworkPropertyChanged<global::Game.Player, global::System.Int32>? HealthChanged;"));
+			Assert.That(propertySource, Does.Not.Contain("OnHealthChanged("));
+			Assert.That(propertySource, Does.Contain("global::Cat.Network.PropertyChangedEventArgs propertyChangedArgs = new global::Cat.Network.PropertyChangedEventArgs"));
+			Assert.That(propertySource, Does.Contain("global::Cat.Network.PropertyChangedEventArgs<global::System.Int32> args = new global::Cat.Network.PropertyChangedEventArgs<global::System.Int32>"));
+			Assert.That(propertySource, Does.Contain("HealthChanged?.Invoke(this, args);"));
+			Assert.That(propertySource, Does.Contain("global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> global::Cat.Network.INetworkObject.NetworkProperties => Properties;"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
 	}

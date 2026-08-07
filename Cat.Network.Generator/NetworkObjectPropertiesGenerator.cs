@@ -166,7 +166,9 @@ internal static class NetworkObjectPropertiesGenerator {
 				property.Name,
 				property.GetterAccessibility,
 				property.SetterAccessibility,
-				property.PropertyIndex);
+				property.PropertyIndex,
+				PropertyChangedEvent(property),
+				PropertyChangedNotification(property));
 		}
 
 		return string.Format(
@@ -176,7 +178,35 @@ internal static class NetworkObjectPropertiesGenerator {
 			property.Name,
 			property.GetterAccessibility,
 			property.SetterAccessibility,
-			property.PropertyIndex);
+			property.PropertyIndex,
+			PropertyChangedEvent(property),
+			PropertyChangedNotification(property));
+	}
+
+	private static string PropertyChangedEvent(NetworkPropertyModel property) {
+		return $$"""
+			{{property.Accessibility}} event global::Cat.Network.NetworkPropertyChanged<{{property.DeclaringTypeName}}, {{property.TypeName}}>? {{property.Name}}Changed;
+			""";
+	}
+
+	private static string PropertyChangedNotification(NetworkPropertyModel property) {
+		return $$"""
+			global::Cat.Network.PropertyChangedEventArgs propertyChangedArgs = new global::Cat.Network.PropertyChangedEventArgs
+			{
+				Index = {{property.PropertyIndex}},
+				Name = nameof({{property.Name}})
+			};
+			((global::Cat.Network.INetworkObject)this).OnPropertyChanged(propertyChangedArgs);
+
+			global::Cat.Network.PropertyChangedEventArgs<{{property.TypeName}}> args = new global::Cat.Network.PropertyChangedEventArgs<{{property.TypeName}}>
+			{
+				Index = {{property.PropertyIndex}},
+				Name = nameof({{property.Name}}),
+				PreviousValue = oldValue,
+				CurrentValue = field
+			};
+			{{property.Name}}Changed?.Invoke(this, args);
+			""";
 	}
 
 	private static string CollectionPartialProperty(NetworkCollectionModel collection) {
@@ -262,6 +292,8 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                           {1}
 	                                           {2}
 	                                          	];
+
+	                                          	global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> global::Cat.Network.INetworkObject.NetworkProperties => Properties;
 	                                          """;
 
 	private const string InheritedPropertiesTemplate = """
@@ -296,8 +328,11 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                               				parentObject.PropertyStates[current.PropertyIndex] |= global::Cat.Network.NetworkPropertyState.Modified;
 	                                               				current = parentObject;
 	                                               			}}
+	                                               			{7}
 	                                               		}}
 	                                               	}}
+
+	                                               {6}
 	                                               """;
 
 	private const string NetworkObjectPartialPropertyTemplate = """
@@ -326,12 +361,14 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                                     				global::Cat.Network.INetworkObject oldNetworkValue = oldValue;
 	                                                     				oldNetworkValue.Parent = null;
 	                                                     				oldNetworkValue.PropertyIndex = -1;
+	                                                     				oldNetworkValue.IsCollectionItem = false;
 	                                                     			}}
 	                                                     			if (value is not null)
 	                                                     			{{
 	                                                     				global::Cat.Network.INetworkObject attachedValue = value;
 	                                                     				attachedValue.Parent = this;
 	                                                     				attachedValue.PropertyIndex = propertyIndex;
+	                                                     				attachedValue.IsCollectionItem = false;
 	                                                     			}}
 	                                                     			global::Cat.Network.INetworkObject current = this;
 	                                                     			current.PropertyStates[propertyIndex] |= global::Cat.Network.NetworkPropertyState.Replaced;
@@ -341,8 +378,11 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                                     				parentObject.PropertyStates[current.PropertyIndex] |= global::Cat.Network.NetworkPropertyState.Modified;
 	                                                     				current = parentObject;
 	                                                     			}}
+	                                                     			{7}
 	                                                     		}}
 	                                                     	}}
+
+	                                                     {6}
 	                                                     """;
 
 	private const string CollectionPartialPropertyTemplate = """

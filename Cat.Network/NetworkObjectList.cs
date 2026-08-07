@@ -20,6 +20,7 @@ public sealed class NetworkObjectList<T> : NetworkList<T> where T : NetworkObjec
 		INetworkObject networkObject = item;
 		networkObject.Parent = Owner;
 		networkObject.PropertyIndex = PropertyIndex;
+		networkObject.IsCollectionItem = true;
 	}
 
 	protected override void OnItemRemoving(T item) {
@@ -30,5 +31,6 @@ public sealed class NetworkObjectList<T> : NetworkList<T> where T : NetworkObjec
 		INetworkObject networkObject = item;
 		networkObject.Parent = null;
 		networkObject.PropertyIndex = -1;
+		networkObject.IsCollectionItem = false;
 	}
 }

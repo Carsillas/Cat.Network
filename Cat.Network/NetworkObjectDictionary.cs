@@ -20,6 +20,7 @@ public sealed class NetworkObjectDictionary<TKey, TValue> : NetworkDictionary<TK
 		INetworkObject networkObject = value;
 		networkObject.Parent = Owner;
 		networkObject.PropertyIndex = PropertyIndex;
+		networkObject.IsCollectionItem = true;
 	}
 
 	protected override void OnValueRemoving(TValue value) {
@@ -30,5 +31,6 @@ public sealed class NetworkObjectDictionary<TKey, TValue> : NetworkDictionary<TK
 		INetworkObject networkObject = value;
 		networkObject.Parent = null;
 		networkObject.PropertyIndex = -1;
+		networkObject.IsCollectionItem = false;
 	}
 }

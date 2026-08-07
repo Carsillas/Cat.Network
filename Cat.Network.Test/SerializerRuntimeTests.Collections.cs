@@ -92,6 +92,7 @@ public sealed partial class SerializerRuntimeTests {
 		Assert.Multiple(() => {
 			Assert.That(((INetworkObject)child).Parent, Is.SameAs(target));
 			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(0));
+			Assert.That(((INetworkObject)child).IsCollectionItem, Is.True);
 			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
 		});
 	}
@@ -109,8 +110,25 @@ public sealed partial class SerializerRuntimeTests {
 		Assert.Multiple(() => {
 			Assert.That(((INetworkObject)child).Parent, Is.Null);
 			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(-1));
+			Assert.That(((INetworkObject)child).IsCollectionItem, Is.False);
 			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
 		});
+	}
+
+	[Test]
+	public void Setting_CollectionChildProperty_DoesNotRaisePropertyChangedOnOwner() {
+		ObjectCollectionState target = new();
+		DirtyChildState child = new();
+		int ownerPropertyChangedCount = 0;
+
+		target.Children.Add(child);
+		target.PropertyChanged += (_, _) => {
+			ownerPropertyChangedCount++;
+		};
+
+		child.Value = 5;
+
+		Assert.That(ownerPropertyChangedCount, Is.EqualTo(0));
 	}
 
 	[Test]
@@ -145,6 +163,7 @@ public sealed partial class SerializerRuntimeTests {
 		Assert.Multiple(() => {
 			Assert.That(((INetworkObject)child).Parent, Is.SameAs(target));
 			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(0));
+			Assert.That(((INetworkObject)child).IsCollectionItem, Is.True);
 			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
 		});
 	}
@@ -162,6 +181,7 @@ public sealed partial class SerializerRuntimeTests {
 		Assert.Multiple(() => {
 			Assert.That(((INetworkObject)child).Parent, Is.Null);
 			Assert.That(((INetworkObject)child).PropertyIndex, Is.EqualTo(-1));
+			Assert.That(((INetworkObject)child).IsCollectionItem, Is.False);
 			Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
 		});
 	}

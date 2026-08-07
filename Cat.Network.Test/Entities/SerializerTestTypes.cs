@@ -222,6 +222,12 @@ public partial class DirtyParentState : NetworkObject {
 }
 
 [NetworkObject]
+public partial class PropertyChangedEntityState : NetworkEntity {
+	[NetworkProperty]
+	public partial DirtyChildState? Child { get; set; }
+}
+
+[NetworkObject]
 public partial class ValueCollectionState : NetworkObject {
 	[NetworkCollection]
 	public partial IList<int> Values { get; }

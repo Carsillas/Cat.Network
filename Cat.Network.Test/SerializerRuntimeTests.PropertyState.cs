@@ -74,6 +74,66 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void Setting_Property_RaisesPropertyChangedEvents() {
+		DirtyPrimitiveState target = new();
+		object? propertyChangedSender = null;
+		PropertyChangedEventArgs? propertyChangedArgs = null;
+		DirtyPrimitiveState? valueChangedSender = null;
+		PropertyChangedEventArgs<int>? valueChangedArgs = null;
+		int propertyChangedCount = 0;
+		int valueChangedCount = 0;
+
+		target.PropertyChanged += (sender, args) => {
+			propertyChangedSender = sender;
+			propertyChangedArgs = args;
+			propertyChangedCount++;
+		};
+		target.ValueChanged += (sender, args) => {
+			valueChangedSender = sender;
+			valueChangedArgs = args;
+			valueChangedCount++;
+		};
+
+		target.Value = 9;
+		target.Value = 9;
+
+		Assert.Multiple(() => {
+			Assert.That(propertyChangedSender, Is.SameAs(target));
+			Assert.That(propertyChangedArgs.HasValue, Is.True);
+			Assert.That(propertyChangedArgs!.Value.Index, Is.EqualTo(0));
+			Assert.That(propertyChangedArgs.Value.Name, Is.EqualTo(nameof(DirtyPrimitiveState.Value)));
+			Assert.That(propertyChangedCount, Is.EqualTo(1));
+			Assert.That(valueChangedSender, Is.SameAs(target));
+			Assert.That(valueChangedArgs.HasValue, Is.True);
+			Assert.That(valueChangedArgs!.Value.Index, Is.EqualTo(0));
+			Assert.That(valueChangedArgs.Value.Name, Is.EqualTo(nameof(DirtyPrimitiveState.Value)));
+			Assert.That(valueChangedArgs.Value.PreviousValue, Is.EqualTo(0));
+			Assert.That(valueChangedArgs.Value.CurrentValue, Is.EqualTo(9));
+			Assert.That(valueChangedCount, Is.EqualTo(1));
+		});
+	}
+
+	[Test]
+	public void Setting_AnchoredChildProperty_RaisesPropertyChangedOnAnchor() {
+		PropertyChangedEntityState entity = new();
+		DirtyChildState child = new();
+		PropertyChangedEventArgs? entityArgs = null;
+
+		entity.Child = child;
+		entity.PropertyChanged += (_, args) => {
+			entityArgs = args;
+		};
+
+		child.Value = 3;
+
+		Assert.Multiple(() => {
+			Assert.That(entityArgs.HasValue, Is.True);
+			Assert.That(entityArgs!.Value.Index, Is.EqualTo(0));
+			Assert.That(entityArgs.Value.Name, Is.EqualTo(nameof(PropertyChangedEntityState.Child)));
+		});
+	}
+
+	[Test]
 	public void Setting_ChildProperty_MarksParentStateAsModified() {
 		DirtyParentState parent = new();
 		DirtyChildState child = new();

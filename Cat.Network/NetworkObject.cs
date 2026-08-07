@@ -15,9 +15,36 @@ public abstract partial class NetworkObject : INetworkObject {
 
 	int INetworkObject.PropertyIndex { get; set; } = -1;
 
+	bool INetworkObject.IsCollectionItem { get; set; }
+
+	System.Collections.Immutable.ImmutableArray<NetworkPropertyInfo> INetworkObject.NetworkProperties => Properties;
+
 	INetworkAnchor? INetworkObject.Anchor => ((INetworkObject?)((INetworkObject)this).Parent)?.Anchor;
 
+	public event NetworkPropertyChanged? PropertyChanged;
+
 	public abstract NetworkObject Clone();
+
+	void INetworkObject.OnPropertyChanged(PropertyChangedEventArgs args) {
+		PropertyChanged?.Invoke(this, args);
+
+		INetworkObject networkObject = this;
+		INetworkObject? parentNetworkObject = networkObject.Parent;
+		if (networkObject.IsCollectionItem || parentNetworkObject is null || networkObject.PropertyIndex < 0) {
+			return;
+		}
+
+		int propertyIndex = networkObject.PropertyIndex;
+		System.Collections.Immutable.ImmutableArray<NetworkPropertyInfo> parentProperties = parentNetworkObject.NetworkProperties;
+		string propertyName = propertyIndex < parentProperties.Length
+			? parentProperties[propertyIndex].Name
+			: string.Empty;
+
+		parentNetworkObject.OnPropertyChanged(new PropertyChangedEventArgs {
+			Index = propertyIndex,
+			Name = propertyName
+		});
+	}
 
 	void INetworkObject.Initialize() {
 		((INetworkObject)this).PropertyStates = new NetworkPropertyState[Properties.Length];
