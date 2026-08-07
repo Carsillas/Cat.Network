@@ -7,6 +7,16 @@ namespace Cat.Network;
 public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 	private static NetworkCollectionSerializer.ItemCodec Codec { get; } = NetworkCollectionSerializer.GetCodec<T>();
 
+	internal NetworkList() { }
+
+	public delegate void CollectionChangedEvent(NetworkList<T> sender, int index);
+
+	public event CollectionChangedEvent? ItemAdded;
+
+	public event CollectionChangedEvent? ItemRemoved;
+
+	public event CollectionChangedEvent? IndexChanged;
+
 	protected NetworkObject Owner { get; private set; } = null!;
 
 	protected int PropertyIndex { get; private set; } = -1;
@@ -33,6 +43,7 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 			OnItemAdded(value);
 			OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Set, index, value));
 			MarkOwnerModified();
+			IndexChanged?.Invoke(this, index);
 		}
 	}
 
@@ -42,6 +53,7 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		OnItemAdded(item);
 		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Add, Items.Count - 1, item));
 		MarkOwnerModified();
+		ItemAdded?.Invoke(this, Items.Count - 1);
 	}
 
 	public void Clear() {
@@ -53,9 +65,13 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 			OnItemRemoving(Items[index]);
 		}
 
+		int removedCount = Items.Count;
 		Items.Clear();
 		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Clear));
 		MarkOwnerModified();
+		for (int index = removedCount - 1; index >= 0; index--) {
+			ItemRemoved?.Invoke(this, index);
+		}
 	}
 
 	public bool Contains(T item) {
@@ -80,6 +96,7 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		OnItemAdded(item);
 		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Insert, index, item));
 		MarkOwnerModified();
+		ItemAdded?.Invoke(this, index);
 	}
 
 	public bool Remove(T item) {
@@ -98,9 +115,10 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		Items.RemoveAt(index);
 		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Remove, index));
 		MarkOwnerModified();
+		ItemRemoved?.Invoke(this, index);
 	}
 
-	public void Initialize(NetworkObject owner, int propertyIndex) {
+	void INetworkCollection.Initialize(NetworkObject owner, int propertyIndex) {
 		if (Owner is not null) {
 			if (ReferenceEquals(Owner, owner) && PropertyIndex == propertyIndex) {
 				return;
@@ -113,7 +131,7 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		PropertyIndex = propertyIndex;
 	}
 
-	public void Serialize(BufferWriter writer, SerializationContext context, SerializationOptions options) {
+	void INetworkCollection.Serialize(BufferWriter writer, SerializationContext context, SerializationOptions options) {
 		Range operationCountRange = writer.Reserve(4);
 		int operationCount = 0;
 
@@ -159,7 +177,7 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		writer.WriteInt32(operationCountRange, operationCount);
 	}
 
-	public void Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
+	void INetworkCollection.Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
 		if (data.Length < 4) {
 			return;
 		}
@@ -237,12 +255,14 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		ValidateItemForAssignment(item);
 		Items.Add(item);
 		OnItemAdded(item);
+		ItemAdded?.Invoke(this, Items.Count - 1);
 	}
 
 	protected void InsertDeserialized(int index, T item) {
 		ValidateItemForAssignment(item);
 		Items.Insert(index, item);
 		OnItemAdded(item);
+		ItemAdded?.Invoke(this, index);
 	}
 
 	protected void SetDeserialized(int index, T item) {
@@ -251,20 +271,26 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		ValidateItemForAssignment(item);
 		Items[index] = item;
 		OnItemAdded(item);
+		IndexChanged?.Invoke(this, index);
 	}
 
 	protected void RemoveAtDeserialized(int index) {
 		T item = Items[index];
 		OnItemRemoving(item);
 		Items.RemoveAt(index);
+		ItemRemoved?.Invoke(this, index);
 	}
 
 	protected void ClearDeserialized() {
+		int removedCount = Items.Count;
 		for (int index = Items.Count - 1; index >= 0; index--) {
 			OnItemRemoving(Items[index]);
 		}
 
 		Items.Clear();
+		for (int index = removedCount - 1; index >= 0; index--) {
+			ItemRemoved?.Invoke(this, index);
+		}
 	}
 
 	protected void MarkOwnerModified() {

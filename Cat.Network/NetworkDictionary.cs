@@ -8,7 +8,15 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 	private static NetworkCollectionSerializer.ItemCodec KeyCodec { get; } = NetworkCollectionSerializer.GetCodec<TKey>();
 	private static NetworkCollectionSerializer.ItemCodec ValueCodec { get; } = NetworkCollectionSerializer.GetCodec<TValue>();
 
-	protected NetworkDictionary() {
+	public delegate void DictionaryChangedEvent(NetworkDictionary<TKey, TValue> sender, TKey key);
+
+	public event DictionaryChangedEvent? ItemAdded;
+
+	public event DictionaryChangedEvent? ItemRemoved;
+
+	public event DictionaryChangedEvent? ValueChanged;
+
+	internal NetworkDictionary() {
 		if (KeyCodec.IsNetworkObject) {
 			throw new InvalidOperationException("Network dictionary keys cannot be NetworkObjects.");
 		}
@@ -25,19 +33,25 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 	public TValue this[TKey key] {
 		get => Items[key];
 		set {
-			if (Items.TryGetValue(key, out TValue? previous) && EqualityComparer<TValue>.Default.Equals(previous, value)) {
+			bool replacedValue = Items.TryGetValue(key, out TValue? previous);
+			if (replacedValue && EqualityComparer<TValue>.Default.Equals(previous, value)) {
 				return;
 			}
 
 			ValidateValueForAssignment(value);
-			if (Items.TryGetValue(key, out previous)) {
-				OnValueRemoving(previous);
+			if (replacedValue) {
+				OnValueRemoving(previous!);
 			}
 
 			Items[key] = value;
 			OnValueAdded(value);
 			OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Set, key, value));
 			MarkOwnerModified();
+			if (replacedValue) {
+				ValueChanged?.Invoke(this, key);
+			} else {
+				ItemAdded?.Invoke(this, key);
+			}
 		}
 	}
 
@@ -55,6 +69,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		OnValueAdded(value);
 		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Add, key, value));
 		MarkOwnerModified();
+		ItemAdded?.Invoke(this, key);
 	}
 
 	public bool ContainsKey(TKey key) {
@@ -70,6 +85,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		Items.Remove(key);
 		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Remove, key));
 		MarkOwnerModified();
+		ItemRemoved?.Invoke(this, key);
 		return true;
 	}
 
@@ -86,6 +102,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 			return;
 		}
 
+		TKey[] removedKeys = Items.Keys.ToArray();
 		foreach (TValue value in Items.Values) {
 			OnValueRemoving(value);
 		}
@@ -93,6 +110,9 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		Items.Clear();
 		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Clear, default!));
 		MarkOwnerModified();
+		foreach (TKey key in removedKeys) {
+			ItemRemoved?.Invoke(this, key);
+		}
 	}
 
 	public bool Contains(KeyValuePair<TKey, TValue> item) {
@@ -115,7 +135,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		return Items.GetEnumerator();
 	}
 
-	public void Initialize(NetworkObject owner, int propertyIndex) {
+	void INetworkCollection.Initialize(NetworkObject owner, int propertyIndex) {
 		if (Owner is not null) {
 			if (ReferenceEquals(Owner, owner) && PropertyIndex == propertyIndex) {
 				return;
@@ -128,7 +148,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		PropertyIndex = propertyIndex;
 	}
 
-	public void Serialize(BufferWriter writer, SerializationContext context, SerializationOptions options) {
+	void INetworkCollection.Serialize(BufferWriter writer, SerializationContext context, SerializationOptions options) {
 		Range operationCountRange = writer.Reserve(4);
 		int operationCount = 0;
 
@@ -169,7 +189,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		writer.WriteInt32(operationCountRange, operationCount);
 	}
 
-	public void Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
+	void INetworkCollection.Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
 		if (data.Length < 4) {
 			return;
 		}
@@ -243,16 +263,23 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		ValidateValueForAssignment(value);
 		Items.Add(key, value);
 		OnValueAdded(value);
+		ItemAdded?.Invoke(this, key);
 	}
 
 	protected void SetDeserialized(TKey key, TValue value) {
-		if (Items.TryGetValue(key, out TValue? previous)) {
-			OnValueRemoving(previous);
+		bool replacedValue = Items.TryGetValue(key, out TValue? previous);
+		if (replacedValue) {
+			OnValueRemoving(previous!);
 		}
 
 		ValidateValueForAssignment(value);
 		Items[key] = value;
 		OnValueAdded(value);
+		if (replacedValue) {
+			ValueChanged?.Invoke(this, key);
+		} else {
+			ItemAdded?.Invoke(this, key);
+		}
 	}
 
 	protected void RemoveDeserialized(TKey key) {
@@ -262,14 +289,19 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
 		OnValueRemoving(value);
 		Items.Remove(key);
+		ItemRemoved?.Invoke(this, key);
 	}
 
 	protected void ClearDeserialized() {
+		TKey[] removedKeys = Items.Keys.ToArray();
 		foreach (TValue value in Items.Values) {
 			OnValueRemoving(value);
 		}
 
 		Items.Clear();
+		foreach (TKey key in removedKeys) {
+			ItemRemoved?.Invoke(this, key);
+		}
 	}
 
 	protected void MarkOwnerModified() {

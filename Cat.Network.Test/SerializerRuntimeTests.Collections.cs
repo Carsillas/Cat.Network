@@ -1,10 +1,38 @@
 using System.Buffers.Binary;
+using System.Reflection;
 using System.Text;
 using Cat.Network.Test.Entities;
 
 namespace Cat.Network.Test;
 
 public sealed partial class SerializerRuntimeTests {
+	[Test]
+	public void NetworkCollectionBaseTypes_DoNotExposeInfrastructureMembersPublicly() {
+		Assert.Multiple(() => {
+			Assert.That(typeof(NetworkList<int>).GetConstructors(BindingFlags.Instance | BindingFlags.Public), Is.Empty);
+			Assert.That(typeof(NetworkList<int>).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic).Single().IsAssembly, Is.True);
+			Assert.That(typeof(NetworkList<int>).GetMethod(nameof(INetworkCollection.Initialize), BindingFlags.Instance | BindingFlags.Public), Is.Null);
+			Assert.That(typeof(NetworkList<int>).GetMethod(nameof(INetworkCollection.Serialize), BindingFlags.Instance | BindingFlags.Public), Is.Null);
+			Assert.That(typeof(NetworkList<int>).GetMethod(nameof(INetworkCollection.Deserialize), BindingFlags.Instance | BindingFlags.Public), Is.Null);
+
+			Assert.That(typeof(NetworkDictionary<int, string>).GetConstructors(BindingFlags.Instance | BindingFlags.Public), Is.Empty);
+			Assert.That(typeof(NetworkDictionary<int, string>).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic).Single().IsAssembly, Is.True);
+			Assert.That(typeof(NetworkDictionary<int, string>).GetMethod(nameof(INetworkCollection.Initialize), BindingFlags.Instance | BindingFlags.Public), Is.Null);
+			Assert.That(typeof(NetworkDictionary<int, string>).GetMethod(nameof(INetworkCollection.Serialize), BindingFlags.Instance | BindingFlags.Public), Is.Null);
+			Assert.That(typeof(NetworkDictionary<int, string>).GetMethod(nameof(INetworkCollection.Deserialize), BindingFlags.Instance | BindingFlags.Public), Is.Null);
+		});
+	}
+
+	[Test]
+	public void NetworkCollectionConcreteTypes_AreSealed() {
+		Assert.Multiple(() => {
+			Assert.That(typeof(NetworkValueList<int>).IsSealed, Is.True);
+			Assert.That(typeof(NetworkObjectList<DirtyChildState>).IsSealed, Is.True);
+			Assert.That(typeof(NetworkValueDictionary<int, string>).IsSealed, Is.True);
+			Assert.That(typeof(NetworkObjectDictionary<int, DirtyChildState>).IsSealed, Is.True);
+		});
+	}
+
 	[Test]
 	public void GeneratedNetworkCollectionProperty_IsInitializedWithValueCollectionImplementation() {
 		ValueCollectionState target = new();
