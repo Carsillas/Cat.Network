@@ -6,7 +6,7 @@
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <IsPackable>true</IsPackable>
-        <PackageId>Cat.Network</PackageId>
+        <PackageId>Carsillas.Cat.Network</PackageId>
         <Title>Cat.Network</Title>
         <Authors>Carsillas</Authors>
         <Description>Attribute-driven network object serialization, version upgrades, dirty-state deltas, relay ownership, profile relevancy, and source-generated serializers for .NET.</Description>

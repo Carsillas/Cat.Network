@@ -4,10 +4,10 @@ Cat.Network is an attribute-driven networking and serialization library for .NET
 
 ## Project Setup
 
-Reference `Cat.Network` from the project that declares your network types. The runtime package is expected to carry the analyzer and source generator, so consumers get diagnostics and generated implementations from a single reference.
+Reference `Carsillas.Cat.Network` from the project that declares your network types. The runtime package is expected to carry the analyzer and source generator, so consumers get diagnostics and generated implementations from a single reference.
 
 ```xml
-<PackageReference Include="Cat.Network" Version="x.y.z" />
+<PackageReference Include="Carsillas.Cat.Network" Version="x.y.z" />
 ```
 
 When working from source, reference `Cat.Network/Cat.Network.csproj`.
