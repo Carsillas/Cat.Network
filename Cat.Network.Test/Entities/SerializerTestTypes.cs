@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 namespace Cat.Network.Test.Entities;
 
 [NetworkObject]
@@ -53,7 +51,7 @@ public partial class VersionedComplexState : NetworkObject {
 	public partial Stats Stats { get; set; }
 
 	[NetworkCollection]
-	public partial IList<int> Values { get; }
+	public partial NetworkList<int> Values { get; }
 
 	[UpgradeTo(2)]
 	private static void UpgradeToVersion2(NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer) {
@@ -230,13 +228,13 @@ public partial class PropertyChangedEntityState : NetworkEntity {
 [NetworkObject]
 public partial class ValueCollectionState : NetworkObject {
 	[NetworkCollection]
-	public partial IList<int> Values { get; }
+	public partial NetworkList<int> Values { get; }
 }
 
 [NetworkObject]
 public partial class PrivateCollectionState : NetworkObject {
 	[NetworkCollection]
-	private partial IList<int> Values { get; }
+	private partial NetworkList<int> Values { get; }
 
 	public void AddValue(int value) {
 		Values.Add(value);
@@ -252,37 +250,37 @@ public partial class PrivateCollectionState : NetworkObject {
 [NetworkObject]
 public partial class ObjectCollectionState : NetworkObject {
 	[NetworkCollection]
-	public partial IList<DirtyChildState> Children { get; }
+	public partial NetworkList<DirtyChildState> Children { get; }
 }
 
 [NetworkObject]
 public partial class NullableObjectCollectionState : NetworkObject {
 	[NetworkCollection]
-	public partial IList<DirtyChildState?> Children { get; }
+	public partial NetworkList<DirtyChildState?> Children { get; }
 }
 
 [NetworkObject]
 public partial class ValueDictionaryState : NetworkObject {
 	[NetworkCollection]
-	public partial IDictionary<int, string> Values { get; }
+	public partial NetworkDictionary<int, string> Values { get; }
 }
 
 [NetworkObject]
 public partial class ObjectDictionaryState : NetworkObject {
 	[NetworkCollection]
-	public partial IDictionary<int, DirtyChildState> Children { get; }
+	public partial NetworkDictionary<int, DirtyChildState> Children { get; }
 }
 
 [NetworkObject]
 public partial class NullableObjectDictionaryState : NetworkObject {
 	[NetworkCollection]
-	public partial IDictionary<int, DirtyChildState?> Children { get; }
+	public partial NetworkDictionary<int, DirtyChildState?> Children { get; }
 }
 
 [NetworkObject]
 public partial class InheritedCollectionBaseState : NetworkObject {
 	[NetworkCollection]
-	public partial IList<int> Values { get; }
+	public partial NetworkList<int> Values { get; }
 }
 
 [NetworkObject]
@@ -293,19 +291,19 @@ public partial class InheritedCollectionDerivedState : InheritedCollectionBaseSt
 [NetworkObject]
 public partial class DeepObjectCollectionLevelThreeState : NetworkObject {
 	[NetworkCollection]
-	public partial IList<DirtyChildState> Children { get; }
+	public partial NetworkList<DirtyChildState> Children { get; }
 }
 
 [NetworkObject]
 public partial class DeepObjectCollectionLevelTwoState : NetworkObject {
 	[NetworkCollection]
-	public partial IList<DeepObjectCollectionLevelThreeState> Children { get; }
+	public partial NetworkList<DeepObjectCollectionLevelThreeState> Children { get; }
 }
 
 [NetworkObject]
 public partial class DeepObjectCollectionRootState : NetworkObject {
 	[NetworkCollection]
-	public partial IList<DeepObjectCollectionLevelTwoState> Children { get; }
+	public partial NetworkList<DeepObjectCollectionLevelTwoState> Children { get; }
 }
 
 [NetworkObject]

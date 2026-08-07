@@ -83,6 +83,33 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void MutatingValueCollection_RaisesListEventsButNotOwnerPropertyChanged() {
+		ValueCollectionState target = new();
+		List<(string EventName, int Index)> events = [];
+		int propertyChangedCount = 0;
+
+		target.Values.ItemAdded += (_, index) => events.Add((nameof(NetworkList<int>.ItemAdded), index));
+		target.Values.ItemRemoved += (_, index) => events.Add((nameof(NetworkList<int>.ItemRemoved), index));
+		target.Values.IndexChanged += (_, index) => events.Add((nameof(NetworkList<int>.IndexChanged), index));
+		target.PropertyChanged += (_, _) => propertyChangedCount++;
+
+		target.Values.Add(7);
+		target.Values.Insert(0, 5);
+		target.Values[1] = 9;
+		target.Values.RemoveAt(0);
+
+		Assert.Multiple(() => {
+			Assert.That(events, Is.EqualTo(new[] {
+				(nameof(NetworkList<int>.ItemAdded), 0),
+				(nameof(NetworkList<int>.ItemAdded), 0),
+				(nameof(NetworkList<int>.IndexChanged), 1),
+				(nameof(NetworkList<int>.ItemRemoved), 0)
+			}));
+			Assert.That(propertyChangedCount, Is.EqualTo(0));
+		});
+	}
+
+	[Test]
 	public void AddingObjectToCollection_SetsParentAndPropertyIndex() {
 		ObjectCollectionState target = new();
 		DirtyChildState child = new();
@@ -151,6 +178,33 @@ public sealed partial class SerializerRuntimeTests {
 		target.Values.Add(7, "seven");
 
 		Assert.That(((INetworkObject)target).PropertyStates[0], Is.EqualTo(NetworkPropertyState.Modified));
+	}
+
+	[Test]
+	public void MutatingValueDictionary_RaisesDictionaryEventsButNotOwnerPropertyChanged() {
+		ValueDictionaryState target = new();
+		List<(string EventName, int Key)> events = [];
+		int propertyChangedCount = 0;
+
+		target.Values.ItemAdded += (_, key) => events.Add((nameof(NetworkDictionary<int, string>.ItemAdded), key));
+		target.Values.ItemRemoved += (_, key) => events.Add((nameof(NetworkDictionary<int, string>.ItemRemoved), key));
+		target.Values.ValueChanged += (_, key) => events.Add((nameof(NetworkDictionary<int, string>.ValueChanged), key));
+		target.PropertyChanged += (_, _) => propertyChangedCount++;
+
+		target.Values.Add(7, "seven");
+		target.Values[7] = "SEVEN";
+		target.Values[8] = "eight";
+		target.Values.Remove(7);
+
+		Assert.Multiple(() => {
+			Assert.That(events, Is.EqualTo(new[] {
+				(nameof(NetworkDictionary<int, string>.ItemAdded), 7),
+				(nameof(NetworkDictionary<int, string>.ValueChanged), 7),
+				(nameof(NetworkDictionary<int, string>.ItemAdded), 8),
+				(nameof(NetworkDictionary<int, string>.ItemRemoved), 7)
+			}));
+			Assert.That(propertyChangedCount, Is.EqualTo(0));
+		});
 	}
 
 	[Test]

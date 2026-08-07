@@ -10,7 +10,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 	private const string InvalidNetworkCollectionAttributeDiagnosticId = "CN0010";
 	private const string NetworkCollectionAttributeRequiresPartialDiagnosticId = "CN0011";
 	private const string NetworkCollectionAttributeRequiresGetterOnlyDiagnosticId = "CN0012";
-	private const string NetworkCollectionAttributeRequiresIListDiagnosticId = "CN0013";
+	private const string NetworkCollectionAttributeRequiresCollectionTypeDiagnosticId = "CN0013";
 	private const string NetworkCollectionAttributeCannotBeInitializedDiagnosticId = "CN0014";
 	private const string NetworkCollectionAttributeRequiresSupportedItemTypeDiagnosticId = "CN0015";
 	private const string NetworkCollectionAttributeRequiresSupportedKeyTypeDiagnosticId = "CN0016";
@@ -39,10 +39,10 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		DiagnosticSeverity.Error,
 		true);
 
-	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresIListRule = new(
-		NetworkCollectionAttributeRequiresIListDiagnosticId,
-		"NetworkCollectionAttribute requires IList<T> or IDictionary<TKey, TValue>",
-		"Property '{0}' is marked with NetworkCollectionAttribute but is not of type IList<T> or IDictionary<TKey, TValue>",
+	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresCollectionTypeRule = new(
+		NetworkCollectionAttributeRequiresCollectionTypeDiagnosticId,
+		"NetworkCollectionAttribute requires NetworkList<T> or NetworkDictionary<TKey, TValue>",
+		"Property '{0}' is marked with NetworkCollectionAttribute but is not of type NetworkList<T> or NetworkDictionary<TKey, TValue>",
 		"Usage",
 		DiagnosticSeverity.Error,
 		true);
@@ -75,7 +75,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		InvalidNetworkCollectionAttributeRule,
 		NetworkCollectionAttributeRequiresPartialRule,
 		NetworkCollectionAttributeRequiresGetterOnlyRule,
-		NetworkCollectionAttributeRequiresIListRule,
+		NetworkCollectionAttributeRequiresCollectionTypeRule,
 		NetworkCollectionAttributeCannotBeInitializedRule,
 		NetworkCollectionAttributeRequiresSupportedItemTypeRule,
 		NetworkCollectionAttributeRequiresSupportedKeyTypeRule
@@ -119,10 +119,10 @@ internal static class NetworkCollectionAttributeAnalyzer {
 
 		if (property.Type is not INamedTypeSymbol propertyType) {
 			context.ReportDiagnostic(Diagnostic.Create(
-				NetworkCollectionAttributeRequiresIListRule,
+				NetworkCollectionAttributeRequiresCollectionTypeRule,
 				property.Locations.FirstOrDefault(),
 				property.Name));
-		} else if (propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Collections.Generic.IList<T>") {
+		} else if (propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Cat.Network.NetworkList<T>") {
 			if (!IsSupportedCollectionValueType(propertyType.TypeArguments[0], networkObjectType)) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkCollectionAttributeRequiresSupportedItemTypeRule,
@@ -130,7 +130,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 					property.Name,
 					propertyType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
 			}
-		} else if (propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Collections.Generic.IDictionary<TKey, TValue>") {
+		} else if (propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Cat.Network.NetworkDictionary<TKey, TValue>") {
 			if (!IsSupportedDictionaryKeyType(propertyType.TypeArguments[0])) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkCollectionAttributeRequiresSupportedKeyTypeRule,
@@ -147,7 +147,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 			}
 		} else {
 			context.ReportDiagnostic(Diagnostic.Create(
-				NetworkCollectionAttributeRequiresIListRule,
+				NetworkCollectionAttributeRequiresCollectionTypeRule,
 				property.Locations.FirstOrDefault(),
 				property.Name));
 		}

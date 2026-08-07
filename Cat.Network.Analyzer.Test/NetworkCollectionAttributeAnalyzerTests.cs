@@ -7,12 +7,11 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	[Test]
 	public async Task ReportsErrorWhenNetworkCollectionAttributeIsUsedInNonNetworkObjectSubclass() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      public sealed partial class Player {
 		                      	[NetworkCollection]
-		                      	public partial IList<int> Scores { get; }
+		                      	public partial NetworkList<int> Scores { get; }
 		                      }
 		                      """;
 
@@ -24,13 +23,12 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	[Test]
 	public async Task ReportsErrorWhenNetworkCollectionAttributeIsUsedOnNonPartialProperty() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public IList<int> Scores { get; }
+		                      	public NetworkList<int> Scores { get; }
 		                      }
 		                      """;
 
@@ -42,13 +40,12 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	[Test]
 	public async Task ReportsErrorWhenNetworkCollectionAttributeIsUsedOnPropertyWithSetter() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial IList<int> Scores { get; set; }
+		                      	public partial NetworkList<int> Scores { get; set; }
 		                      }
 		                      """;
 
@@ -58,7 +55,7 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task ReportsErrorWhenNetworkCollectionAttributeIsUsedOnNonIListProperty() {
+	public async Task ReportsErrorWhenNetworkCollectionAttributeIsUsedOnNonNetworkCollectionProperty() {
 		const string source = """
 		                      using System.Collections.Generic;
 		                      using Cat.Network;
@@ -66,7 +63,7 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial List<int> Scores { get; }
+		                      	public partial IList<int> Scores { get; }
 		                      }
 		                      """;
 
@@ -78,13 +75,12 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	[Test]
 	public async Task ReportsErrorWhenNetworkCollectionAttributePropertyDeclaresInitializer() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial IList<int> Scores { get; } = [];
+		                      	public partial NetworkList<int> Scores { get; } = null!;
 		                      }
 		                      """;
 
@@ -96,7 +92,6 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	[Test]
 	public async Task ReportsErrorWhenNetworkCollectionAttributeUsesUnsupportedItemType() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      public class UnsupportedType {
@@ -105,7 +100,7 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial IList<UnsupportedType> Scores { get; }
+		                      	public partial NetworkList<UnsupportedType> Scores { get; }
 		                      }
 		                      """;
 
@@ -117,7 +112,6 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	[Test]
 	public async Task ReportsErrorWhenNetworkCollectionAttributeUsesUnsupportedDictionaryKeyType() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      public class UnsupportedKey {
@@ -126,7 +120,7 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial IDictionary<UnsupportedKey, int> Scores { get; }
+		                      	public partial NetworkDictionary<UnsupportedKey, int> Scores { get; }
 		                      }
 		                      """;
 
@@ -139,7 +133,6 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeUsesSupportedStructItemType() {
 		const string source = """
 		                      using System;
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      public struct ScoreEntry {
@@ -150,7 +143,7 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial IList<ScoreEntry> Scores { get; }
+		                      	public partial NetworkList<ScoreEntry> Scores { get; }
 		                      }
 		                      """;
 
@@ -162,7 +155,6 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	[Test]
 	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeUsesNetworkObjectItemType() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      [NetworkObject]
@@ -172,7 +164,7 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial IList<Child> Scores { get; }
+		                      	public partial NetworkList<Child> Scores { get; }
 		                      }
 		                      """;
 
@@ -182,15 +174,14 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeIsUsedOnGetterOnlyPartialIListPropertyWithoutInitializer() {
+	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeIsUsedOnGetterOnlyPartialNetworkListPropertyWithoutInitializer() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial IList<int> Scores { get; }
+		                      	public partial NetworkList<int> Scores { get; }
 		                      }
 		                      """;
 
@@ -200,15 +191,14 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeIsUsedOnGetterOnlyPartialIDictionaryPropertyWithoutInitializer() {
+	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeIsUsedOnGetterOnlyPartialNetworkDictionaryPropertyWithoutInitializer() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	public partial IDictionary<int, string> Scores { get; }
+		                      	public partial NetworkDictionary<int, string> Scores { get; }
 		                      }
 		                      """;
 
@@ -218,15 +208,14 @@ public sealed class NetworkCollectionAttributeAnalyzerTests {
 	}
 
 	[Test]
-	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeIsUsedOnPrivateGetterOnlyPartialIListPropertyWithoutInitializer() {
+	public async Task DoesNotReportErrorWhenNetworkCollectionAttributeIsUsedOnPrivateGetterOnlyPartialNetworkListPropertyWithoutInitializer() {
 		const string source = """
-		                      using System.Collections.Generic;
 		                      using Cat.Network;
 
 		                      [NetworkObject]
 		                      public sealed partial class Player : NetworkObject {
 		                      	[NetworkCollection]
-		                      	private partial IList<int> Scores { get; }
+		                      	private partial NetworkList<int> Scores { get; }
 		                      }
 		                      """;
 

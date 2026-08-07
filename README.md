@@ -48,16 +48,16 @@ Network properties support:
 - structs whose public instance fields are supported member types
 - nested `NetworkObject` references
 
-Network collections support `IList<T>` and `IDictionary<TKey, TValue>` through getter-only partial properties.
+Network collections support `NetworkList<T>` and `NetworkDictionary<TKey, TValue>` through getter-only partial properties.
 
 ```csharp
 [NetworkObject]
 public partial class InventoryState : NetworkObject {
 	[NetworkCollection]
-	public partial IList<int> ItemIds { get; }
+	public partial NetworkList<int> ItemIds { get; }
 
 	[NetworkCollection]
-	public partial IDictionary<int, string> Labels { get; }
+	public partial NetworkDictionary<int, string> Labels { get; }
 }
 ```
 
@@ -311,62 +311,62 @@ This section describes the current protocol payload format delivered to message 
 
 Every payload begins with a one-byte `NetworkMessageChannel`.
 
-| Value | Name | Payload |
-|---:|---|---|
-| 0 | `Application` | Application-defined payload. |
-| 1 | `EntityMessage` | Entity message payload. |
-| 2 | `ProfileMessage` | Profile message payload. |
+| Value | Name             | Payload                      |
+|------:|------------------|------------------------------|
+|     0 | `Application`    | Application-defined payload. |
+|     1 | `EntityMessage`  | Entity message payload.      |
+|     2 | `ProfileMessage` | Profile message payload.     |
 
 ### Entity Messages
 
 Entity messages start with:
 
-| Offset | Size | Field |
-|---:|---:|---|
-| 0 | 1 byte | `NetworkMessageChannel.EntityMessage` |
-| 1 | 1 byte | `EntityMessageKind` |
-| 2 | 16 bytes | Entity id |
+| Offset |     Size | Field                                 |
+|-------:|---------:|---------------------------------------|
+|      0 |   1 byte | `NetworkMessageChannel.EntityMessage` |
+|      1 |   1 byte | `EntityMessageKind`                   |
+|      2 | 16 bytes | Entity id                             |
 
 `EntityMessageKind` values:
 
-| Value | Name | Payload after entity id |
-|---:|---|---|
-| 0 | `AssignOwner` | Empty. The receiver becomes owner if it knows the entity. |
-| 1 | `RequestOwnershipTransfer` | `Guid` target owner profile id. |
-| 2 | `Create` | `Guid` type id, `int` object byte count, object data. |
-| 3 | `Update` | `int` object byte count, object data. |
-| 4 | `Delete` | Empty. |
-| 5 | `Rpc` | `int` byte count followed by `ulong` message id and parameter payloads. Server-forwarded RPC payloads include the instigator profile id before the message id. |
-| 6 | `Broadcast` | `int` byte count followed by `ulong` message id and parameter payloads. Server-forwarded broadcast payloads include the instigator profile id before the message id. |
+| Value | Name                       | Payload after entity id                                                                                                                                              |
+|------:|----------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|     0 | `AssignOwner`              | Empty. The receiver becomes owner if it knows the entity.                                                                                                            |
+|     1 | `RequestOwnershipTransfer` | `Guid` target owner profile id.                                                                                                                                      |
+|     2 | `Create`                   | `Guid` type id, `int` object byte count, object data.                                                                                                                |
+|     3 | `Update`                   | `int` object byte count, object data.                                                                                                                                |
+|     4 | `Delete`                   | Empty.                                                                                                                                                               |
+|     5 | `Rpc`                      | `int` byte count followed by `ulong` message id and parameter payloads. Server-forwarded RPC payloads include the instigator profile id before the message id.       |
+|     6 | `Broadcast`                | `int` byte count followed by `ulong` message id and parameter payloads. Server-forwarded broadcast payloads include the instigator profile id before the message id. |
 
 ### Profile Messages
 
 Profile messages start with:
 
-| Offset | Size | Field |
-|---:|---:|---|
-| 0 | 1 byte | `NetworkMessageChannel.ProfileMessage` |
-| 1 | 1 byte | `ProfileMessageKind` |
-| 2 | 16 bytes | Profile id |
+| Offset |     Size | Field                                  |
+|-------:|---------:|----------------------------------------|
+|      0 |   1 byte | `NetworkMessageChannel.ProfileMessage` |
+|      1 |   1 byte | `ProfileMessageKind`                   |
+|      2 | 16 bytes | Profile id                             |
 
 `ProfileMessageKind` values:
 
-| Value | Name | Payload after profile id |
-|---:|---|---|
-| 0 | `Assign` | Empty. Assigns the local client profile id. |
-| 1 | `CreateOrUpdate` | `Guid` type id, `int` profile byte count, object data. |
-| 2 | `Delete` | Empty. Removes a profile from the client. |
+| Value | Name             | Payload after profile id                               |
+|------:|------------------|--------------------------------------------------------|
+|     0 | `Assign`         | Empty. Assigns the local client profile id.            |
+|     1 | `CreateOrUpdate` | `Guid` type id, `int` profile byte count, object data. |
+|     2 | `Delete`         | Empty. Removes a profile from the client.              |
 
 ### Object Data
 
 Object data is versioned and self-delimiting.
 
-| Order | Size | Field |
-|---:|---:|---|
-| 1 | 2 bytes | Schema version (`ushort`) |
-| 2 | 1 byte | `MemberIdentificationMode` |
-| 3 | 2 bytes | Field count (`ushort`) |
-| 4 | Variable | Field entries |
+| Order |     Size | Field                      |
+|------:|---------:|----------------------------|
+|     1 |  2 bytes | Schema version (`ushort`)  |
+|     2 |   1 byte | `MemberIdentificationMode` |
+|     3 |  2 bytes | Field count (`ushort`)     |
+|     4 | Variable | Field entries              |
 
 Each field entry has:
 
@@ -380,11 +380,11 @@ Each field entry has:
 
 For nested `NetworkObject` properties, the value payload starts with `NetworkObjectUpdateMode`:
 
-| Value | Name | Meaning |
-|---:|---|---|
-| 0 | `Modify` | Apply a dirty payload to the existing nested object. |
-| 1 | `Replace` | Read a nested type id and full payload, then replace the object. |
-| 2 | `Clear` | Clear the nested object reference. |
+| Value | Name      | Meaning                                                          |
+|------:|-----------|------------------------------------------------------------------|
+|     0 | `Modify`  | Apply a dirty payload to the existing nested object.             |
+|     1 | `Replace` | Read a nested type id and full payload, then replace the object. |
+|     2 | `Clear`   | Clear the nested object reference.                               |
 
 Struct values are encoded by public instance fields in ascending ordinal field-name order. Strings inside struct payloads are length-prefixed because more field data may follow.
 
@@ -392,18 +392,18 @@ Struct values are encoded by public instance fields in ascending ordinal field-n
 
 Client-authored RPC and broadcast payloads contain:
 
-| Order | Size | Field |
-|---:|---:|---|
-| 1 | 8 bytes | Message id (`ulong`) |
-| 2 | Variable | Parameter entries |
+| Order |     Size | Field                |
+|------:|---------:|----------------------|
+|     1 |  8 bytes | Message id (`ulong`) |
+|     2 | Variable | Parameter entries    |
 
 Server-forwarded RPC and broadcast payloads contain:
 
-| Order | Size | Field |
-|---:|---:|---|
-| 1 | 16 bytes | Instigator profile id (`Guid`) |
-| 2 | 8 bytes | Message id (`ulong`) |
-| 3 | Variable | Parameter entries |
+| Order |     Size | Field                          |
+|------:|---------:|--------------------------------|
+|     1 | 16 bytes | Instigator profile id (`Guid`) |
+|     2 |  8 bytes | Message id (`ulong`)           |
+|     3 | Variable | Parameter entries              |
 
 Each declared parameter is encoded in declaration order:
 

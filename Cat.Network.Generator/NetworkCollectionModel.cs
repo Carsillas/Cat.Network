@@ -10,8 +10,8 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
 		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-	private const string IListMetadataName = "global::System.Collections.Generic.IList<T>";
-	private const string IDictionaryMetadataName = "global::System.Collections.Generic.IDictionary<TKey, TValue>";
+	private const string NetworkListMetadataName = "global::Cat.Network.NetworkList<T>";
+	private const string NetworkDictionaryMetadataName = "global::Cat.Network.NetworkDictionary<TKey, TValue>";
 
 	private NetworkCollectionModel(NetworkCollectionKind kind, string typeName, string itemTypeName, string? keyTypeName, string? runtimeKeyTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, int propertyIndex, bool isNetworkObjectItem, string backingFieldName) {
 		Kind = kind;
@@ -57,7 +57,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 
 	public static NetworkCollectionModel Create(IPropertySymbol property, int propertyIndex) {
 		INamedTypeSymbol propertyType = (INamedTypeSymbol)property.Type;
-		bool isDictionary = propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == IDictionaryMetadataName;
+		bool isDictionary = propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == NetworkDictionaryMetadataName;
 		NetworkCollectionKind kind = isDictionary ? NetworkCollectionKind.Dictionary : NetworkCollectionKind.List;
 		ITypeSymbol itemType = propertyType.TypeArguments[isDictionary ? 1 : 0];
 		ITypeSymbol? keyType = isDictionary ? propertyType.TypeArguments[0] : null;
