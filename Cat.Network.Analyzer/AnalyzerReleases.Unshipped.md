@@ -30,3 +30,4 @@
  CN0023  | Usage    | Error    | RPCAttribute and BroadcastAttribute require supported parameter types
  CN0024  | Usage    | Error    | RPCAttribute and BroadcastAttribute parameters cannot be NetworkEntity types
  CN0025  | Usage    | Warning  | Explicit RPCAttribute and BroadcastAttribute receive handlers should use explicit interface implementation
+ CN0026  | Usage    | Error    | NetworkList<T> and NetworkDictionary<TKey, TValue> require NetworkCollectionAttribute

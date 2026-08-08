@@ -14,6 +14,10 @@ internal static class NetworkCollectionAttributeAnalyzer {
 	private const string NetworkCollectionAttributeCannotBeInitializedDiagnosticId = "CN0014";
 	private const string NetworkCollectionAttributeRequiresSupportedItemTypeDiagnosticId = "CN0015";
 	private const string NetworkCollectionAttributeRequiresSupportedKeyTypeDiagnosticId = "CN0016";
+	private const string NetworkCollectionTypeRequiresNetworkCollectionAttributeDiagnosticId = "CN0026";
+
+	private const string NetworkListMetadataName = "global::Cat.Network.NetworkList<T>";
+	private const string NetworkDictionaryMetadataName = "global::Cat.Network.NetworkDictionary<TKey, TValue>";
 
 	private static readonly DiagnosticDescriptor InvalidNetworkCollectionAttributeRule = new(
 		InvalidNetworkCollectionAttributeDiagnosticId,
@@ -71,6 +75,14 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		DiagnosticSeverity.Error,
 		true);
 
+	private static readonly DiagnosticDescriptor NetworkCollectionTypeRequiresNetworkCollectionAttributeRule = new(
+		NetworkCollectionTypeRequiresNetworkCollectionAttributeDiagnosticId,
+		"NetworkList<T> and NetworkDictionary<TKey, TValue> require NetworkCollectionAttribute",
+		"Property '{0}' is of type '{1}' but is not marked with NetworkCollectionAttribute",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
 	public static ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
 		InvalidNetworkCollectionAttributeRule,
 		NetworkCollectionAttributeRequiresPartialRule,
@@ -78,7 +90,8 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		NetworkCollectionAttributeRequiresCollectionTypeRule,
 		NetworkCollectionAttributeCannotBeInitializedRule,
 		NetworkCollectionAttributeRequiresSupportedItemTypeRule,
-		NetworkCollectionAttributeRequiresSupportedKeyTypeRule
+		NetworkCollectionAttributeRequiresSupportedKeyTypeRule,
+		NetworkCollectionTypeRequiresNetworkCollectionAttributeRule
 	];
 
 	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkCollectionAttributeType) {
@@ -89,13 +102,23 @@ internal static class NetworkCollectionAttributeAnalyzer {
 
 	private static void Analyze(SymbolAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkCollectionAttributeType) {
 		IPropertySymbol property = (IPropertySymbol)context.Symbol;
+		bool hasNetworkCollectionAttribute = NetworkAnalyzerHelpers.HasAttribute(property, networkCollectionAttributeType);
 
-		if (!NetworkAnalyzerHelpers.HasAttribute(property, networkCollectionAttributeType)) {
+		if (!hasNetworkCollectionAttribute) {
+			if (IsNetworkCollectionType(property.Type) &&
+			    IsNetworkObjectOrDerived(property.ContainingType, networkObjectType)) {
+				context.ReportDiagnostic(Diagnostic.Create(
+					NetworkCollectionTypeRequiresNetworkCollectionAttributeRule,
+					property.Locations.FirstOrDefault(),
+					property.Name,
+					property.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+			}
+
 			return;
 		}
 
 		INamedTypeSymbol containingType = property.ContainingType;
-		if (!SymbolEqualityComparer.Default.Equals(containingType, networkObjectType) && !NetworkAnalyzerHelpers.InheritsFrom(containingType, networkObjectType)) {
+		if (!IsNetworkObjectOrDerived(containingType, networkObjectType)) {
 			context.ReportDiagnostic(Diagnostic.Create(
 				InvalidNetworkCollectionAttributeRule,
 				property.Locations.FirstOrDefault(),
@@ -122,7 +145,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 				NetworkCollectionAttributeRequiresCollectionTypeRule,
 				property.Locations.FirstOrDefault(),
 				property.Name));
-		} else if (propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Cat.Network.NetworkList<T>") {
+		} else if (IsNetworkListType(propertyType)) {
 			if (!IsSupportedCollectionValueType(propertyType.TypeArguments[0], networkObjectType)) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkCollectionAttributeRequiresSupportedItemTypeRule,
@@ -130,7 +153,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 					property.Name,
 					propertyType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
 			}
-		} else if (propertyType.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::Cat.Network.NetworkDictionary<TKey, TValue>") {
+		} else if (IsNetworkDictionaryType(propertyType)) {
 			if (!IsSupportedDictionaryKeyType(propertyType.TypeArguments[0])) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkCollectionAttributeRequiresSupportedKeyTypeRule,
@@ -162,6 +185,24 @@ internal static class NetworkCollectionAttributeAnalyzer {
 				property.Locations.FirstOrDefault(),
 				property.Name));
 		}
+	}
+
+	private static bool IsNetworkObjectOrDerived(INamedTypeSymbol type, INamedTypeSymbol networkObjectType) {
+		return SymbolEqualityComparer.Default.Equals(type, networkObjectType) ||
+		       NetworkAnalyzerHelpers.InheritsFrom(type, networkObjectType);
+	}
+
+	private static bool IsNetworkCollectionType(ITypeSymbol type) {
+		return type is INamedTypeSymbol namedType &&
+		       (IsNetworkListType(namedType) || IsNetworkDictionaryType(namedType));
+	}
+
+	private static bool IsNetworkListType(INamedTypeSymbol type) {
+		return type.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == NetworkListMetadataName;
+	}
+
+	private static bool IsNetworkDictionaryType(INamedTypeSymbol type) {
+		return type.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == NetworkDictionaryMetadataName;
 	}
 
 	private static bool IsSupportedCollectionValueType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
