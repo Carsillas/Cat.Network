@@ -17,7 +17,7 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 
 	public event CollectionChangedEvent? IndexChanged;
 
-	protected NetworkObject Owner { get; private set; } = null!;
+	public NetworkObject Owner { get; private set; } = null!;
 
 	protected int PropertyIndex { get; private set; } = -1;
 

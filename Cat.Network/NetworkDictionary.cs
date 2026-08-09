@@ -22,7 +22,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		}
 	}
 
-	protected NetworkObject Owner { get; private set; } = null!;
+	public NetworkObject Owner { get; private set; } = null!;
 
 	protected int PropertyIndex { get; private set; } = -1;
 

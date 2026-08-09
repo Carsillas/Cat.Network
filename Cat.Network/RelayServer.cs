@@ -32,8 +32,15 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 		EntityWorkingBuffer.Clear();
 		EntityWorkingBuffer.AddRange(client.KnownEntityIds);
 		foreach (Guid knownEntityId in EntityWorkingBuffer) {
-			if (IsOwner(client, knownEntityId)) {
-				SetOwner(knownEntityId, null, ownerNotified: false);
+			if (!IsOwner(client, knownEntityId)) {
+				continue;
+			}
+
+			SetOwner(knownEntityId, null, ownerNotified: false);
+			if (EntityStorage.TryGetEntity(knownEntityId, out NetworkEntity? entity) &&
+			    entity.DestroyWithOwner) {
+				EntityStorage.UnregisterEntity(knownEntityId);
+				entity.Peer = null;
 			}
 		}
 

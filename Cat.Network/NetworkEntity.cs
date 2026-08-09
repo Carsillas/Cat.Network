@@ -7,7 +7,12 @@ public abstract partial class NetworkEntity : NetworkObject, INetworkObject, INe
 	INetworkAnchor INetworkObject.Anchor => this;
 	public Guid Id { get; internal set; }
 
+	[NetworkProperty]
+	public partial bool DestroyWithOwner { get; set; }
+
 	public RelayPeer? Peer { get; internal set; }
+
+	public bool IsSpawned => Peer is not null;
 
 	public bool IsOwner => Peer?.Owns(this) ?? false;
 

@@ -123,6 +123,68 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RelayServerRemoveTransport_DeletesDestroyWithOwnerEntity() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		TestEntityStorage serverStorage = new();
+		RelayServer server = new(daemon, catalogue, serverStorage);
+		RelayClient ownerClient = new(catalogue);
+		RelayClient observerClient = new(catalogue);
+		MemoryRelayTransport ownerTransport = daemon.Connect();
+
+		ownerClient.Connect(ownerTransport);
+		observerClient.Connect(daemon.Connect());
+		Pump(server, ownerClient, observerClient);
+
+		RelayValueState entity = new() { DestroyWithOwner = true, Value = 3 };
+		ownerClient.Spawn(entity);
+		Pump(server, ownerClient, observerClient);
+		Assert.That(serverStorage.TryGetEntity(entity.Id, out NetworkEntity? serverEntity), Is.True);
+		Assert.That(serverEntity!.DestroyWithOwner, Is.True);
+		Assert.That(observerClient.TryGetEntity(entity.Id, out NetworkEntity? observerEntity), Is.True);
+		Assert.That(observerEntity!.DestroyWithOwner, Is.True);
+
+		server.RemoveTransport(ownerTransport.Remote!);
+		Pump(server, observerClient);
+
+		Assert.Multiple(() => {
+			Assert.That(serverStorage.TryGetEntity(entity.Id, out _), Is.False);
+			Assert.That(observerClient.TryGetEntity(entity.Id, out _), Is.False);
+			Assert.That(serverEntity.IsSpawned, Is.False);
+			Assert.That(observerEntity.IsSpawned, Is.False);
+		});
+	}
+
+	[Test]
+	public void RelayServerRemoveTransport_PreservesEntityWithoutDestroyWithOwner() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		TestEntityStorage serverStorage = new();
+		RelayServer server = new(daemon, catalogue, serverStorage);
+		RelayClient ownerClient = new(catalogue);
+		RelayClient observerClient = new(catalogue);
+		MemoryRelayTransport ownerTransport = daemon.Connect();
+
+		ownerClient.Connect(ownerTransport);
+		observerClient.Connect(daemon.Connect());
+		Pump(server, ownerClient, observerClient);
+
+		RelayValueState entity = new() { Value = 3 };
+		ownerClient.Spawn(entity);
+		Pump(server, ownerClient, observerClient);
+
+		server.RemoveTransport(ownerTransport.Remote!);
+		Pump(server, observerClient);
+
+		Assert.Multiple(() => {
+			Assert.That(serverStorage.TryGetEntity(entity.Id, out NetworkEntity? serverEntity), Is.True);
+			Assert.That(serverEntity!.DestroyWithOwner, Is.False);
+			Assert.That(observerClient.TryGetEntity(entity.Id, out NetworkEntity? observerEntity), Is.True);
+			Assert.That(observerEntity!.IsOwner, Is.True);
+		});
+	}
+
+	[Test]
 	public void RelayClientSpawn_SendsCreateToServerAndOtherClients() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
@@ -136,6 +198,8 @@ public sealed partial class SerializerRuntimeTests {
 		Pump(server, firstClient, secondClient);
 
 		RelayValueState entity = new() { Value = 3 };
+		Assert.That(entity.IsSpawned, Is.False);
+
 		firstClient.Spawn(entity);
 		Pump(server, firstClient, secondClient);
 
@@ -146,6 +210,9 @@ public sealed partial class SerializerRuntimeTests {
 			Assert.That(secondClient.TryGetEntity(entity.Id, out NetworkEntity? secondClientEntity), Is.True);
 			Assert.That(secondClientEntity, Is.TypeOf<RelayValueState>());
 			Assert.That(((RelayValueState)secondClientEntity!).Value, Is.EqualTo(3));
+			Assert.That(entity.IsSpawned, Is.True);
+			Assert.That(serverEntity.IsSpawned, Is.True);
+			Assert.That(secondClientEntity.IsSpawned, Is.True);
 			Assert.That(entity.IsOwner, Is.True);
 			Assert.That(secondClientEntity!.IsOwner, Is.False);
 		});
@@ -358,6 +425,9 @@ public sealed partial class SerializerRuntimeTests {
 		RelayValueState entity = new() { Value = 3 };
 		firstClient.Spawn(entity);
 		Pump(server, firstClient, secondClient);
+		Assert.That(entity.IsSpawned, Is.True);
+		Assert.That(secondClient.TryGetEntity(entity.Id, out NetworkEntity? secondClientEntity), Is.True);
+		Assert.That(secondClientEntity!.IsSpawned, Is.True);
 
 		firstClient.Delete(entity);
 		Pump(server, firstClient, secondClient);
@@ -366,6 +436,8 @@ public sealed partial class SerializerRuntimeTests {
 			Assert.That(serverStorage.TryGetEntity(entity.Id, out _), Is.False);
 			Assert.That(firstClient.TryGetEntity(entity.Id, out _), Is.False);
 			Assert.That(secondClient.TryGetEntity(entity.Id, out _), Is.False);
+			Assert.That(entity.IsSpawned, Is.False);
+			Assert.That(secondClientEntity.IsSpawned, Is.False);
 		});
 	}
 

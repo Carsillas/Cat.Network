@@ -201,7 +201,8 @@ RelayClient client = new(catalogue);
 client.Connect(((MemoryRelayDaemon)daemon).Connect());
 
 ProjectileEntity projectile = new() {
-	Damage = 25
+	Damage = 25,
+	DestroyWithOwner = true
 };
 
 client.Spawn(projectile);
@@ -215,7 +216,9 @@ client.Delete(projectile);
 client.AssignOwner(projectile, otherProfileId);
 ```
 
-`NetworkEntity.IsOwner` reports whether the local peer owns that entity.
+`NetworkEntity.IsSpawned` reports whether the entity is currently attached to a relay peer. `NetworkEntity.IsOwner` reports whether the local peer owns that entity.
+
+Set `NetworkEntity.DestroyWithOwner` before spawning when the server should delete the entity if its owner disconnects. This is useful for owned transient objects such as player avatars, projectiles, or session-bound objects. When the owner disconnects, the server removes flagged entities from `IEntityStorage` and sends normal delete messages to clients that knew them. Entities with `DestroyWithOwner = false` remain in storage, lose their owner, and may be reassigned by the usual relevancy flow.
 
 ## RPCs And Broadcasts
 
