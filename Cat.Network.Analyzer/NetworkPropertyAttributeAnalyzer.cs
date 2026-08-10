@@ -10,6 +10,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 	private const string NetworkPropertyAttributeRequiresPartialDiagnosticId = "CN0005";
 	private const string NetworkPropertyAttributeRequiresGetAndSetDiagnosticId = "CN0006";
 	private const string DuplicateInheritedNetworkPropertyNameDiagnosticId = "CN0007";
+	private const string NetworkPropertyAttributeCannotUseNetworkEntityTypeDiagnosticId = "CN0027";
 
 	private static readonly DiagnosticDescriptor InvalidNetworkPropertyAttributeRule = new(
 		InvalidNetworkPropertyAttributeDiagnosticId,
@@ -43,20 +44,29 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		DiagnosticSeverity.Error,
 		true);
 
+	private static readonly DiagnosticDescriptor NetworkPropertyAttributeCannotUseNetworkEntityTypeRule = new(
+		NetworkPropertyAttributeCannotUseNetworkEntityTypeDiagnosticId,
+		"NetworkPropertyAttribute type must not be assignable from NetworkEntity-derived types",
+		"Property '{0}' is marked with NetworkPropertyAttribute but type '{1}' is assignable from NetworkEntity-derived types",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
 	public static ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
 		InvalidNetworkPropertyAttributeRule,
 		NetworkPropertyAttributeRequiresPartialRule,
 		NetworkPropertyAttributeRequiresGetAndSetRule,
-		DuplicateInheritedNetworkPropertyNameRule
+		DuplicateInheritedNetworkPropertyNameRule,
+		NetworkPropertyAttributeCannotUseNetworkEntityTypeRule
 	];
 
-	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkPropertyAttributeType) {
+	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol? networkEntityType, INamedTypeSymbol networkPropertyAttributeType) {
 		context.RegisterSymbolAction(
-			symbolContext => Analyze(symbolContext, networkObjectType, networkPropertyAttributeType),
+			symbolContext => Analyze(symbolContext, networkObjectType, networkEntityType, networkPropertyAttributeType),
 			SymbolKind.Property);
 	}
 
-	private static void Analyze(SymbolAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkPropertyAttributeType) {
+	private static void Analyze(SymbolAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol? networkEntityType, INamedTypeSymbol networkPropertyAttributeType) {
 		IPropertySymbol property = (IPropertySymbol)context.Symbol;
 
 		if (!NetworkAnalyzerHelpers.HasAttribute(property, networkPropertyAttributeType)) {
@@ -87,6 +97,15 @@ internal static class NetworkPropertyAttributeAnalyzer {
 				property.Name));
 		}
 
+		if (property.Type is INamedTypeSymbol propertyType &&
+		    IsNetworkEntityCompatibleType(propertyType, networkObjectType, networkEntityType)) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkPropertyAttributeCannotUseNetworkEntityTypeRule,
+				property.Locations.FirstOrDefault(),
+				property.Name,
+				propertyType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+		}
+
 		IPropertySymbol? inheritedNetworkProperty = FindInheritedNetworkPropertyWithSameName(containingType, property.Name, networkPropertyAttributeType);
 		if (inheritedNetworkProperty is not null) {
 			context.ReportDiagnostic(Diagnostic.Create(
@@ -110,5 +129,18 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		}
 
 		return null;
+	}
+
+	private static bool IsNetworkEntityCompatibleType(INamedTypeSymbol type, INamedTypeSymbol networkObjectType, INamedTypeSymbol? networkEntityType) {
+		if (SymbolEqualityComparer.Default.Equals(type, networkObjectType)) {
+			return true;
+		}
+
+		if (networkEntityType is null) {
+			return false;
+		}
+
+		return SymbolEqualityComparer.Default.Equals(type, networkEntityType) ||
+		       NetworkAnalyzerHelpers.InheritsFrom(type, networkEntityType);
 	}
 }

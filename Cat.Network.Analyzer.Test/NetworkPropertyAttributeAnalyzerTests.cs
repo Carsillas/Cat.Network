@@ -137,4 +137,80 @@ public sealed class NetworkPropertyAttributeAnalyzerTests {
 			Assert.That(diagnostics[0].GetMessage(), Does.Contain("Actor"));
 		});
 	}
+
+	[Test]
+	public async Task ReportsErrorWhenNetworkPropertyUsesNetworkEntityType() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial NetworkEntity? Target { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics.Select(static diagnostic => diagnostic.Id), Is.EqualTo(new[] { "CN0027" }));
+	}
+
+	[Test]
+	public async Task ReportsErrorWhenNetworkPropertyUsesNetworkEntitySubclassType() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class TargetEntity : NetworkEntity {
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial TargetEntity? Target { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics.Select(static diagnostic => diagnostic.Id), Is.EqualTo(new[] { "CN0027" }));
+	}
+
+	[Test]
+	public async Task ReportsErrorWhenNetworkPropertyUsesNetworkObjectType() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial NetworkObject? Target { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics.Select(static diagnostic => diagnostic.Id), Is.EqualTo(new[] { "CN0027" }));
+	}
+
+	[Test]
+	public async Task DoesNotReportErrorWhenNetworkPropertyUsesNetworkObjectSubclassType() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class TargetObject : NetworkObject {
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial TargetObject? Target { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics, Is.Empty);
+	}
 }
