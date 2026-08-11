@@ -127,6 +127,9 @@ public sealed partial class SerializerRuntimeTests {
 		child.Value = 3;
 
 		Assert.Multiple(() => {
+			Assert.That(entity.Anchor, Is.SameAs(entity));
+			Assert.That(child.Anchor, Is.SameAs(entity));
+			Assert.That(child.IsOwner, Is.EqualTo(entity.IsOwner));
 			Assert.That(entityArgs.HasValue, Is.True);
 			Assert.That(entityArgs!.Value.Index, Is.EqualTo(1));
 			Assert.That(entityArgs.Value.Name, Is.EqualTo(nameof(PropertyChangedEntityState.Child)));

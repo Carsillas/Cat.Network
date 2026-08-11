@@ -2,9 +2,8 @@ namespace Cat.Network;
 
 
 [NetworkObject]
-public abstract partial class NetworkEntity : NetworkObject, INetworkObject, INetworkAnchor, INetworkRpcTarget {
+public abstract partial class NetworkEntity : NetworkObject, INetworkObject, INetworkRpcTarget {
 
-	INetworkAnchor INetworkObject.Anchor => this;
 	public Guid Id { get; internal set; }
 
 	[NetworkProperty]
@@ -14,7 +13,13 @@ public abstract partial class NetworkEntity : NetworkObject, INetworkObject, INe
 
 	public bool IsSpawned => Peer is not null;
 
-	public bool IsOwner => Peer?.Owns(this) ?? false;
+	private protected override NetworkObject? GetAnchor() {
+		return this;
+	}
+
+	private protected override bool GetIsOwner() {
+		return Peer?.Owns(this) ?? false;
+	}
 
 	bool INetworkRpcTarget.TryInvokeRpc(RelayClient client, NetworkProfile instigator, ulong rpcId, ReadOnlySpan<byte> data, SerializationContext context) {
 		return false;

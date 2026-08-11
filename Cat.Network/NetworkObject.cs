@@ -19,11 +19,22 @@ public abstract partial class NetworkObject : INetworkObject {
 
 	System.Collections.Immutable.ImmutableArray<NetworkPropertyInfo> INetworkObject.NetworkProperties => Properties;
 
-	INetworkAnchor? INetworkObject.Anchor => ((INetworkObject?)((INetworkObject)this).Parent)?.Anchor;
+	public NetworkObject? Anchor => GetAnchor();
+
+	public bool IsOwner => GetIsOwner();
 
 	public event NetworkPropertyChanged? PropertyChanged;
 
 	public abstract NetworkObject Clone();
+
+	private protected virtual NetworkObject? GetAnchor() {
+		return ((INetworkObject?)((INetworkObject)this).Parent)?.Anchor;
+	}
+
+	private protected virtual bool GetIsOwner() {
+		NetworkObject? anchor = Anchor;
+		return !ReferenceEquals(anchor, this) && (anchor?.IsOwner ?? false);
+	}
 
 	void INetworkObject.OnPropertyChanged(PropertyChangedEventArgs args) {
 		PropertyChanged?.Invoke(this, args);

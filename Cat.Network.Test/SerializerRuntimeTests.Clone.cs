@@ -25,6 +25,32 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void NetworkObject_ExposesPublicNonOverridableAnchorGetter() {
+		System.Reflection.PropertyInfo? anchorProperty = typeof(NetworkObject).GetProperty(nameof(NetworkObject.Anchor));
+
+		Assert.Multiple(() => {
+			Assert.That(anchorProperty, Is.Not.Null);
+			Assert.That(anchorProperty!.PropertyType, Is.EqualTo(typeof(NetworkObject)));
+			Assert.That(anchorProperty!.GetMethod, Is.Not.Null);
+			Assert.That(anchorProperty.GetMethod!.IsPublic, Is.True);
+			Assert.That(anchorProperty.GetMethod.IsFinal, Is.True);
+		});
+	}
+
+	[Test]
+	public void NetworkObject_ExposesPublicNonOverridableIsOwnerGetter() {
+		System.Reflection.PropertyInfo? isOwnerProperty = typeof(NetworkObject).GetProperty(nameof(NetworkObject.IsOwner));
+
+		Assert.Multiple(() => {
+			Assert.That(isOwnerProperty, Is.Not.Null);
+			Assert.That(isOwnerProperty!.PropertyType, Is.EqualTo(typeof(bool)));
+			Assert.That(isOwnerProperty!.GetMethod, Is.Not.Null);
+			Assert.That(isOwnerProperty.GetMethod!.IsPublic, Is.True);
+			Assert.That(isOwnerProperty.GetMethod.IsVirtual, Is.False);
+		});
+	}
+
+	[Test]
 	public void Clone_ReturnsContainingTypeAndCopiesNetworkProperties() {
 		PrimitiveState source = PrimitiveState.Create(12, "Ada");
 		source.IgnoredValue = 99;

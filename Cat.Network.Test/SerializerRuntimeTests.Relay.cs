@@ -219,6 +219,35 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void NetworkObjectIsOwner_DelegatesToEntityAnchor() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(PropertyChangedEntityState), typeof(DirtyChildState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient ownerClient = new(catalogue);
+		RelayClient observerClient = new(catalogue);
+
+		ownerClient.Connect(daemon.Connect());
+		observerClient.Connect(daemon.Connect());
+		Pump(server, ownerClient, observerClient);
+
+		PropertyChangedEntityState entity = new() {
+			Child = new DirtyChildState()
+		};
+		ownerClient.Spawn(entity);
+		Pump(server, ownerClient, observerClient);
+
+		Assert.That(observerClient.TryGetEntity(entity.Id, out NetworkEntity? observerEntity), Is.True);
+		PropertyChangedEntityState observerState = (PropertyChangedEntityState)observerEntity!;
+
+		Assert.Multiple(() => {
+			Assert.That(entity.IsOwner, Is.True);
+			Assert.That(entity.Child!.IsOwner, Is.True);
+			Assert.That(observerState.IsOwner, Is.False);
+			Assert.That(observerState.Child!.IsOwner, Is.False);
+		});
+	}
+
+	[Test]
 	public void RelayRpc_NonOwnerInvocation_ForwardsToOwnerWithInstigatorProfile() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayMessageState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
