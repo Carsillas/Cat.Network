@@ -219,6 +219,214 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RelayClientEntityObserved_FiresAfterLocalSpawnRegistersEntity() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayValueState));
+		RelayClient client = new(catalogue);
+		RelayValueState entity = new() { Value = 3 };
+		NetworkEntity? observedEntity = null;
+		bool couldFindObservedEntity = false;
+		int observedCount = 0;
+
+		client.EntityObserved += observed => {
+			observedCount++;
+			observedEntity = observed;
+			couldFindObservedEntity = client.TryGetEntity(observed.Id, out NetworkEntity? registered) &&
+			                          ReferenceEquals(registered, observed);
+		};
+
+		client.Spawn(entity);
+		client.Spawn(entity);
+
+		Assert.Multiple(() => {
+			Assert.That(observedCount, Is.EqualTo(1));
+			Assert.That(observedEntity, Is.SameAs(entity));
+			Assert.That(couldFindObservedEntity, Is.True);
+		});
+	}
+
+	[Test]
+	public void RelayClientEntityObserved_FiresAfterRemoteCreateRegistersEntity() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayValueState));
+		ExposedRelayClient client = new(catalogue);
+		Guid entityId = Guid.NewGuid();
+		NetworkEntity? observedEntity = null;
+		bool couldFindObservedEntity = false;
+		int observedCount = 0;
+
+		client.EntityObserved += observed => {
+			observedCount++;
+			observedEntity = observed;
+			couldFindObservedEntity = client.TryGetEntity(observed.Id, out NetworkEntity? registered) &&
+			                          ReferenceEquals(registered, observed);
+		};
+
+		client.Receive(new MemoryRelayTransport(), BuildCreateEntityMessage(catalogue, entityId, new RelayValueState { Value = 7 }));
+		client.Receive(new MemoryRelayTransport(), BuildCreateEntityMessage(catalogue, entityId, new RelayValueState { Value = 11 }));
+
+		Assert.Multiple(() => {
+			Assert.That(observedCount, Is.EqualTo(1));
+			Assert.That(observedEntity, Is.TypeOf<RelayValueState>());
+			Assert.That(observedEntity!.Id, Is.EqualTo(entityId));
+			Assert.That(((RelayValueState)observedEntity).Value, Is.EqualTo(7));
+			Assert.That(couldFindObservedEntity, Is.True);
+		});
+	}
+
+	[Test]
+	public void RelayClientEntityUnobserved_FiresWithRemovedEntityForLocalAndRemoteDeletes() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayValueState));
+		RelayClient localClient = new(catalogue);
+		RecordingRelayTransport transport = new();
+		RelayValueState localEntity = new() { Value = 3 };
+		List<NetworkEntity> unobservedEntities = [];
+		List<bool> couldFindUnobservedEntities = [];
+
+		localClient.Connect(transport);
+		localClient.EntityUnobserved += unobserved => {
+			unobservedEntities.Add(unobserved);
+			couldFindUnobservedEntities.Add(localClient.TryGetEntity(unobserved.Id, out _));
+		};
+
+		localClient.Spawn(localEntity);
+		localClient.Tick();
+		localClient.Delete(localEntity);
+		localClient.Tick();
+		localClient.Tick();
+
+		ExposedRelayClient remoteClient = new(catalogue);
+		Guid remoteEntityId = Guid.NewGuid();
+		NetworkEntity? remoteObservedEntity = null;
+		int remoteUnobservedCount = 0;
+		bool couldFindRemoteUnobservedEntity = true;
+
+		remoteClient.EntityObserved += observed => remoteObservedEntity = observed;
+		remoteClient.EntityUnobserved += unobserved => {
+			remoteUnobservedCount++;
+			couldFindRemoteUnobservedEntity = remoteClient.TryGetEntity(unobserved.Id, out _);
+			unobservedEntities.Add(unobserved);
+		};
+
+		remoteClient.Receive(new MemoryRelayTransport(), BuildCreateEntityMessage(catalogue, remoteEntityId, new RelayValueState { Value = 5 }));
+		remoteClient.Receive(new MemoryRelayTransport(), BuildDeleteEntityMessage(remoteEntityId));
+		remoteClient.Receive(new MemoryRelayTransport(), BuildDeleteEntityMessage(remoteEntityId));
+
+		Assert.Multiple(() => {
+			Assert.That(unobservedEntities[0], Is.SameAs(localEntity));
+			Assert.That(couldFindUnobservedEntities[0], Is.False);
+			Assert.That(remoteUnobservedCount, Is.EqualTo(1));
+			Assert.That(unobservedEntities[1], Is.SameAs(remoteObservedEntity));
+			Assert.That(couldFindRemoteUnobservedEntity, Is.False);
+		});
+	}
+
+	[Test]
+	public void RelayClientEntityOwnershipEvents_FireOnlyWhenOwnershipActuallyChanges() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayValueState));
+		ExposedRelayClient client = new(catalogue);
+		RecordingRelayTransport transport = new();
+		RelayValueState entity = new() { Value = 3 };
+		int gainedCount = 0;
+		int lostCount = 0;
+		List<NetworkEntity> gainedEntities = [];
+		List<NetworkEntity> lostEntities = [];
+
+		client.Connect(transport);
+		client.EntityOwnershipGained += owned => {
+			gainedEntities.Add(owned);
+			gainedCount++;
+		};
+		client.EntityOwnershipLost += unowned => {
+			lostEntities.Add(unowned);
+			lostCount++;
+		};
+
+		client.Spawn(entity);
+		client.Spawn(entity);
+		client.Tick();
+
+		client.Receive(new MemoryRelayTransport(), BuildAssignOwnerMessage(entity.Id));
+
+		client.AssignOwner(entity, Guid.NewGuid());
+		client.Tick();
+		client.Tick();
+
+		client.Receive(new MemoryRelayTransport(), BuildAssignOwnerMessage(entity.Id));
+		client.Receive(new MemoryRelayTransport(), BuildAssignOwnerMessage(entity.Id));
+
+		Assert.Multiple(() => {
+			Assert.That(gainedCount, Is.EqualTo(2));
+			Assert.That(lostCount, Is.EqualTo(1));
+			Assert.That(gainedEntities, Is.EqualTo(new[] { entity, entity }));
+			Assert.That(lostEntities, Is.EqualTo(new[] { entity }));
+			Assert.That(entity.IsOwner, Is.True);
+		});
+	}
+
+	[Test]
+	public void RelayClientEntityLifecycleEvents_ContainSubscriberExceptions() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayValueState));
+		ExposedRelayClient client = new(catalogue);
+		RecordingRelayTransport transport = new();
+		RelayValueState entity = new() { Value = 3 };
+		int observedCount = 0;
+		int unobservedCount = 0;
+		int ownershipGainedCount = 0;
+		int ownershipLostCount = 0;
+		List<Exception> handlerExceptions = [];
+
+		client.Connect(transport);
+		client.EventHandlerException += _ => throw new InvalidOperationException("Exception handler failed.");
+		client.EventHandlerException += handlerExceptions.Add;
+		client.EntityObserved += _ => throw new InvalidOperationException("Observed handler failed.");
+		client.EntityObserved += _ => observedCount++;
+		client.EntityUnobserved += _ => throw new InvalidOperationException("Unobserved handler failed.");
+		client.EntityUnobserved += _ => unobservedCount++;
+		client.EntityOwnershipGained += _ => throw new InvalidOperationException("Ownership gained handler failed.");
+		client.EntityOwnershipGained += _ => ownershipGainedCount++;
+		client.EntityOwnershipLost += _ => throw new InvalidOperationException("Ownership lost handler failed.");
+		client.EntityOwnershipLost += _ => ownershipLostCount++;
+
+		Assert.That(() => client.Spawn(entity), Throws.Nothing);
+		client.Tick();
+		client.AssignOwner(entity, Guid.NewGuid());
+		Assert.That(() => client.Tick(), Throws.Nothing);
+		Assert.That(() => client.Receive(new MemoryRelayTransport(), BuildAssignOwnerMessage(entity.Id)), Throws.Nothing);
+		client.Delete(entity);
+		Assert.That(() => client.Tick(), Throws.Nothing);
+
+		Assert.Multiple(() => {
+			Assert.That(observedCount, Is.EqualTo(1));
+			Assert.That(unobservedCount, Is.EqualTo(1));
+			Assert.That(ownershipGainedCount, Is.EqualTo(2));
+			Assert.That(ownershipLostCount, Is.EqualTo(1));
+			Assert.That(handlerExceptions.Select(static exception => exception.Message), Is.EqualTo(new[] {
+				"Observed handler failed.",
+				"Ownership gained handler failed.",
+				"Ownership lost handler failed.",
+				"Ownership gained handler failed.",
+				"Unobserved handler failed."
+			}));
+		});
+	}
+
+	[Test]
+	public void RelayClientEntityLifecycleEvents_RemoveUnsubscribesHandler() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayValueState));
+		RelayClient client = new(catalogue);
+		int observedCount = 0;
+
+		void OnObserved(NetworkEntity _) {
+			observedCount++;
+		}
+
+		client.EntityObserved += OnObserved;
+		client.EntityObserved -= OnObserved;
+		client.Spawn(new RelayValueState { Value = 3 });
+
+		Assert.That(observedCount, Is.EqualTo(0));
+	}
+
+	[Test]
 	public void NetworkObjectIsOwner_DelegatesToEntityAnchor() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(PropertyChangedEntityState), typeof(DirtyChildState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
@@ -819,6 +1027,25 @@ public sealed partial class SerializerRuntimeTests {
 			GuidBytes(typeId),
 			Int32(payload.Length),
 			payload);
+	}
+
+	private static byte[] BuildCreateEntityMessage(TypeCatalogue catalogue, Guid entityId, NetworkEntity entity) {
+		byte[] payload = Serialize(entity, catalogue);
+		Assert.That(catalogue.TryFindTypeId(entity.GetType(), out Guid typeId), Is.True);
+		return Concat(
+			[(byte)NetworkMessageChannel.EntityMessage],
+			[(byte)EntityMessageKind.Create],
+			GuidBytes(entityId),
+			GuidBytes(typeId),
+			Int32(payload.Length),
+			payload);
+	}
+
+	private static byte[] BuildAssignOwnerMessage(Guid entityId) {
+		return Concat(
+			[(byte)NetworkMessageChannel.EntityMessage],
+			[(byte)EntityMessageKind.AssignOwner],
+			GuidBytes(entityId));
 	}
 
 	private static byte[] BuildDeleteEntityMessage(Guid entityId) {

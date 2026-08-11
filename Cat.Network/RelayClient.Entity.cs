@@ -7,9 +7,12 @@ public partial class RelayClient {
 			entity.Id = Guid.NewGuid();
 		}
 
-		entity.Peer = this;
+		bool ownershipGained = OwnedEntityIds.Add(entity.Id);
 		RegisterEntity(entity);
-		OwnedEntityIds.Add(entity.Id);
+		if (ownershipGained) {
+			RaiseEntityEvent(EntityOwnershipGainedHandlers, entity);
+		}
+
 		EntitiesToSpawn.Add(entity);
 	}
 
@@ -44,8 +47,7 @@ public partial class RelayClient {
 			return;
 		}
 
-		OwnedEntityIds.Add(entityId);
-		entity.Peer = this;
+		AddOwnership(entity);
 	}
 
 	protected override void OnCreateEntityMessage(IRelayTransport sender, Guid entityId, Guid typeId, ReadOnlySpan<byte> data) {
@@ -126,28 +128,61 @@ public partial class RelayClient {
 			MessageWriter.Clear();
 			WriteOwnershipTransferRequestMessage(MessageWriter, request.EntityId, request.NewOwnerProfileId);
 			transport.Send(MessageWriter.GetWrittenSpan());
-			OwnedEntityIds.Remove(request.EntityId);
+			if (TryGetEntity(request.EntityId, out NetworkEntity? entity)) {
+				RemoveOwnership(entity);
+			}
 		}
 
 		OwnershipTransferRequests.Clear();
 	}
 
-	private void RegisterEntity(NetworkEntity entity) {
+	private bool RegisterEntity(NetworkEntity entity) {
 		if (EntitiesById.TryGetValue(entity.Id, out NetworkEntity? existingEntity) &&
 		    !ReferenceEquals(existingEntity, entity)) {
-			Entities.Remove(existingEntity);
+			UnregisterEntity(existingEntity);
+		} else if (existingEntity is not null) {
+			entity.Peer = this;
+			return false;
 		}
 
 		Entities.Add(entity);
 		EntitiesById[entity.Id] = entity;
 		entity.Peer = this;
+		RaiseEntityEvent(EntityObservedHandlers, entity);
+		return true;
 	}
 
-	private void UnregisterEntity(NetworkEntity entity) {
+	private bool UnregisterEntity(NetworkEntity entity) {
+		if (!EntitiesById.TryGetValue(entity.Id, out NetworkEntity? existingEntity) ||
+		    !ReferenceEquals(existingEntity, entity)) {
+			return false;
+		}
+
 		Entities.Remove(entity);
 		EntitiesById.Remove(entity.Id);
 		OwnedEntityIds.Remove(entity.Id);
 		entity.Peer = null;
+		RaiseEntityEvent(EntityUnobservedHandlers, entity);
+		return true;
+	}
+
+	private bool AddOwnership(NetworkEntity entity) {
+		if (!OwnedEntityIds.Add(entity.Id)) {
+			return false;
+		}
+
+		entity.Peer = this;
+		RaiseEntityEvent(EntityOwnershipGainedHandlers, entity);
+		return true;
+	}
+
+	private bool RemoveOwnership(NetworkEntity entity) {
+		if (!OwnedEntityIds.Remove(entity.Id)) {
+			return false;
+		}
+
+		RaiseEntityEvent(EntityOwnershipLostHandlers, entity);
+		return true;
 	}
 
 	private readonly record struct OwnershipTransferRequest(Guid EntityId, Guid NewOwnerProfileId);
