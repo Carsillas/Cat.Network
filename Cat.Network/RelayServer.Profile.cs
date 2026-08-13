@@ -8,7 +8,7 @@ public partial class RelayServer {
 			if (SendProfile(client, client.Profile)) {
 				MessageWriter.Clear();
 				WriteAssignProfileMessage(MessageWriter, client.Profile.Id);
-				client.Transport.Send(MessageWriter.GetWrittenSpan());
+				TrySend(client, MessageWriter.GetWrittenSpan());
 			}
 
 			foreach (RemoteClient otherClient in Clients) {
@@ -29,7 +29,7 @@ public partial class RelayServer {
 			client.KnownProfileIds.Remove(profileId);
 			MessageWriter.Clear();
 			WriteDeleteProfileMessage(MessageWriter, profileId);
-			client.Transport.Send(MessageWriter.GetWrittenSpan());
+			TrySend(client, MessageWriter.GetWrittenSpan());
 		}
 
 		ProfileWorkingBuffer.Clear();
@@ -42,7 +42,11 @@ public partial class RelayServer {
 
 		MessageWriter.Clear();
 		if (TryWriteProfileMessage(MessageWriter, profile)) {
-			client.Transport.Send(MessageWriter.GetWrittenSpan());
+			if (!TrySend(client, MessageWriter.GetWrittenSpan())) {
+				client.KnownProfileIds.Remove(profile.Id);
+				return false;
+			}
+
 			ClearDirtyState(profile);
 			return true;
 		} else {

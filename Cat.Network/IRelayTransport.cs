@@ -7,6 +7,7 @@ public interface IRelayTransport {
 	void Send(ReadOnlySpan<byte> message);
 	
 	event MessageHandler MessageReceived; 
+	event Action<IRelayTransport>? Disconnected;
 	
 	void PumpMessages();
 }

@@ -88,6 +88,76 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RelayServerTransportDisconnected_RemovesDisconnectedProfileOnTick() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient firstClient = new(catalogue);
+		RelayClient secondClient = new(catalogue);
+		MemoryRelayTransport secondTransport = daemon.Connect();
+
+		firstClient.Connect(daemon.Connect());
+		secondClient.Connect(secondTransport);
+		Pump(server, firstClient, secondClient);
+		Guid disconnectedProfileId = secondClient.Profile!.Id;
+		Assert.That(firstClient.TryGetProfile(disconnectedProfileId, out _), Is.True);
+
+		secondTransport.Remote!.Disconnect();
+		Pump(server, firstClient);
+
+		Assert.That(firstClient.TryGetProfile(disconnectedProfileId, out _), Is.False);
+	}
+
+	[Test]
+	public void RelayServerTransportPumpFailure_RemovesDisconnectedProfileOnTick() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		ThrowingRelayTransport firstTransport = new();
+		ThrowingRelayTransport secondTransport = new();
+		RelayProfileState firstProfile = new();
+		RelayProfileState secondProfile = new();
+		AcceptedRelayDaemon daemon = new(
+			(firstTransport, firstProfile),
+			(secondTransport, secondProfile));
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+
+		server.Tick();
+		Guid disconnectedProfileId = secondProfile.Id;
+		Assert.That(firstTransport.SentMessages.Any(message => ContainsGuid(message, disconnectedProfileId)), Is.True);
+
+		firstTransport.SentMessages.Clear();
+		secondTransport.ThrowOnPump = true;
+		server.Tick();
+
+		Assert.That(firstTransport.SentMessages.Any(message => ContainsGuid(message, disconnectedProfileId)), Is.True);
+	}
+
+	[Test]
+	public void RelayServerTransportSendFailure_RemovesDisconnectedProfileOnTick() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
+		TestEntityStorage serverStorage = new();
+		ThrowingRelayTransport firstTransport = new();
+		ThrowingRelayTransport secondTransport = new();
+		RelayProfileState firstProfile = new();
+		RelayProfileState secondProfile = new();
+		AcceptedRelayDaemon daemon = new(
+			(firstTransport, firstProfile),
+			(secondTransport, secondProfile));
+		RelayServer server = new(daemon, catalogue, serverStorage);
+
+		server.Tick();
+		Guid disconnectedProfileId = secondProfile.Id;
+		Assert.That(firstTransport.SentMessages.Any(message => ContainsGuid(message, disconnectedProfileId)), Is.True);
+
+		firstTransport.SentMessages.Clear();
+		secondTransport.ThrowOnSend = true;
+		serverStorage.RegisterEntity(new RelayValueState { Value = 3 });
+		server.Tick();
+		server.Tick();
+
+		Assert.That(firstTransport.SentMessages.Any(message => ContainsGuid(message, disconnectedProfileId)), Is.True);
+	}
+
+	[Test]
 	public void RelayServerRemoveTransport_RemovesPendingOwnershipTransfer() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
@@ -1081,6 +1151,7 @@ public sealed partial class SerializerRuntimeTests {
 		public List<byte[]> SentMessages { get; } = [];
 
 		public event MessageHandler? MessageReceived;
+		public event Action<IRelayTransport>? Disconnected;
 
 		public void Send(ReadOnlySpan<byte> message) {
 			SentMessages.Add(message.ToArray());
@@ -1091,6 +1162,41 @@ public sealed partial class SerializerRuntimeTests {
 
 		public void Receive(ReadOnlySpan<byte> message) {
 			MessageReceived?.Invoke(this, message);
+		}
+
+		public void Disconnect() {
+			Disconnected?.Invoke(this);
+		}
+	}
+
+	private sealed class ThrowingRelayTransport : IRelayTransport {
+		public List<byte[]> SentMessages { get; } = [];
+		public bool ThrowOnSend { get; set; }
+		public bool ThrowOnPump { get; set; }
+
+		public event MessageHandler? MessageReceived;
+		public event Action<IRelayTransport>? Disconnected;
+
+		public void Send(ReadOnlySpan<byte> message) {
+			if (ThrowOnSend) {
+				throw new IOException("Transport send failed.");
+			}
+
+			SentMessages.Add(message.ToArray());
+		}
+
+		public void PumpMessages() {
+			if (ThrowOnPump) {
+				throw new IOException("Transport pump failed.");
+			}
+		}
+
+		public void Receive(ReadOnlySpan<byte> message) {
+			MessageReceived?.Invoke(this, message);
+		}
+
+		public void Disconnect() {
+			Disconnected?.Invoke(this);
 		}
 	}
 

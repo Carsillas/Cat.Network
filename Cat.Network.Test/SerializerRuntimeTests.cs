@@ -179,6 +179,17 @@ public sealed partial class SerializerRuntimeTests {
 		return value.ToByteArray();
 	}
 
+	private static bool ContainsGuid(byte[] message, Guid value) {
+		byte[] guid = GuidBytes(value);
+		for (int i = 0; i <= message.Length - guid.Length; i++) {
+			if (message.AsSpan(i, guid.Length).SequenceEqual(guid)) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	private static byte[] UInt16(ushort value) {
 		byte[] bytes = new byte[2];
 		BinaryPrimitives.WriteUInt16LittleEndian(bytes, value);

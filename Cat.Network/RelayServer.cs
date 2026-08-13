@@ -13,6 +13,7 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 	private List<NetworkEntity> RelevantEntityWorkingBuffer { get; } = [];
 	private HashSet<NetworkEntity> DirtyEntityWorkingSet { get; } = [];
 	private HashSet<Guid> RelevantEntityIdWorkingSet { get; } = [];
+	private HashSet<IRelayTransport> FailedTransports { get; } = [];
 
 	internal override bool Owns(NetworkEntity entity) {
 		return true;
@@ -26,6 +27,7 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 		}
 
 		transport.MessageReceived -= ProcessMessage;
+		transport.Disconnected -= OnTransportDisconnected;
 		Clients.Remove(client);
 		ClientsByProfileId.Remove(client.Profile.Id);
 
@@ -50,6 +52,8 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 
 	public void Tick() {
 		Daemon.Tick();
+		RemoveFailedTransports();
+
 		while (Daemon.TryAcceptConnection(out IRelayTransport? transport, out NetworkProfile? profile)) {
 			AddTransport(transport, profile);
 		}
@@ -57,13 +61,20 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 		ClientWorkingBuffer.Clear();
 		ClientWorkingBuffer.AddRange(Clients);
 		foreach (RemoteClient client in ClientWorkingBuffer) {
-			client.Transport.PumpMessages();
+			try {
+				client.Transport.PumpMessages();
+			} catch (Exception) {
+				MarkTransportFailed(client.Transport);
+			}
 		}
 
 		ClientWorkingBuffer.Clear();
+		RemoveFailedTransports();
 
 		ProcessProfileRelevancy();
+		RemoveFailedTransports();
 		ProcessEntityRelevancy();
+		RemoveFailedTransports();
 	}
 
 	private void AddTransport(IRelayTransport transport, NetworkProfile profile) {
@@ -83,6 +94,38 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 		ClientsByTransport.Add(transport, client);
 		ClientsByProfileId.Add(profile.Id, client);
 		transport.MessageReceived += ProcessMessage;
+		transport.Disconnected += OnTransportDisconnected;
+		FailedTransports.Remove(transport);
+	}
+
+	private bool TrySend(RemoteClient client, ReadOnlySpan<byte> message) {
+		try {
+			client.Transport.Send(message);
+			return true;
+		} catch (Exception) {
+			MarkTransportFailed(client.Transport);
+			return false;
+		}
+	}
+
+	private void OnTransportDisconnected(IRelayTransport transport) {
+		MarkTransportFailed(transport);
+	}
+
+	private void MarkTransportFailed(IRelayTransport transport) {
+		FailedTransports.Add(transport);
+	}
+
+	private void RemoveFailedTransports() {
+		if (FailedTransports.Count == 0) {
+			return;
+		}
+
+		foreach (IRelayTransport transport in FailedTransports) {
+			RemoveTransport(transport);
+		}
+
+		FailedTransports.Clear();
 	}
 
 	private sealed class RemoteClient(IRelayTransport transport, NetworkProfile profile) {

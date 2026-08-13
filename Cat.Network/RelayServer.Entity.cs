@@ -68,7 +68,7 @@ public partial class RelayServer {
 
 		MessageWriter.Clear();
 		WriteForwardedRpcMessage(MessageWriter, entityId, client.Profile.Id, data);
-		ownerClient.Transport.Send(MessageWriter.GetWrittenSpan());
+		TrySend(ownerClient, MessageWriter.GetWrittenSpan());
 	}
 
 	protected override void OnBroadcastMessage(IRelayTransport sender, Guid entityId, ReadOnlySpan<byte> data) {
@@ -86,7 +86,7 @@ public partial class RelayServer {
 				continue;
 			}
 
-			client.Transport.Send(message);
+			TrySend(client, message);
 		}
 	}
 
@@ -130,7 +130,10 @@ public partial class RelayServer {
 			foreach (Guid knownEntityId in EntityWorkingBuffer) {
 				MessageWriter.Clear();
 				WriteDeleteEntityMessage(MessageWriter, knownEntityId);
-				client.Transport.Send(MessageWriter.GetWrittenSpan());
+				if (!TrySend(client, MessageWriter.GetWrittenSpan())) {
+					continue;
+				}
+
 				client.KnownEntityIds.Remove(knownEntityId);
 				if (IsOwner(client, knownEntityId)) {
 					SetOwner(knownEntityId, null, ownerNotified: false);
@@ -147,7 +150,10 @@ public partial class RelayServer {
 				if (!client.KnownEntityIds.Contains(relevantEntityId)) {
 					MessageWriter.Clear();
 					if (TryWriteCreateEntityMessage(MessageWriter, entity)) {
-						client.Transport.Send(MessageWriter.GetWrittenSpan());
+						if (!TrySend(client, MessageWriter.GetWrittenSpan())) {
+							continue;
+						}
+
 						client.KnownEntityIds.Add(entity.Id);
 					} else {
 						continue;
@@ -155,7 +161,10 @@ public partial class RelayServer {
 				} else if (HasDirtyState(entity)) {
 					MessageWriter.Clear();
 					if (TryWriteUpdateEntityMessage(MessageWriter, entity)) {
-						client.Transport.Send(MessageWriter.GetWrittenSpan());
+						if (!TrySend(client, MessageWriter.GetWrittenSpan())) {
+							continue;
+						}
+
 						DirtyEntityWorkingSet.Add(entity);
 					}
 				}
@@ -167,7 +176,7 @@ public partial class RelayServer {
 				if (IsOwner(client, relevantEntityId) && client.OwnedEntityIds.Add(relevantEntityId)) {
 					MessageWriter.Clear();
 					WriteAssignOwnerMessage(MessageWriter, relevantEntityId);
-					client.Transport.Send(MessageWriter.GetWrittenSpan());
+					TrySend(client, MessageWriter.GetWrittenSpan());
 				}
 			}
 
