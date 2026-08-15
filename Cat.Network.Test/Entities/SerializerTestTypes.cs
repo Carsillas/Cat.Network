@@ -2,10 +2,10 @@ namespace Cat.Network.Test.Entities;
 
 [NetworkObject]
 public partial class PrimitiveState : NetworkObject {
-	public static PrimitiveState Create(int health, string name) {
+	public static PrimitiveState Create(int health, string? name) {
 		return new PrimitiveState {
 			Health = health,
-			Name = name
+			Name = name!
 		};
 	}
 
@@ -325,6 +325,12 @@ public partial class RelayProfilePatchState : NetworkProfile {
 public partial class RelayValueState : NetworkEntity {
 	[NetworkProperty]
 	public partial int Value { get; set; }
+}
+
+[NetworkObject]
+public partial class RelayStringState : NetworkEntity {
+	[NetworkProperty]
+	public partial string Path { get; set; } = string.Empty;
 }
 
 [NetworkObject]

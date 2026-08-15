@@ -1227,6 +1227,28 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RelayServer_SerializesRelevantEntityWithNullStringProperty() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayStringState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		TestEntityStorage serverStorage = new();
+		RelayStringState entity = new() {
+			Path = null!
+		};
+		serverStorage.RegisterEntity(entity);
+		RelayServer server = new(daemon, catalogue, serverStorage);
+		RelayClient client = new(catalogue);
+
+		client.Connect(daemon.Connect());
+		Assert.That(() => Pump(server, client), Throws.Nothing);
+
+		Assert.Multiple(() => {
+			Assert.That(client.TryGetEntity(entity.Id, out NetworkEntity? clientEntity), Is.True);
+			Assert.That(clientEntity, Is.TypeOf<RelayStringState>());
+			Assert.That(((RelayStringState)clientEntity!).Path, Is.Null);
+		});
+	}
+
+	[Test]
 	public void RelayServer_DoesNotKeepOwnedEntityRelevant() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());

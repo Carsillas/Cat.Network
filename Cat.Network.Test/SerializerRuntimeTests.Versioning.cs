@@ -14,7 +14,7 @@ public sealed partial class SerializerRuntimeTests {
 			1,
 			MemberIdentificationMode.Name,
 			BuildNameField("Health", Int32(42)),
-			BuildNameField("Name", Utf8("Mira"))));
+			BuildNameField("Name", StringValue("Mira"))));
 
 		Assert.Multiple(() => {
 			Assert.That(target.Health, Is.EqualTo(42));
@@ -49,8 +49,8 @@ public sealed partial class SerializerRuntimeTests {
 				BuildObjectPayload(
 					BuildIndexField(0, Int32(8)),
 					BuildIndexField(1, Int32(13))))),
-			BuildNameField("Name", Utf8("First")),
-			BuildNameField("Name", Utf8("Mira"))));
+			BuildNameField("Name", StringValue("First")),
+			BuildNameField("Name", StringValue("Mira"))));
 
 		Assert.Multiple(() => {
 			Assert.That(target.Health, Is.EqualTo(42));
@@ -98,7 +98,7 @@ public sealed partial class SerializerRuntimeTests {
 				1,
 				MemberIdentificationMode.Index,
 				BuildIndexField(0, Int32(42)),
-				BuildIndexField(1, Utf8("Mira")))),
+				BuildIndexField(1, StringValue("Mira")))),
 			Throws.TypeOf<InvalidOperationException>()
 				.With.Message.EqualTo("Index-mode payloads do not support NetworkObject version upgrades."));
 

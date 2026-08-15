@@ -14,7 +14,7 @@ public sealed partial class SerializerRuntimeTests {
 
 		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
 			BuildIndexField(0, Int32(42)),
-			BuildIndexField(1, Utf8("Mira")))));
+			BuildIndexField(1, StringValue("Mira")))));
 	}
 
 	[Test]
@@ -27,7 +27,19 @@ public sealed partial class SerializerRuntimeTests {
 		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
 			MemberIdentificationMode.Name,
 			BuildNameField("Health", Int32(42)),
-			BuildNameField("Name", Utf8("Mira")))));
+			BuildNameField("Name", StringValue("Mira")))));
+	}
+
+	[Test]
+	public void Serialize_NullStringProperties() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
+		PrimitiveState target = PrimitiveState.Create(42, null);
+
+		byte[] payload = Serialize(target, catalogue);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, Int32(42)),
+			BuildIndexField(1, StringValue(null)))));
 	}
 
 	[Test]
@@ -80,6 +92,34 @@ public sealed partial class SerializerRuntimeTests {
 				health: 7,
 				name: "Ada",
 				sessionId: sessionId)))));
+	}
+
+	[Test]
+	public void Serialize_NullStringFieldsInStructProperties() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(StructState));
+		StructState target = new() {
+			Stats = new Stats {
+				Accuracy = 1.5f,
+				Details = new DetailStats {
+					CriticalChance = 2.5d
+				},
+				Health = 7,
+				Name = null!,
+				SessionId = null
+			}
+		};
+
+		byte[] payload = Serialize(target, catalogue);
+
+		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
+			BuildIndexField(0, NullValue()),
+			BuildIndexField(1, BuildStatsPayload(
+				accuracy: 1.5f,
+				criticalChance: 2.5d,
+				ultraVision: null,
+				health: 7,
+				name: null,
+				sessionId: null)))));
 	}
 
 	[Test]

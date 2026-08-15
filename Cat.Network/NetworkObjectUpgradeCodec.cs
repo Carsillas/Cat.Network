@@ -54,11 +54,16 @@ internal static class NetworkObjectUpgradeCodec {
 		} else if (type == typeof(double)) {
 			writer.WriteDouble((double)value!);
 		} else if (type == typeof(string)) {
-			string stringValue = (string?)value ?? throw new InvalidOperationException("String upgrade fields cannot be null.");
-			if (stringLengthPrefixed) {
-				writer.WriteLengthPrefixedUtf8(stringValue);
+			string? stringValue = (string?)value;
+			if (stringValue is null) {
+				writer.WriteByte(0);
 			} else {
-				writer.WriteUtf8(stringValue);
+				writer.WriteByte(1);
+				if (stringLengthPrefixed) {
+					writer.WriteLengthPrefixedUtf8(stringValue);
+				} else {
+					writer.WriteUtf8(stringValue);
+				}
 			}
 		} else if (type == typeof(Guid)) {
 			writer.WriteGuid((Guid)value!);
@@ -118,20 +123,12 @@ internal static class NetworkObjectUpgradeCodec {
 			return ReadDouble(data, ref offset);
 		}
 		if (type == typeof(string)) {
-			if (!stringLengthPrefixed) {
-				string value = System.Text.Encoding.UTF8.GetString(data[offset..]);
-				offset = data.Length;
-				return value;
-			}
-
-			uint stringByteCount = ReadUInt32(data, ref offset);
-			if (data.Length - offset < stringByteCount) {
-				throw new InvalidOperationException("Upgrade field string payload is truncated.");
-			}
-
-			string lengthPrefixedValue = System.Text.Encoding.UTF8.GetString(data.Slice(offset, (int)stringByteCount));
-			offset += (int)stringByteCount;
-			return lengthPrefixedValue;
+			byte hasValue = ReadByte(data, ref offset);
+			return hasValue switch {
+				0 => null,
+				1 => ReadString(data, ref offset, stringLengthPrefixed),
+				_ => throw new InvalidOperationException("Upgrade field string nullable flag is invalid.")
+			};
 		}
 		if (type == typeof(Guid)) {
 			return ReadGuid(data, ref offset);
@@ -150,6 +147,23 @@ internal static class NetworkObjectUpgradeCodec {
 		}
 
 		throw new InvalidOperationException($"Upgrade field type '{type.FullName}' is not supported.");
+	}
+
+	private static string ReadString(ReadOnlySpan<byte> data, ref int offset, bool stringLengthPrefixed) {
+		if (!stringLengthPrefixed) {
+			string value = System.Text.Encoding.UTF8.GetString(data[offset..]);
+			offset = data.Length;
+			return value;
+		}
+
+		uint stringByteCount = ReadUInt32(data, ref offset);
+		if (data.Length - offset < stringByteCount) {
+			throw new InvalidOperationException("Upgrade field string payload is truncated.");
+		}
+
+		string lengthPrefixedValue = System.Text.Encoding.UTF8.GetString(data.Slice(offset, (int)stringByteCount));
+		offset += (int)stringByteCount;
+		return lengthPrefixedValue;
 	}
 
 	private static void SerializeNetworkObject(BufferWriter writer, object? value, SerializationContext context, bool networkObjectAsProperty) {

@@ -240,7 +240,26 @@ internal static class NetworkObjectSerializerGenerator {
 				return BinaryPrimitiveBody(property, "ReadDoubleLittleEndian", 8);
 			case NetworkPropertySerializationKind.String:
 				return $$"""
-					Set{{property.Name}}(typedTarget, global::System.Text.Encoding.UTF8.GetString(valueData));
+					if (valueData.Length < 1) {
+						return;
+					}
+
+					byte hasValue = valueData[0];
+					valueData = valueData[1..];
+					switch (hasValue) {
+						case 0:
+							if (valueData.Length != 0) {
+								return;
+							}
+
+							Set{{property.Name}}(typedTarget, null!);
+							break;
+						case 1:
+							Set{{property.Name}}(typedTarget, global::System.Text.Encoding.UTF8.GetString(valueData));
+							break;
+						default:
+							return;
+					}
 					""";
 			case NetworkPropertySerializationKind.Guid:
 				return $$"""
@@ -336,7 +355,13 @@ internal static class NetworkObjectSerializerGenerator {
 				return SerializeBinaryPrimitivePropertyBody(property, "WriteDouble");
 			case NetworkPropertySerializationKind.String:
 				return $$"""
-					global::System.String value = Get{{property.Name}}(typedTarget);
+					global::System.String? value = Get{{property.Name}}(typedTarget);
+					if (value is null) {
+						writer.WriteByte(0);
+						return;
+					}
+
+					writer.WriteByte(1);
 					writer.WriteUtf8(value);
 					return;
 					""";
@@ -530,7 +555,12 @@ internal static class NetworkObjectSerializerGenerator {
 				writer.WriteDouble({{valueExpression}});
 				""",
 			NetworkPropertySerializationKind.String => $$"""
-				writer.WriteLengthPrefixedUtf8({{valueExpression}});
+				if ({{valueExpression}} is null) {
+					writer.WriteByte(0);
+				} else {
+					writer.WriteByte(1);
+					writer.WriteLengthPrefixedUtf8({{valueExpression}});
+				}
 				""",
 			NetworkPropertySerializationKind.Guid => $$"""
 				writer.WriteGuid({{valueExpression}});
@@ -732,18 +762,33 @@ internal static class NetworkObjectSerializerGenerator {
 			NetworkPropertySerializationKind.Single => StructBinaryPrimitiveBody(field, targetExpression, "ReadSingleLittleEndian", 4),
 			NetworkPropertySerializationKind.Double => StructBinaryPrimitiveBody(field, targetExpression, "ReadDoubleLittleEndian", 8),
 			NetworkPropertySerializationKind.String => $$"""
-				if (valueData.Length < 4) {
+				if (valueData.Length < 1) {
 					return;
 				}
 
-				uint stringByteCount = global::System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(valueData);
-				valueData = valueData[4..];
-				if (valueData.Length < stringByteCount) {
-					return;
-				}
+				byte has{{field.Name}}Value = valueData[0];
+				valueData = valueData[1..];
+				switch (has{{field.Name}}Value) {
+					case 0:
+						{{targetExpression}}.{{field.Name}} = null!;
+						break;
+					case 1:
+						if (valueData.Length < 4) {
+							return;
+						}
 
-				{{targetExpression}}.{{field.Name}} = global::System.Text.Encoding.UTF8.GetString(valueData[..(int)stringByteCount]);
-				valueData = valueData[(int)stringByteCount..];
+						uint stringByteCount = global::System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(valueData);
+						valueData = valueData[4..];
+						if (valueData.Length < stringByteCount) {
+							return;
+						}
+
+						{{targetExpression}}.{{field.Name}} = global::System.Text.Encoding.UTF8.GetString(valueData[..(int)stringByteCount]);
+						valueData = valueData[(int)stringByteCount..];
+						break;
+					default:
+						return;
+				}
 				""",
 			NetworkPropertySerializationKind.Guid => $$"""
 				if (valueData.Length < 16) {

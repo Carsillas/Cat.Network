@@ -80,7 +80,7 @@ public sealed partial class SerializerRuntimeTests {
 		return Concat(UInt32((uint)nameBytes.Length), nameBytes, UInt32((uint)value.Length), value);
 	}
 
-	private static byte[] BuildStatsPayload(float accuracy, double criticalChance, double? ultraVision, int health, string name, Guid? sessionId) {
+	private static byte[] BuildStatsPayload(float accuracy, double criticalChance, double? ultraVision, int health, string? name, Guid? sessionId) {
 		return Concat(
 			Single(accuracy),
 			Double(criticalChance),
@@ -88,7 +88,7 @@ public sealed partial class SerializerRuntimeTests {
 				? NullableStructValue(Double(ultraVision.Value))
 				: NullValue(),
 			Int32(health),
-			LengthPrefixedUtf8(name),
+			LengthPrefixedStringValue(name),
 			sessionId.HasValue
 				? NullableValue(GuidBytes(sessionId.Value))
 				: NullValue());
@@ -156,6 +156,18 @@ public sealed partial class SerializerRuntimeTests {
 
 	private static byte[] NullableValue(byte[] value) {
 		return Concat(new byte[] { 1 }, value);
+	}
+
+	private static byte[] StringValue(string? value) {
+		return value is null
+			? NullValue()
+			: Concat(new byte[] { 1 }, Utf8(value));
+	}
+
+	private static byte[] LengthPrefixedStringValue(string? value) {
+		return value is null
+			? NullValue()
+			: NullableValue(LengthPrefixedUtf8(value));
 	}
 
 	private static byte[] NullableStructValue(byte[] structBytes) {

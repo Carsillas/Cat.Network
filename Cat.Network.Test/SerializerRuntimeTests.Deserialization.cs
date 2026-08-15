@@ -12,12 +12,23 @@ public sealed partial class SerializerRuntimeTests {
 
 		Deserialize(target, catalogue, BuildObjectPayload(
 			BuildIndexField(0, Int32(42)),
-			BuildIndexField(1, Utf8("Mira"))));
+			BuildIndexField(1, StringValue("Mira"))));
 
 		Assert.Multiple(() => {
 			Assert.That(target.Health, Is.EqualTo(42));
 			Assert.That(target.Name, Is.EqualTo("Mira"));
 		});
+	}
+
+	[Test]
+	public void Deserialize_NullStringProperties() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(PrimitiveState));
+		PrimitiveState target = PrimitiveState.Create(42, "Before");
+
+		Deserialize(target, catalogue, BuildObjectPayload(
+			BuildIndexField(1, StringValue(null))));
+
+		Assert.That(target.Name, Is.Null);
 	}
 
 	[Test]
@@ -87,6 +98,28 @@ public sealed partial class SerializerRuntimeTests {
 			Assert.That(target.Stats.Health, Is.EqualTo(7));
 			Assert.That(target.Stats.Name, Is.EqualTo("Ada"));
 			Assert.That(target.Stats.SessionId, Is.EqualTo(sessionId));
+		});
+	}
+
+	[Test]
+	public void Deserialize_NullStringFieldsInStructProperties() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(StructState));
+		StructState target = new();
+
+		Deserialize(target, catalogue, BuildObjectPayload(
+			BuildIndexField(1, BuildStatsPayload(
+				accuracy: 1.5f,
+				criticalChance: 2.5d,
+				ultraVision: null,
+				health: 7,
+				name: null,
+				sessionId: null))));
+
+		Assert.Multiple(() => {
+			Assert.That(target.Stats.Accuracy, Is.EqualTo(1.5f));
+			Assert.That(target.Stats.Details.CriticalChance, Is.EqualTo(2.5d));
+			Assert.That(target.Stats.Name, Is.Null);
+			Assert.That(target.Stats.SessionId, Is.Null);
 		});
 	}
 
