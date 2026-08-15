@@ -40,6 +40,112 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RelayClientProfileJoined_FiresAfterRemoteCreateRegistersProfile() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		ExposedRelayClient client = new(catalogue);
+		Guid profileId = Guid.NewGuid();
+		NetworkProfile? joinedProfile = null;
+		bool couldFindJoinedProfile = false;
+		int joinedCount = 0;
+
+		client.ProfileJoined += joined => {
+			joinedCount++;
+			joinedProfile = joined;
+			couldFindJoinedProfile = client.TryGetProfile(joined.Id, out NetworkProfile? registered) &&
+			                         ReferenceEquals(registered, joined);
+		};
+
+		client.Receive(new MemoryRelayTransport(), BuildProfileMessage(catalogue, profileId, new RelayProfileState { Value = 7 }));
+		client.Receive(new MemoryRelayTransport(), BuildProfileMessage(catalogue, profileId, new RelayProfileState { Value = 11 }));
+
+		Assert.Multiple(() => {
+			Assert.That(joinedCount, Is.EqualTo(1));
+			Assert.That(joinedProfile, Is.TypeOf<RelayProfileState>());
+			Assert.That(joinedProfile!.Id, Is.EqualTo(profileId));
+			Assert.That(((RelayProfileState)joinedProfile).Value, Is.EqualTo(7));
+			Assert.That(couldFindJoinedProfile, Is.True);
+		});
+	}
+
+	[Test]
+	public void RelayClientProfileLeft_FiresWithRemovedProfileForRemoteDelete() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		ExposedRelayClient client = new(catalogue);
+		Guid profileId = Guid.NewGuid();
+		NetworkProfile? joinedProfile = null;
+		NetworkProfile? leftProfile = null;
+		bool couldFindLeftProfile = true;
+		bool profileClearedBeforeEvent = false;
+		int leftCount = 0;
+
+		client.ProfileJoined += joined => joinedProfile = joined;
+		client.ProfileLeft += left => {
+			leftCount++;
+			leftProfile = left;
+			couldFindLeftProfile = client.TryGetProfile(left.Id, out _);
+			profileClearedBeforeEvent = client.Profile is null;
+		};
+
+		client.Receive(new MemoryRelayTransport(), BuildProfileMessage(catalogue, profileId, new RelayProfileState { Value = 7 }));
+		client.Receive(new MemoryRelayTransport(), BuildAssignProfileMessage(profileId));
+		client.Receive(new MemoryRelayTransport(), BuildDeleteProfileMessage(profileId));
+		client.Receive(new MemoryRelayTransport(), BuildDeleteProfileMessage(profileId));
+
+		Assert.Multiple(() => {
+			Assert.That(leftCount, Is.EqualTo(1));
+			Assert.That(leftProfile, Is.SameAs(joinedProfile));
+			Assert.That(couldFindLeftProfile, Is.False);
+			Assert.That(profileClearedBeforeEvent, Is.True);
+		});
+	}
+
+	[Test]
+	public void RelayClientProfileLifecycleEvents_ContainSubscriberExceptions() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		ExposedRelayClient client = new(catalogue);
+		Guid profileId = Guid.NewGuid();
+		int joinedCount = 0;
+		int leftCount = 0;
+		List<Exception> handlerExceptions = [];
+
+		client.EventHandlerException += _ => throw new InvalidOperationException("Exception handler failed.");
+		client.EventHandlerException += handlerExceptions.Add;
+		client.ProfileJoined += _ => throw new InvalidOperationException("Profile joined handler failed.");
+		client.ProfileJoined += _ => joinedCount++;
+		client.ProfileLeft += _ => throw new InvalidOperationException("Profile left handler failed.");
+		client.ProfileLeft += _ => leftCount++;
+
+		Assert.That(() => client.Receive(new MemoryRelayTransport(), BuildProfileMessage(catalogue, profileId, new RelayProfileState())), Throws.Nothing);
+		Assert.That(() => client.Receive(new MemoryRelayTransport(), BuildDeleteProfileMessage(profileId)), Throws.Nothing);
+
+		Assert.Multiple(() => {
+			Assert.That(joinedCount, Is.EqualTo(1));
+			Assert.That(leftCount, Is.EqualTo(1));
+			Assert.That(handlerExceptions.Select(static exception => exception.Message), Is.EqualTo(new[] {
+				"Profile joined handler failed.",
+				"Profile left handler failed."
+			}));
+		});
+	}
+
+	[Test]
+	public void RelayClientProfileLifecycleEvents_RemoveUnsubscribesHandler() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		ExposedRelayClient client = new(catalogue);
+		int joinedCount = 0;
+
+		void OnJoined(NetworkProfile _) {
+			joinedCount++;
+		}
+
+		client.ProfileJoined += OnJoined;
+		client.ProfileJoined -= OnJoined;
+		client.Receive(new MemoryRelayTransport(), BuildProfileMessage(catalogue, Guid.NewGuid(), new RelayProfileState()));
+
+		Assert.That(joinedCount, Is.EqualTo(0));
+	}
+
+	[Test]
 	public void RelayClientConnect_ReceivesOtherClientProfiles() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
@@ -1212,6 +1318,13 @@ public sealed partial class SerializerRuntimeTests {
 		return Concat(
 			[(byte)NetworkMessageChannel.ProfileMessage],
 			[(byte)ProfileMessageKind.Assign],
+			GuidBytes(profileId));
+	}
+
+	private static byte[] BuildDeleteProfileMessage(Guid profileId) {
+		return Concat(
+			[(byte)NetworkMessageChannel.ProfileMessage],
+			[(byte)ProfileMessageKind.Delete],
 			GuidBytes(profileId));
 	}
 

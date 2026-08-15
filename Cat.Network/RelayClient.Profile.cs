@@ -2,11 +2,15 @@ namespace Cat.Network;
 
 public partial class RelayClient {
 	protected override void OnCreateProfileMessage(IRelayTransport sender, Guid profileId, Guid typeId, ReadOnlySpan<byte> data) {
+		if (ProfilesById.ContainsKey(profileId)) {
+			return;
+		}
+
 		if (!TryCreateProfile(profileId, typeId, data, out NetworkProfile profile)) {
 			return;
 		}
 
-		ProfilesById[profile.Id] = profile;
+		RegisterProfile(profile);
 		UpdateAssignedProfile();
 		ClearDirtyState(profile);
 	}
@@ -27,11 +31,35 @@ public partial class RelayClient {
 	}
 
 	protected override void OnDeleteProfileMessage(IRelayTransport sender, Guid profileId) {
-		ProfilesById.Remove(profileId);
 		if (ProfileId == profileId) {
 			ProfileId = null;
 			Profile = null;
 		}
+
+		UnregisterProfile(profileId);
+	}
+
+	private bool RegisterProfile(NetworkProfile profile) {
+		if (ProfilesById.TryGetValue(profile.Id, out NetworkProfile? existingProfile)) {
+			if (ReferenceEquals(existingProfile, profile)) {
+				return false;
+			}
+
+			UnregisterProfile(profile.Id);
+		}
+
+		ProfilesById[profile.Id] = profile;
+		RaiseProfileEvent(ProfileJoinedHandlers, profile);
+		return true;
+	}
+
+	private bool UnregisterProfile(Guid profileId) {
+		if (!ProfilesById.Remove(profileId, out NetworkProfile? profile)) {
+			return false;
+		}
+
+		RaiseProfileEvent(ProfileLeftHandlers, profile);
+		return true;
 	}
 
 	private void ProcessOutgoingProfileMessage(IRelayTransport transport) {
