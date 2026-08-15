@@ -98,6 +98,7 @@ public partial class RelayClient(TypeCatalogue typeCatalogue) : RelayPeer(typeCa
 		}
 
 		Transport.PumpMessages();
+		ProcessOutgoingProfileMessage(Transport);
 		ProcessOutgoingMessages(Transport);
 	}
 

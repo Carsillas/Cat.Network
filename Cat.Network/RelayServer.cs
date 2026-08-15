@@ -11,6 +11,7 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 	private List<Guid> EntityWorkingBuffer { get; } = [];
 	private List<Guid> ProfileWorkingBuffer { get; } = [];
 	private List<NetworkEntity> RelevantEntityWorkingBuffer { get; } = [];
+	private HashSet<NetworkProfile> SentProfileWorkingSet { get; } = [];
 	private HashSet<NetworkEntity> DirtyEntityWorkingSet { get; } = [];
 	private HashSet<Guid> RelevantEntityIdWorkingSet { get; } = [];
 	private HashSet<IRelayTransport> FailedTransports { get; } = [];
@@ -143,4 +144,5 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 			OwnedEntityIds.Clear();
 		}
 	}
+
 }

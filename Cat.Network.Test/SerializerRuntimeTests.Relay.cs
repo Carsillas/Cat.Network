@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using Cat.Network.Test.Entities;
 
@@ -60,6 +61,114 @@ public sealed partial class SerializerRuntimeTests {
 			Assert.That(secondClient.TryGetProfile(firstClient.Profile!.Id, out NetworkProfile? secondKnownFirstProfile), Is.True);
 			Assert.That(firstKnownSecondProfile, Is.TypeOf<RelayProfileState>());
 			Assert.That(secondKnownFirstProfile, Is.TypeOf<RelayProfileState>());
+		});
+	}
+
+	[Test]
+	public void RelayClientProfileUpdate_SendsOwnProfileToOtherClients() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient firstClient = new(catalogue);
+		RelayClient secondClient = new(catalogue);
+
+		firstClient.Connect(daemon.Connect());
+		secondClient.Connect(daemon.Connect());
+		Pump(server, firstClient, secondClient);
+
+		RelayProfileState firstProfile = (RelayProfileState)firstClient.Profile!;
+		firstProfile.Value = 17;
+		Pump(server, firstClient, secondClient);
+
+		Assert.Multiple(() => {
+			Assert.That(firstClient.Profile, Is.SameAs(firstProfile));
+			Assert.That(((RelayProfileState)firstClient.Profile!).Value, Is.EqualTo(17));
+			Assert.That(secondClient.TryGetProfile(firstClient.Profile!.Id, out NetworkProfile? secondKnownFirstProfile), Is.True);
+			Assert.That(((RelayProfileState)secondKnownFirstProfile!).Value, Is.EqualTo(17));
+		});
+	}
+
+	[Test]
+	public void RelayServerProfileRelevancy_SendsPartialUpdateForKnownProfiles() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfilePatchState));
+		RelayProfilePatchState firstProfile = new() { UntouchedValue = 41 };
+		RelayProfilePatchState secondProfile = new();
+		ThrowingRelayTransport firstTransport = new();
+		ThrowingRelayTransport secondTransport = new();
+		AcceptedRelayDaemon daemon = new(
+			(firstTransport, firstProfile),
+			(secondTransport, secondProfile));
+		RelayServer server = new(daemon, catalogue, new TestEntityStorage());
+
+		server.Tick();
+		firstTransport.SentMessages.Clear();
+		secondTransport.SentMessages.Clear();
+
+		firstProfile.Value = 17;
+		byte[] expectedPayload = Serialize(firstProfile, catalogue, MemberIdentificationMode.Index, MemberSelectionMode.Dirty);
+		byte[] fullPayload = Serialize(firstProfile, catalogue);
+
+		server.Tick();
+
+		byte[] updateMessage = secondTransport.SentMessages.Single(message =>
+			message[0] == (byte)NetworkMessageChannel.ProfileMessage &&
+			message[1] == (byte)ProfileMessageKind.Update &&
+			new Guid(message.AsSpan(2, 16)) == firstProfile.Id);
+		int payloadLength = BinaryPrimitives.ReadInt32LittleEndian(updateMessage.AsSpan(18, 4));
+		byte[] updatePayload = updateMessage.AsSpan(22, payloadLength).ToArray();
+
+		Assert.Multiple(() => {
+			Assert.That(updatePayload, Is.EqualTo(expectedPayload));
+			Assert.That(updatePayload, Is.Not.EqualTo(fullPayload));
+		});
+	}
+
+	[Test]
+	public void RelayClientProfileUpdate_DoesNotSendAssignedProfileId() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		ExposedRelayClient client = new(catalogue);
+		RecordingRelayTransport transport = new();
+		Guid profileId = Guid.NewGuid();
+
+		client.Connect(transport);
+		client.Receive(transport, BuildProfileMessage(catalogue, profileId, new RelayProfileState()));
+		client.Receive(transport, BuildAssignProfileMessage(profileId));
+		((RelayProfileState)client.Profile!).Value = 17;
+
+		client.Tick();
+
+		Assert.Multiple(() => {
+			Assert.That(transport.SentMessages, Has.Count.EqualTo(1));
+			byte[] message = transport.SentMessages.Single();
+			Assert.That(message[0], Is.EqualTo((byte)NetworkMessageChannel.ProfileMessage));
+			Assert.That(message[1], Is.EqualTo((byte)ProfileMessageKind.UpdateRequest));
+			Assert.That(new Guid(message.AsSpan(2, 16)), Is.EqualTo(GetTypeId(typeof(RelayProfileState))));
+			Assert.That(ContainsGuid(message, profileId), Is.False);
+		});
+	}
+
+	[Test]
+	public void RelayServerProfileUpdate_IgnoresUpdatesForOtherProfiles() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		ExposedRelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient firstClient = new(catalogue);
+		RelayClient secondClient = new(catalogue);
+		MemoryRelayTransport firstTransport = daemon.Connect();
+
+		firstClient.Connect(firstTransport);
+		secondClient.Connect(daemon.Connect());
+		Pump(server, firstClient, secondClient);
+
+		server.Receive(
+			firstTransport.Remote!,
+			BuildProfileMessage(catalogue, secondClient.Profile!.Id, new RelayProfileState { Value = 99 }));
+		Pump(server, firstClient, secondClient);
+
+		Assert.Multiple(() => {
+			Assert.That(((RelayProfileState)secondClient.Profile!).Value, Is.EqualTo(0));
+			Assert.That(firstClient.TryGetProfile(secondClient.Profile.Id, out NetworkProfile? firstKnownSecondProfile), Is.True);
+			Assert.That(((RelayProfileState)firstKnownSecondProfile!).Value, Is.EqualTo(0));
 		});
 	}
 
@@ -1092,11 +1201,18 @@ public sealed partial class SerializerRuntimeTests {
 		Assert.That(catalogue.TryFindTypeId(profile.GetType(), out Guid typeId), Is.True);
 		return Concat(
 			[(byte)NetworkMessageChannel.ProfileMessage],
-			[(byte)ProfileMessageKind.CreateOrUpdate],
+			[(byte)ProfileMessageKind.Create],
 			GuidBytes(profileId),
 			GuidBytes(typeId),
 			Int32(payload.Length),
 			payload);
+	}
+
+	private static byte[] BuildAssignProfileMessage(Guid profileId) {
+		return Concat(
+			[(byte)NetworkMessageChannel.ProfileMessage],
+			[(byte)ProfileMessageKind.Assign],
+			GuidBytes(profileId));
 	}
 
 	private static byte[] BuildCreateEntityMessage(TypeCatalogue catalogue, Guid entityId, NetworkEntity entity) {

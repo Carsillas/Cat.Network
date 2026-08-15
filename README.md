@@ -350,15 +350,16 @@ Profile messages start with:
 |-------:|---------:|----------------------------------------|
 |      0 |   1 byte | `NetworkMessageChannel.ProfileMessage` |
 |      1 |   1 byte | `ProfileMessageKind`                   |
-|      2 | 16 bytes | Profile id                             |
 
 `ProfileMessageKind` values:
 
-| Value | Name             | Payload after profile id                               |
-|------:|------------------|--------------------------------------------------------|
-|     0 | `Assign`         | Empty. Assigns the local client profile id.            |
-|     1 | `CreateOrUpdate` | `Guid` type id, `int` profile byte count, object data. |
-|     2 | `Delete`         | Empty. Removes a profile from the client.              |
+| Value | Name             | Payload after kind                                                         |
+|------:|------------------|----------------------------------------------------------------------------|
+|     0 | `Assign`         | `Guid` profile id. Assigns the local client profile id.                    |
+|     1 | `Create`         | `Guid` profile id, `Guid` type id, `int` profile byte count, object data.  |
+|     2 | `Update`         | `Guid` profile id, `int` profile byte count, dirty object data.            |
+|     3 | `Delete`         | `Guid` profile id. Removes a profile from the client.                      |
+|     4 | `UpdateRequest`  | `Guid` type id, `int` profile byte count, dirty assigned-profile data.     |
 
 ### Object Data
 

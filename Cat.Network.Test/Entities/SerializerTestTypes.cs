@@ -308,6 +308,17 @@ public partial class DeepObjectCollectionRootState : NetworkObject {
 
 [NetworkObject]
 public partial class RelayProfileState : NetworkProfile {
+	[NetworkProperty]
+	public partial int Value { get; set; }
+}
+
+[NetworkObject]
+public partial class RelayProfilePatchState : NetworkProfile {
+	[NetworkProperty]
+	public partial int Value { get; set; }
+
+	[NetworkProperty]
+	public partial int UntouchedValue { get; set; }
 }
 
 [NetworkObject]
