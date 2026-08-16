@@ -2,6 +2,10 @@ namespace Cat.Network;
 
 public partial class RelayServer {
 	protected override void OnCreateEntityMessage(IRelayTransport sender, Guid entityId, Guid typeId, ReadOnlySpan<byte> data) {
+		if (entityId == Guid.Empty) {
+			throw new InvalidOperationException("Client-created network entities must provide a non-empty network id.");
+		}
+
 		if (!ClientsByTransport.TryGetValue(sender, out RemoteClient? client) || EntityStorage.TryGetEntity(entityId, out _)) {
 			return;
 		}
@@ -10,8 +14,10 @@ public partial class RelayServer {
 			return;
 		}
 
-		entity.Peer = this;
-		EntityStorage.RegisterEntity(entity);
+		if (!EntityStorage.RegisterEntity(entity)) {
+			return;
+		}
+
 		client.KnownEntityIds.Add(entity.Id);
 		SetOwner(entity.Id, client, ownerNotified: true);
 
@@ -39,7 +45,6 @@ public partial class RelayServer {
 
 		SetOwner(entityId, null, ownerNotified: false);
 		EntityStorage.UnregisterEntity(entityId);
-		entity.Peer = null;
 	}
 
 	protected override void OnOwnershipTransferRequestMessage(IRelayTransport sender, Guid entityId, Guid ownerProfileId) {

@@ -2,23 +2,27 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Cat.Network;
 
-public class TestEntityStorage : IEntityStorage {
+public class TestEntityStorage : EntityStorage {
 	
 	private Dictionary<Guid, NetworkEntity> Entities { get; } = new();
 	
-	public bool RegisterEntity(NetworkEntity entity) {
-		return Entities.TryAdd(entity.Id, entity);
+	protected override IEnumerable<NetworkEntity> GetRegisteredEntities() {
+		return Entities.Values;
 	}
 
-	public bool UnregisterEntity(Guid id) {
-		return Entities.Remove(id);
+	protected override void AddEntity(NetworkEntity entity) {
+		Entities.Add(entity.Id, entity);
 	}
 
-	public bool TryGetEntity(Guid id, [NotNullWhen(true)] out NetworkEntity? entity) {
+	protected override void RemoveEntity(Guid id) {
+		Entities.Remove(id);
+	}
+
+	public override bool TryGetEntity(Guid id, [NotNullWhen(true)] out NetworkEntity? entity) {
 		return Entities.TryGetValue(id, out entity);
 	}
 
-	public virtual void PopulateRelevantEntities(NetworkProfile profile, ICollection<NetworkEntity> entities) {
+	public override void PopulateRelevantEntities(NetworkProfile profile, ICollection<NetworkEntity> entities) {
 		foreach (NetworkEntity entity in Entities.Values) {
 			entities.Add(entity);
 		}

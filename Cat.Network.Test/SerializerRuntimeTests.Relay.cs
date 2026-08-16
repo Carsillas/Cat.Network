@@ -25,6 +25,100 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void EntityStorage_RegisterEntity_AssignsNetworkId() {
+		TestEntityStorage storage = new();
+		RelayValueState entity = new();
+
+		bool registered = storage.RegisterEntity(entity);
+
+		Assert.Multiple(() => {
+			Assert.That(registered, Is.True);
+			Assert.That(entity.Id, Is.Not.EqualTo(Guid.Empty));
+			Assert.That(entity.IsSpawned, Is.False);
+			Assert.That(storage.TryGetEntity(entity.Id, out NetworkEntity? storedEntity), Is.True);
+			Assert.That(storedEntity, Is.SameAs(entity));
+		});
+	}
+
+	[Test]
+	public void EntityStorage_AssignNetworkId_PreservesLoadedId() {
+		LoadingEntityStorage storage = new();
+		RelayValueState entity = new();
+		Guid id = Guid.NewGuid();
+
+		bool registered = storage.LoadEntity(id, entity);
+
+		Assert.Multiple(() => {
+			Assert.That(registered, Is.True);
+			Assert.That(entity.Id, Is.EqualTo(id));
+			Assert.That(storage.TryGetEntity(id, out NetworkEntity? storedEntity), Is.True);
+			Assert.That(storedEntity, Is.SameAs(entity));
+		});
+	}
+
+	[Test]
+	public void EntityStorage_AssignNetworkId_AllowsDetachedReassignment() {
+		LoadingEntityStorage storage = new();
+		RelayValueState entity = new();
+		Guid originalId = Guid.NewGuid();
+		Guid reassignedId = Guid.NewGuid();
+		storage.SetNetworkId(entity, originalId);
+
+		storage.SetNetworkId(entity, reassignedId);
+
+		Assert.That(entity.Id, Is.EqualTo(reassignedId));
+	}
+
+	[Test]
+	public void EntityStorage_AssignNetworkId_AllowsEmptyIdForDetachedEntity() {
+		LoadingEntityStorage storage = new();
+		RelayValueState entity = new();
+		storage.SetNetworkId(entity, Guid.NewGuid());
+
+		storage.SetNetworkId(entity, Guid.Empty);
+		bool registered = storage.RegisterEntity(entity);
+
+		Assert.Multiple(() => {
+			Assert.That(registered, Is.True);
+			Assert.That(entity.Id, Is.Not.EqualTo(Guid.Empty));
+			Assert.That(storage.TryGetEntity(entity.Id, out NetworkEntity? storedEntity), Is.True);
+			Assert.That(storedEntity, Is.SameAs(entity));
+		});
+	}
+
+	[Test]
+	public void RelayServer_AttachesPreRegisteredStorageEntities() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		LoadingEntityStorage storage = new();
+		RelayValueState entity = new();
+		Guid id = Guid.NewGuid();
+		storage.LoadEntity(id, entity);
+
+		new RelayServer(daemon, catalogue, storage);
+
+		Assert.Multiple(() => {
+			Assert.That(entity.Id, Is.EqualTo(id));
+			Assert.That(entity.IsSpawned, Is.True);
+			Assert.That(entity.IsOwner, Is.True);
+			Assert.That(storage.TryGetEntity(id, out NetworkEntity? storedEntity), Is.True);
+			Assert.That(storedEntity, Is.SameAs(entity));
+		});
+	}
+
+	[Test]
+	public void EntityStorage_RegisterEntity_ThrowsForAttachedEntity() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		TestEntityStorage storage = new();
+		RelayValueState entity = new();
+		storage.RegisterEntity(entity);
+		new RelayServer(daemon, catalogue, storage);
+
+		Assert.That(() => storage.RegisterEntity(entity), Throws.InvalidOperationException);
+	}
+
+	[Test]
 	public void RelayClientProfile_DoesNotSetLocalProfileWithoutAssignment() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState));
 		ExposedRelayClient client = new(catalogue);
@@ -405,6 +499,24 @@ public sealed partial class SerializerRuntimeTests {
 			Assert.That(serverStorage.TryGetEntity(entity.Id, out NetworkEntity? updatedEntity), Is.True);
 			Assert.That(((RelayValueState)updatedEntity!).Value, Is.EqualTo(11));
 		});
+	}
+
+	[Test]
+	public void RelayServerCreateEntity_ThrowsForEmptyClientEntityId() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		ExposedRelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient client = new(catalogue);
+		MemoryRelayTransport transport = daemon.Connect();
+
+		client.Connect(transport);
+		Pump(server, client);
+
+		Assert.That(
+			() => server.Receive(
+				transport.Remote!,
+				BuildCreateEntityMessage(catalogue, Guid.Empty, new RelayValueState { Value = 7 })),
+			Throws.InvalidOperationException);
 	}
 
 	[Test]
@@ -1390,11 +1502,22 @@ public sealed partial class SerializerRuntimeTests {
 		}
 	}
 
-	private sealed class ExposedRelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IEntityStorage entityStorage)
+	private sealed class ExposedRelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, EntityStorage entityStorage)
 		: RelayServer(daemon, typeCatalogue, entityStorage) {
 
 		public void Receive(IRelayTransport sender, ReadOnlySpan<byte> message) {
 			ProcessMessage(sender, message);
+		}
+	}
+
+	private sealed class LoadingEntityStorage : TestEntityStorage {
+		public bool LoadEntity(Guid id, NetworkEntity entity) {
+			AssignNetworkId(entity, id);
+			return RegisterEntity(entity);
+		}
+
+		public void SetNetworkId(NetworkEntity entity, Guid id) {
+			AssignNetworkId(entity, id);
 		}
 	}
 

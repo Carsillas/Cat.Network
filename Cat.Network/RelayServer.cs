@@ -1,8 +1,8 @@
 namespace Cat.Network;
 
-public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IEntityStorage entityStorage) : RelayPeer(typeCatalogue) {
-	private IDaemon Daemon { get; } = daemon ?? throw new ArgumentNullException(nameof(daemon));
-	private IEntityStorage EntityStorage { get; } = entityStorage ?? throw new ArgumentNullException(nameof(entityStorage));
+public partial class RelayServer : RelayPeer {
+	private IDaemon Daemon { get; }
+	private EntityStorage EntityStorage { get; }
 	private List<RemoteClient> Clients { get; } = [];
 	private Dictionary<IRelayTransport, RemoteClient> ClientsByTransport { get; } = [];
 	private Dictionary<Guid, RemoteClient> ClientsByProfileId { get; } = [];
@@ -15,6 +15,12 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 	private HashSet<NetworkEntity> DirtyEntityWorkingSet { get; } = [];
 	private HashSet<Guid> RelevantEntityIdWorkingSet { get; } = [];
 	private HashSet<IRelayTransport> FailedTransports { get; } = [];
+
+	public RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, EntityStorage entityStorage) : base(typeCatalogue) {
+		Daemon = daemon ?? throw new ArgumentNullException(nameof(daemon));
+		EntityStorage = entityStorage ?? throw new ArgumentNullException(nameof(entityStorage));
+		EntityStorage.Attach(this);
+	}
 
 	internal override bool Owns(NetworkEntity entity) {
 		return true;
@@ -43,7 +49,6 @@ public partial class RelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, IE
 			if (EntityStorage.TryGetEntity(knownEntityId, out NetworkEntity? entity) &&
 			    entity.DestroyWithOwner) {
 				EntityStorage.UnregisterEntity(knownEntityId);
-				entity.Peer = null;
 			}
 		}
 
