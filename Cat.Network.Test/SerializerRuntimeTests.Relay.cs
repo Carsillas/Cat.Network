@@ -1512,12 +1512,12 @@ public sealed partial class SerializerRuntimeTests {
 
 	private sealed class LoadingEntityStorage : TestEntityStorage {
 		public bool LoadEntity(Guid id, NetworkEntity entity) {
-			AssignNetworkId(entity, id);
+			entity.AssignNetworkId(id);
 			return RegisterEntity(entity);
 		}
 
 		public void SetNetworkId(NetworkEntity entity, Guid id) {
-			AssignNetworkId(entity, id);
+			entity.AssignNetworkId(id);
 		}
 	}
 

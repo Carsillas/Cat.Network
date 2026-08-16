@@ -9,7 +9,7 @@ public abstract class EntityStorage {
 		ArgumentNullException.ThrowIfNull(entity);
 
 		if (entity.Id == Guid.Empty) {
-			AssignNetworkId(entity, Guid.NewGuid());
+			entity.AssignNetworkId(Guid.NewGuid());
 		}
 
 		ValidateDetachedEntity(entity);
@@ -31,20 +31,6 @@ public abstract class EntityStorage {
 		RemoveEntity(id);
 		entity.Peer = null;
 		return true;
-	}
-
-	protected void AssignNetworkId(NetworkEntity entity, Guid id) {
-		ArgumentNullException.ThrowIfNull(entity);
-
-		if (entity.Peer is not null) {
-			throw new InvalidOperationException("Cannot assign a network id to an entity attached to a relay peer.");
-		}
-
-		if (TryGetEntity(id, out NetworkEntity? existingEntity) && !ReferenceEquals(existingEntity, entity)) {
-			throw new InvalidOperationException($"Entity network id {id} is already registered.");
-		}
-
-		entity.Id = id;
 	}
 
 	protected abstract IEnumerable<NetworkEntity> GetRegisteredEntities();
