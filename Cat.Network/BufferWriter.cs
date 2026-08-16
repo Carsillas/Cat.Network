@@ -3,10 +3,25 @@ using System.Buffers.Binary;
 namespace Cat.Network;
 
 public class BufferWriter {
+	private const int DefaultBufferSize = 16384;
 	private const int GuidSize = 16;
-	private byte[] Buffer { get; set; } = new byte[16384];
+	private byte[] Buffer { get; set; }
+
+	public BufferWriter()
+		: this(DefaultBufferSize) {
+	}
+
+	public BufferWriter(int initialBufferSize) {
+		if (initialBufferSize <= 0) {
+			throw new ArgumentOutOfRangeException(nameof(initialBufferSize));
+		}
+
+		Buffer = new byte[initialBufferSize];
+	}
 
 	public int WrittenCount { get; private set; }
+
+	public int FreeCapacity => Buffer.Length - WrittenCount;
 
 	public void Clear() {
 		WrittenCount = 0;
@@ -141,8 +156,7 @@ public class BufferWriter {
 			byteCount = 1;
 		}
 
-		int availableCapacity = Buffer.Length - WrittenCount;
-		if (availableCapacity >= byteCount) {
+		if (FreeCapacity >= byteCount) {
 			return;
 		}
 
