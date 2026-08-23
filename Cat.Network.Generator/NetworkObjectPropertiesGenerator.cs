@@ -19,6 +19,7 @@ internal static class NetworkObjectPropertiesGenerator {
 			Properties(model),
 			PartialProperties(model),
 			CloneMethod(model),
+			EqualityMembers(model),
 			PropertyAccessorMethods(model),
 			CollectionAccessorMethods(model),
 			InitializeMembers(model),
@@ -122,6 +123,39 @@ internal static class NetworkObjectPropertiesGenerator {
 				.Select(PropertyAccessorMethods));
 	}
 
+	private static string EqualityMembers(NetworkObjectTypeModel model) {
+		string equalsBody = EqualityBody(model);
+		string hashCodeBody = HashCodeBody(model);
+
+		return $$"""
+			public bool Equals({{model.FullyQualifiedName}}? other)
+			{
+				if (global::System.Object.ReferenceEquals(null, other))
+				{
+					return false;
+				}
+				if (global::System.Object.ReferenceEquals(this, other))
+				{
+					return true;
+				}
+				{{equalsBody}}
+				return true;
+			}
+
+			public override bool Equals(object? obj)
+			{
+				return obj is {{model.FullyQualifiedName}} other && Equals(other);
+			}
+
+			public override int GetHashCode()
+			{
+				global::System.HashCode hash = new global::System.HashCode();
+				{{hashCodeBody}}
+				return hash.ToHashCode();
+			}
+			""";
+	}
+
 	private static string InitializeMembers(NetworkObjectTypeModel model) {
 		string collectionInitializers = string.Join(
 			"\n",
@@ -155,6 +189,80 @@ internal static class NetworkObjectPropertiesGenerator {
 				{{method.Name}}(reader, writer);
 			}
 			""";
+	}
+
+	private static string EqualityBody(NetworkObjectTypeModel model) {
+		List<string> comparisons = [];
+		if (HasEqualityBase(model)) {
+			comparisons.Add("if (!base.Equals(other))\n\t\t{\n\t\t\treturn false;\n\t\t}");
+		}
+
+		comparisons.AddRange(model.DeclaredProperties
+			.OrderBy(static property => property.PropertyIndex)
+			.Select(PropertyEqualityComparison));
+		comparisons.AddRange(model.DeclaredCollections
+			.OrderBy(static collection => collection.PropertyIndex)
+			.Select(CollectionEqualityComparison));
+
+		return comparisons.Count == 0
+			? string.Empty
+			: string.Join("\n\t\t", comparisons) + "\n\t\t";
+	}
+
+	private static string PropertyEqualityComparison(NetworkPropertyModel property) {
+		return $$"""
+			if (!global::System.Collections.Generic.EqualityComparer<{{property.TypeName}}>.Default.Equals(Get{{property.Name}}(this), Get{{property.Name}}(other)))
+			{
+				return false;
+			}
+			""";
+	}
+
+	private static string CollectionEqualityComparison(NetworkCollectionModel collection) {
+		string comparerCall = collection.Kind switch {
+			NetworkCollectionKind.List => $"global::Cat.Network.NetworkObjectEquality.ListEquals<{collection.ItemTypeName}>",
+			NetworkCollectionKind.Dictionary => $"global::Cat.Network.NetworkObjectEquality.DictionaryEquals<{collection.RuntimeKeyTypeName}, {collection.ItemTypeName}>",
+			_ => throw new global::System.InvalidOperationException($"Unsupported collection kind '{collection.Kind}'.")
+		};
+
+		return $$"""
+			if (!{{comparerCall}}(Get{{collection.Name}}(this), Get{{collection.Name}}(other)))
+			{
+				return false;
+			}
+			""";
+	}
+
+	private static string HashCodeBody(NetworkObjectTypeModel model) {
+		List<string> additions = [];
+		if (HasEqualityBase(model)) {
+			additions.Add("hash.Add(base.GetHashCode());");
+		}
+
+		additions.AddRange(model.DeclaredProperties
+			.OrderBy(static property => property.PropertyIndex)
+			.Select(static property => $"hash.Add(Get{property.Name}(this));"));
+		additions.AddRange(model.DeclaredCollections
+			.OrderBy(static collection => collection.PropertyIndex)
+			.Select(CollectionHashCodeAddition));
+
+		return additions.Count == 0
+			? string.Empty
+			: string.Join("\n\t\t", additions) + "\n\t\t";
+	}
+
+	private static string CollectionHashCodeAddition(NetworkCollectionModel collection) {
+		string hasherCall = collection.Kind switch {
+			NetworkCollectionKind.List => $"global::Cat.Network.NetworkObjectEquality.ListHashCode<{collection.ItemTypeName}>",
+			NetworkCollectionKind.Dictionary => $"global::Cat.Network.NetworkObjectEquality.DictionaryHashCode<{collection.RuntimeKeyTypeName}, {collection.ItemTypeName}>",
+			_ => throw new global::System.InvalidOperationException($"Unsupported collection kind '{collection.Kind}'.")
+		};
+
+		return $"hash.Add({hasherCall}(Get{collection.Name}(this)));";
+	}
+
+	private static bool HasEqualityBase(NetworkObjectTypeModel model) {
+		return model.BaseTypeName != "global::Cat.Network.NetworkObject";
 	}
 
 	private static string PartialProperty(NetworkPropertyModel property) {
@@ -257,7 +365,7 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                      #pragma warning disable CS0628
 	                                      {0}
 	                                      {1}
-	                                      partial class {2} : global::Cat.Network.INetworkObject
+	                                      partial class {2} : global::System.IEquatable<{2}>, global::Cat.Network.INetworkObject
 	                                      {{
 	                                      {3}
 
@@ -272,6 +380,8 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                      {8}
 
 	                                      {9}
+
+	                                      {10}
 	                                      }}
 	                                      """;
 

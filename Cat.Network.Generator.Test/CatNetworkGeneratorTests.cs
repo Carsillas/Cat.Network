@@ -65,7 +65,7 @@ public sealed class CatNetworkGeneratorTests {
 
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
-			Assert.That(propertySource, Does.Contain("partial class Player : global::Cat.Network.INetworkObject"));
+			Assert.That(propertySource, Does.Contain("partial class Player : global::System.IEquatable<Player>, global::Cat.Network.INetworkObject"));
 			Assert.That(propertySource, Does.Not.Contain("TookDamage"));
 			Assert.That(messageSource, Does.Contain("partial class Player : global::Cat.Network.INetworkRpcTarget, global::Game.Player.RPC"));
 			Assert.That(messageSource, Does.Contain("public partial interface RPC"));
@@ -152,7 +152,7 @@ public sealed class CatNetworkGeneratorTests {
 
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
-			Assert.That(propertySource, Does.Contain("partial class Player : global::Cat.Network.INetworkObject"));
+			Assert.That(propertySource, Does.Contain("partial class Player : global::System.IEquatable<Player>, global::Cat.Network.INetworkObject"));
 			Assert.That(propertySource, Does.Not.Contain("PlayImpact"));
 			Assert.That(messageSource, Does.Contain("partial class Player : global::Cat.Network.INetworkRpcTarget, global::Game.Player.Broadcast"));
 			Assert.That(messageSource, Does.Contain("public partial interface Broadcast"));
@@ -196,6 +196,60 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(generatedSource, Does.Contain("protected static new global::System.Collections.Immutable.ImmutableArray<global::Cat.Network.NetworkPropertyInfo> Properties { get; } = ["));
 			Assert.That(generatedSource, Does.Not.Contain("..global::System.Object.Properties"));
 			Assert.That(generatedSource, Does.Contain("Index = 0"));
+			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
+		});
+	}
+
+	[Test]
+	public void GeneratedPropertiesIncludeStructuralEqualityAndHashCode() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      namespace Game;
+
+		                      [NetworkObjectAttribute]
+		                      public partial class Actor : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial int Health { get; set; }
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : Actor {
+		                      	[NetworkProperty]
+		                      	public partial string Name { get; set; } = string.Empty;
+
+		                      	[NetworkCollection]
+		                      	public partial NetworkList<int> Scores { get; }
+
+		                      	[NetworkCollection]
+		                      	public partial NetworkDictionary<int, string> Labels { get; }
+		                      }
+		                      """;
+
+		CSharpCompilation compilation = CreateCompilation(source);
+		GeneratorDriver driver = CSharpGeneratorDriver.Create(new CatNetworkGenerator());
+
+		driver = driver.RunGeneratorsAndUpdateCompilation(
+			compilation,
+			out Compilation outputCompilation,
+			out ImmutableArray<Diagnostic> generatorDiagnostics);
+
+		GeneratorDriverRunResult runResult = driver.GetRunResult();
+		string propertySource = GetGeneratedSource(runResult, "Game_Player.g.cs");
+
+		Assert.Multiple(() => {
+			Assert.That(generatorDiagnostics, Is.Empty);
+			Assert.That(propertySource, Does.Contain("partial class Player : global::System.IEquatable<Player>, global::Cat.Network.INetworkObject"));
+			Assert.That(propertySource, Does.Contain("public bool Equals(global::Game.Player? other)"));
+			Assert.That(propertySource, Does.Contain("if (!base.Equals(other))"));
+			Assert.That(propertySource, Does.Contain("EqualityComparer<global::System.String>.Default.Equals(GetName(this), GetName(other))"));
+			Assert.That(propertySource, Does.Contain("global::Cat.Network.NetworkObjectEquality.ListEquals<global::System.Int32>(GetScores(this), GetScores(other))"));
+			Assert.That(propertySource, Does.Contain("global::Cat.Network.NetworkObjectEquality.DictionaryEquals<global::System.Int32, global::System.String>(GetLabels(this), GetLabels(other))"));
+			Assert.That(propertySource, Does.Contain("public override int GetHashCode()"));
+			Assert.That(propertySource, Does.Contain("hash.Add(base.GetHashCode());"));
+			Assert.That(propertySource, Does.Contain("hash.Add(GetName(this));"));
+			Assert.That(propertySource, Does.Contain("hash.Add(global::Cat.Network.NetworkObjectEquality.ListHashCode<global::System.Int32>(GetScores(this)));"));
+			Assert.That(propertySource, Does.Contain("hash.Add(global::Cat.Network.NetworkObjectEquality.DictionaryHashCode<global::System.Int32, global::System.String>(GetLabels(this)));"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
 	}
@@ -423,7 +477,7 @@ public sealed class CatNetworkGeneratorTests {
 
 		Assert.Multiple(() => {
 			Assert.That(generatorDiagnostics, Is.Empty);
-			Assert.That(propertySource, Does.Contain("partial class Root : global::Cat.Network.INetworkObject"));
+			Assert.That(propertySource, Does.Contain("partial class Root : global::System.IEquatable<Root>, global::Cat.Network.INetworkObject"));
 			Assert.That(propertySource, Does.Not.Contain("partial class Root : global::Cat.Network.NetworkObject"));
 			Assert.That(outputCompilation.GetDiagnostics().Where(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error), Is.Empty);
 		});
