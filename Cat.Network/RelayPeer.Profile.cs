@@ -92,6 +92,7 @@ public abstract partial class RelayPeer {
 
 		target.Id = profileId;
 		serializer.Deserialize(target, data, new SerializationContext(TypeCatalogue));
+		ClearDirtyState(target);
 		profile = target;
 		return true;
 	}

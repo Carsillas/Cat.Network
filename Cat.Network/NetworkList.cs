@@ -184,6 +184,7 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 
 		int offset = 0;
 		int operationCount = ReadInt32(data, ref offset);
+		bool changed = false;
 
 		for (int operationIndex = 0; operationIndex < operationCount; operationIndex++) {
 			if (data.Length - offset < 1) {
@@ -199,6 +200,8 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
 					offset += itemLength;
 					AddDeserialized(item);
+					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Add, Items.Count - 1, item));
+					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Insert: {
@@ -207,11 +210,15 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
 					offset += itemLength;
 					InsertDeserialized(index, item);
+					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Insert, index, item));
+					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Remove: {
 					int index = ReadInt32(data, ref offset);
 					RemoveAtDeserialized(index);
+					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Remove, index));
+					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Set: {
@@ -220,20 +227,44 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
 					offset += itemLength;
 					SetDeserialized(index, item);
+					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Set, index, item));
+					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Clear:
 					ClearDeserialized();
+					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Clear));
+					changed = true;
 					break;
 				case NetworkCollectionOperationType.Update: {
 					int index = ReadInt32(data, ref offset);
 					int itemLength = ReadInt32(data, ref offset);
 					Codec.DeserializeUpdate(Items[index], data.Slice(offset, itemLength), context);
 					offset += itemLength;
+					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Update, index, Items[index]));
+					changed = true;
 					break;
 				}
 				default:
 					return;
+			}
+		}
+
+		if (changed) {
+			MarkOwnerModified();
+		}
+	}
+
+	void INetworkCollection.ClearDirtyState(SerializationContext context) {
+		OperationBuffer.Clear();
+		if (!Codec.IsNetworkObject) {
+			return;
+		}
+
+		foreach (T item in Items) {
+			if (item is NetworkObject networkObject &&
+			    context.TypeCatalogue.TryFindSerializer(networkObject.GetType(), out INetworkObjectSerializer? serializer)) {
+				serializer.ClearDirtyState(networkObject, context);
 			}
 		}
 	}

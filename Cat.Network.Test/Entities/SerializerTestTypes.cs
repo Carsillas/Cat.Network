@@ -328,6 +328,12 @@ public partial class RelayValueState : NetworkEntity {
 }
 
 [NetworkObject]
+public partial class RelayValueCollectionState : NetworkEntity {
+	[NetworkCollection]
+	public partial NetworkList<int> Values { get; }
+}
+
+[NetworkObject]
 public partial class RelayStringState : NetworkEntity {
 	[NetworkProperty]
 	public partial string Path { get; set; } = string.Empty;

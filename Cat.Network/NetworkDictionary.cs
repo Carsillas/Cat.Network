@@ -196,6 +196,7 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
 		int offset = 0;
 		int operationCount = ReadInt32(data, ref offset);
+		bool changed = false;
 
 		for (int operationIndex = 0; operationIndex < operationCount; operationIndex++) {
 			if (data.Length - offset < 1) {
@@ -210,21 +211,29 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 					TKey key = ReadKey(data, ref offset, context);
 					TValue value = ReadValue(data, ref offset, context);
 					AddDeserialized(key, value);
+					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Add, key, value));
+					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Remove: {
 					TKey key = ReadKey(data, ref offset, context);
 					RemoveDeserialized(key);
+					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Remove, key));
+					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Set: {
 					TKey key = ReadKey(data, ref offset, context);
 					TValue value = ReadValue(data, ref offset, context);
 					SetDeserialized(key, value);
+					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Set, key, value));
+					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Clear:
 					ClearDeserialized();
+					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Clear, default!));
+					changed = true;
 					break;
 				case NetworkCollectionOperationType.Update: {
 					TKey key = ReadKey(data, ref offset, context);
@@ -235,6 +244,8 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
 					if (Items.TryGetValue(key, out TValue? value)) {
 						ValueCodec.DeserializeUpdate(value, data.Slice(offset, valueLength), context);
+						OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Update, key, value));
+						changed = true;
 					}
 
 					offset += valueLength;
@@ -242,6 +253,24 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 				}
 				default:
 					return;
+			}
+		}
+
+		if (changed) {
+			MarkOwnerModified();
+		}
+	}
+
+	void INetworkCollection.ClearDirtyState(SerializationContext context) {
+		OperationBuffer.Clear();
+		if (!ValueCodec.IsNetworkObject) {
+			return;
+		}
+
+		foreach (TValue value in Items.Values) {
+			if (value is NetworkObject networkObject &&
+			    context.TypeCatalogue.TryFindSerializer(networkObject.GetType(), out INetworkObjectSerializer? serializer)) {
+				serializer.ClearDirtyState(networkObject, context);
 			}
 		}
 	}

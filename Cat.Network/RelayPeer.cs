@@ -47,7 +47,11 @@ public abstract partial class RelayPeer {
 		return ((INetworkObject)target).PropertyStates.Any(static state => state != NetworkPropertyState.Unchanged);
 	}
 
-	protected static void ClearDirtyState(NetworkObject target) {
-		Array.Fill(((INetworkObject)target).PropertyStates, NetworkPropertyState.Unchanged);
+	protected void ClearDirtyState(NetworkObject target) {
+		if (!TypeCatalogue.TryFindSerializer(target.GetType(), out INetworkObjectSerializer? serializer)) {
+			return;
+		}
+
+		serializer.ClearDirtyState(target, new SerializationContext(TypeCatalogue));
 	}
 }

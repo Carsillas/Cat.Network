@@ -61,6 +61,7 @@ public partial class RelayClient {
 		}
 
 		RegisterEntity(entity);
+		ClearDirtyState(entity);
 	}
 
 	protected override void OnUpdateEntityMessage(IRelayTransport sender, Guid entityId, ReadOnlySpan<byte> data) {
@@ -68,7 +69,11 @@ public partial class RelayClient {
 			return;
 		}
 
-		TryDeserializeEntityUpdate(entity, data);
+		if (!TryDeserializeEntityUpdate(entity, data)) {
+			return;
+		}
+
+		ClearDirtyState(entity);
 	}
 
 	protected override void OnDeleteEntityMessage(IRelayTransport sender, Guid entityId) {

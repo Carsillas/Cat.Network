@@ -7,7 +7,9 @@ namespace Cat.Network.Test;
 public sealed partial class SerializerRuntimeTests {
 	private static void Deserialize(NetworkObject target, TypeCatalogue catalogue, byte[] payload) {
 		Assert.That(catalogue.TryFindSerializer(target.GetType(), out INetworkObjectSerializer? serializer), Is.True);
-		serializer!.Deserialize(target, payload, new SerializationContext(catalogue));
+		SerializationContext context = new(catalogue);
+		serializer!.Deserialize(target, payload, context);
+		serializer.ClearDirtyState(target, context);
 	}
 
 	private static void Pump(RelayServer server, params RelayClient[] clients) {

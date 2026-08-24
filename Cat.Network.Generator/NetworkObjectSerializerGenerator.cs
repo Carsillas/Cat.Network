@@ -23,6 +23,7 @@ internal static class NetworkObjectSerializerGenerator {
 			SerializeMethods(model),
 			DeserializeMethods(model),
 			AccessorMethods(model),
+			ClearDirtyStateBody(model),
 			model.Version,
 			UpgradeCases(model));
 
@@ -78,6 +79,34 @@ internal static class NetworkObjectSerializerGenerator {
 			"\n\n",
 			model.Properties.Select(property => DeserializeMethod(model, property))
 				.Concat(model.Collections.Select(collection => DeserializeMethod(model, collection))));
+	}
+
+	private static string ClearDirtyStateBody(NetworkObjectTypeModel model) {
+		IEnumerable<string> members = model.Properties
+			.Where(static property => property.SerializationKind == NetworkPropertySerializationKind.NetworkObject)
+			.Select(ClearNetworkObjectPropertyDirtyState)
+			.Concat(model.Collections.Select(ClearCollectionDirtyState));
+
+		return string.Join(
+			"\n",
+			members);
+	}
+
+	private static string ClearNetworkObjectPropertyDirtyState(NetworkPropertyModel property) {
+		return $$"""
+			if (Get{{property.Name}}(typedTarget) is global::Cat.Network.NetworkObject {{property.Name}}Value &&
+			    context.TypeCatalogue.TryFindSerializer({{property.Name}}Value.GetType(), out global::Cat.Network.INetworkObjectSerializer? {{property.Name}}Serializer)) {
+				{{property.Name}}Serializer.ClearDirtyState({{property.Name}}Value, context);
+			}
+			""";
+	}
+
+	private static string ClearCollectionDirtyState(NetworkCollectionModel collection) {
+		return $$"""
+			if (Get{{collection.Name}}(typedTarget) is global::Cat.Network.INetworkCollection {{collection.Name}}Collection) {
+				{{collection.Name}}Collection.ClearDirtyState(context);
+			}
+			""";
 	}
 
 	private static string SerializeByIndex(NetworkObjectTypeModel model) {
@@ -874,7 +903,7 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      {0}
 	                                      internal sealed class {1} : global::Cat.Network.INetworkObjectSerializer
 	                                      {{
-	                                      	private static ushort SchemaVersion => {10};
+	                                      	private static ushort SchemaVersion => {11};
 
 	                                      	public void Serialize(global::Cat.Network.BufferWriter writer, global::Cat.Network.NetworkObject target, global::Cat.Network.SerializationContext context, global::Cat.Network.SerializationOptions options) {{
 	                                      		{2} typedTarget = ({2})target;
@@ -988,6 +1017,12 @@ internal static class NetworkObjectSerializerGenerator {
 	                                      		}}
 	                                      	}}
 
+	                                      	public void ClearDirtyState(global::Cat.Network.NetworkObject target, global::Cat.Network.SerializationContext context) {{
+	                                      		{2} typedTarget = ({2})target;
+	                                      {10}
+	                                      		global::System.Array.Fill(((global::Cat.Network.INetworkObject)typedTarget).PropertyStates, global::Cat.Network.NetworkPropertyState.Unchanged);
+	                                      	}}
+
 	                                      	private static bool TryUpgradePayload(ushort payloadVersion, global::System.ReadOnlySpan<byte> data, global::Cat.Network.SerializationContext context, out byte[] upgradedData) {{
 	                                      		upgradedData = global::System.Array.Empty<byte>();
 	                                      		while (payloadVersion < SchemaVersion) {{
@@ -1021,7 +1056,7 @@ internal static class NetworkObjectSerializerGenerator {
 
 	                                      	private static bool TryApplyUpgradeStep(ushort targetVersion, global::Cat.Network.NetworkObjectUpgradeReader upgradeReader, global::Cat.Network.NetworkObjectUpgradeWriter upgradeWriter) {{
 	                                      		switch (targetVersion) {{
-	                                      {11}
+	                                      {12}
 	                                      			default:
 	                                      				return false;
 	                                      		}}

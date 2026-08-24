@@ -89,6 +89,7 @@ public abstract partial class RelayPeer {
 
 		target.Id = entityId;
 		serializer.Deserialize(target, data, new SerializationContext(TypeCatalogue));
+		ClearDirtyState(target);
 		entity = target;
 		return true;
 	}

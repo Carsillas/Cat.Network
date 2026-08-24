@@ -1017,6 +1017,43 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RelayClientOwnedCollectionIndexReplacement_SendsDirtyStateToOtherClients() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueCollectionState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		TestEntityStorage serverStorage = new();
+		RelayServer server = new(daemon, catalogue, serverStorage);
+		RelayClient firstClient = new(catalogue);
+		RelayClient secondClient = new(catalogue);
+
+		firstClient.Connect(daemon.Connect());
+		secondClient.Connect(daemon.Connect());
+		Pump(server, firstClient, secondClient);
+
+		RelayValueCollectionState entity = new();
+		entity.Values.Add(3);
+		entity.Values.Add(5);
+		firstClient.Spawn(entity);
+		Pump(server, firstClient, secondClient);
+
+		entity.Values[1] = 9;
+		Pump(server, firstClient, secondClient);
+
+		Assert.Multiple(() => {
+			Assert.That(serverStorage.TryGetEntity(entity.Id, out NetworkEntity? serverEntity), Is.True);
+			Assert.That(secondClient.TryGetEntity(entity.Id, out NetworkEntity? secondClientEntity), Is.True);
+
+			RelayValueCollectionState serverCollectionEntity = (RelayValueCollectionState)serverEntity!;
+			RelayValueCollectionState secondClientCollectionEntity = (RelayValueCollectionState)secondClientEntity!;
+			Assert.That(serverCollectionEntity.Values.Count, Is.EqualTo(2));
+			Assert.That(serverCollectionEntity.Values[0], Is.EqualTo(3));
+			Assert.That(serverCollectionEntity.Values[1], Is.EqualTo(9));
+			Assert.That(secondClientCollectionEntity.Values.Count, Is.EqualTo(2));
+			Assert.That(secondClientCollectionEntity.Values[0], Is.EqualTo(3));
+			Assert.That(secondClientCollectionEntity.Values[1], Is.EqualTo(9));
+		});
+	}
+
+	[Test]
 	public void RelayServerDirtyEntity_SendsUpdateToRelevantClients() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
