@@ -334,6 +334,12 @@ public partial class RelayValueCollectionState : NetworkEntity {
 }
 
 [NetworkObject]
+public partial class RelayObjectCollectionState : NetworkEntity {
+	[NetworkCollection]
+	public partial NetworkList<DirtyChildState> Children { get; }
+}
+
+[NetworkObject]
 public partial class RelayStringState : NetworkEntity {
 	[NetworkProperty]
 	public partial string Path { get; set; } = string.Empty;
