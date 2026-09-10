@@ -11,6 +11,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 	private const string NetworkPropertyAttributeRequiresGetAndSetDiagnosticId = "CN0006";
 	private const string DuplicateInheritedNetworkPropertyNameDiagnosticId = "CN0007";
 	private const string NetworkPropertyAttributeCannotUseNetworkEntityTypeDiagnosticId = "CN0027";
+	private const string NetworkPropertyAttributeRequiresSupportedTypeDiagnosticId = "CN0028";
 
 	private static readonly DiagnosticDescriptor InvalidNetworkPropertyAttributeRule = new(
 		InvalidNetworkPropertyAttributeDiagnosticId,
@@ -52,12 +53,21 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		DiagnosticSeverity.Error,
 		true);
 
+	private static readonly DiagnosticDescriptor NetworkPropertyAttributeRequiresSupportedTypeRule = new(
+		NetworkPropertyAttributeRequiresSupportedTypeDiagnosticId,
+		"NetworkPropertyAttribute requires a supported property type",
+		"Property '{0}' is marked with NetworkPropertyAttribute but type '{1}' is not supported by network property serialization",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
 	public static ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
 		InvalidNetworkPropertyAttributeRule,
 		NetworkPropertyAttributeRequiresPartialRule,
 		NetworkPropertyAttributeRequiresGetAndSetRule,
 		DuplicateInheritedNetworkPropertyNameRule,
-		NetworkPropertyAttributeCannotUseNetworkEntityTypeRule
+		NetworkPropertyAttributeCannotUseNetworkEntityTypeRule,
+		NetworkPropertyAttributeRequiresSupportedTypeRule
 	];
 
 	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol? networkEntityType, INamedTypeSymbol networkPropertyAttributeType) {
@@ -106,6 +116,14 @@ internal static class NetworkPropertyAttributeAnalyzer {
 				propertyType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
 		}
 
+		if (!IsSupportedNetworkPropertyType(property.Type, networkObjectType, ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default))) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkPropertyAttributeRequiresSupportedTypeRule,
+				property.Locations.FirstOrDefault(),
+				property.Name,
+				property.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+		}
+
 		IPropertySymbol? inheritedNetworkProperty = FindInheritedNetworkPropertyWithSameName(containingType, property.Name, networkPropertyAttributeType);
 		if (inheritedNetworkProperty is not null) {
 			context.ReportDiagnostic(Diagnostic.Create(
@@ -142,5 +160,57 @@ internal static class NetworkPropertyAttributeAnalyzer {
 
 		return SymbolEqualityComparer.Default.Equals(type, networkEntityType) ||
 		       NetworkAnalyzerHelpers.InheritsFrom(type, networkEntityType);
+	}
+
+	private static bool IsSupportedNetworkPropertyType(ITypeSymbol type, INamedTypeSymbol networkObjectType, ImmutableHashSet<ITypeSymbol> visitedTypes) {
+		if (IsSupportedScalarOrStringOrGuidType(type)) {
+			return true;
+		}
+
+		if (type is INamedTypeSymbol namedType &&
+		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+		    namedType.TypeArguments.Length == 1) {
+			type = namedType.TypeArguments[0];
+		}
+
+		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+			if (visitedTypes.Contains(structType)) {
+				return false;
+			}
+
+			ImmutableHashSet<ITypeSymbol> nextVisitedTypes = visitedTypes.Add(structType);
+			return structType.GetMembers()
+				.OfType<IFieldSymbol>()
+				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
+				.All(field => IsSupportedNetworkPropertyType(field.Type, networkObjectType, nextVisitedTypes) &&
+				              !IsNetworkObjectCompatibleType(field.Type, networkObjectType));
+		}
+
+		return IsNetworkObjectCompatibleType(type, networkObjectType);
+	}
+
+	private static bool IsNetworkObjectCompatibleType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+		return type is INamedTypeSymbol namedType &&
+		       (SymbolEqualityComparer.Default.Equals(namedType, networkObjectType) ||
+		        NetworkAnalyzerHelpers.InheritsFrom(namedType, networkObjectType));
+	}
+
+	private static bool IsSupportedScalarOrStringOrGuidType(ITypeSymbol type) {
+		if (type.SpecialType is SpecialType.System_Boolean or
+		    SpecialType.System_Byte or
+		    SpecialType.System_SByte or
+		    SpecialType.System_Int16 or
+		    SpecialType.System_UInt16 or
+		    SpecialType.System_Int32 or
+		    SpecialType.System_UInt32 or
+		    SpecialType.System_Int64 or
+		    SpecialType.System_UInt64 or
+		    SpecialType.System_Single or
+		    SpecialType.System_Double or
+		    SpecialType.System_String) {
+			return true;
+		}
+
+		return type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == "global::System.Guid";
 	}
 }

@@ -32,3 +32,4 @@
  CN0025  | Usage    | Warning  | Explicit RPCAttribute and BroadcastAttribute receive handlers should use explicit interface implementation
  CN0026  | Usage    | Error    | NetworkList<T> and NetworkDictionary<TKey, TValue> require NetworkCollectionAttribute
  CN0027  | Usage    | Error    | NetworkPropertyAttribute type must not be assignable from NetworkEntity-derived types
+ CN0028  | Usage    | Error    | NetworkPropertyAttribute requires a supported property type

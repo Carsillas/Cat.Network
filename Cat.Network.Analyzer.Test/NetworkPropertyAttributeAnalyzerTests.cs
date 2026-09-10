@@ -194,6 +194,85 @@ public sealed class NetworkPropertyAttributeAnalyzerTests {
 	}
 
 	[Test]
+	public async Task ReportsErrorWhenNetworkPropertyUsesDictionaryType() {
+		const string source = """
+		                      using System.Collections.Generic;
+		                      using Cat.Network;
+
+		                      public readonly struct InputBindingData {
+		                      	public readonly int KeyCode;
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class KeyBindings : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial Dictionary<string, InputBindingData> Bindings { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics.Select(static diagnostic => diagnostic.Id), Is.EqualTo(new[] { "CN0028" }));
+	}
+
+	[Test]
+	public async Task ReportsErrorWhenNetworkPropertyUsesListType() {
+		const string source = """
+		                      using System.Collections.Generic;
+		                      using Cat.Network;
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial List<int> Scores { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics.Select(static diagnostic => diagnostic.Id), Is.EqualTo(new[] { "CN0028" }));
+	}
+
+	[Test]
+	public async Task ReportsErrorWhenNetworkPropertyUsesObjectType() {
+		const string source = """
+		                      using Cat.Network;
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class Player : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial object Value { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics.Select(static diagnostic => diagnostic.Id), Is.EqualTo(new[] { "CN0028" }));
+	}
+
+	[Test]
+	public async Task ReportsErrorWhenNetworkPropertyUsesUnsupportedStructFieldType() {
+		const string source = """
+		                      using System.Collections.Generic;
+		                      using Cat.Network;
+
+		                      public readonly struct InputBindingData {
+		                      	public readonly Dictionary<string, int> Bindings;
+		                      }
+
+		                      [NetworkObjectAttribute]
+		                      public sealed partial class KeyBindings : NetworkObject {
+		                      	[NetworkProperty]
+		                      	public partial InputBindingData Bindings { get; set; }
+		                      }
+		                      """;
+
+		ImmutableArray<Diagnostic> diagnostics = await AnalyzerTestHost.GetAnalyzerDiagnosticsAsync(source);
+
+		Assert.That(diagnostics.Select(static diagnostic => diagnostic.Id), Is.EqualTo(new[] { "CN0028" }));
+	}
+
+	[Test]
 	public async Task DoesNotReportErrorWhenNetworkPropertyUsesNetworkObjectSubclassType() {
 		const string source = """
 		                      using Cat.Network;
