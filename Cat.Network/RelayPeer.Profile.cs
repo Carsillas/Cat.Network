@@ -41,6 +41,15 @@ public abstract partial class RelayPeer {
 
 				break;
 			}
+			case ProfileMessageKind.Synchronize: {
+				if (message.TryConsumeGuid(out Guid profileId) &&
+				    message.TryConsumeUInt64(out ulong revision) &&
+				    message.TryConsumeLengthPrefixedData(out ReadOnlySpan<byte> profileData)) {
+					OnSynchronizeProfileMessage(sender, profileId, revision, profileData);
+				}
+
+				break;
+			}
 			case ProfileMessageKind.Delete: {
 				if (!message.TryConsumeGuid(out Guid profileId)) {
 					return;
@@ -54,8 +63,9 @@ public abstract partial class RelayPeer {
 					return;
 				}
 
-				if (message.TryConsumeLengthPrefixedData(out ReadOnlySpan<byte> profileData)) {
-					OnProfileUpdateRequest(sender, profileTypeId, profileData);
+				if (message.TryConsumeLengthPrefixedData(out ReadOnlySpan<byte> profileData) &&
+				    message.TryConsumeUInt64(out ulong revision)) {
+					OnProfileUpdateRequest(sender, profileTypeId, profileData, revision);
 				}
 
 				break;
@@ -72,6 +82,13 @@ public abstract partial class RelayPeer {
 	}
 
 	protected virtual void OnUpdateProfileMessage(IRelayTransport sender, Guid profileId, ReadOnlySpan<byte> data) {
+	}
+
+	protected virtual void OnSynchronizeProfileMessage(IRelayTransport sender, Guid profileId, ulong revision, ReadOnlySpan<byte> data) {
+	}
+
+	protected virtual void OnProfileUpdateRequest(IRelayTransport sender, Guid typeId, ReadOnlySpan<byte> data, ulong revision) {
+		OnProfileUpdateRequest(sender, typeId, data);
 	}
 
 	protected virtual void OnProfileUpdateRequest(IRelayTransport sender, Guid typeId, ReadOnlySpan<byte> data) {
@@ -149,7 +166,21 @@ public abstract partial class RelayPeer {
 		return true;
 	}
 
-	protected bool TryWriteProfileUpdateRequestMessage(BufferWriter writer, NetworkProfile profile) {
+	protected bool TryWriteSynchronizeProfileMessage(BufferWriter writer, NetworkProfile profile, ulong revision) {
+		if (!TypeCatalogue.TryFindSerializer(profile.GetType(), out INetworkObjectSerializer? serializer)) {
+			return false;
+		}
+
+		WriteProfileMessageHeader(writer, ProfileMessageKind.Synchronize, profile.Id);
+		writer.WriteUInt64(revision);
+		Range lengthRange = writer.Reserve(sizeof(int));
+		int dataStart = writer.WrittenCount;
+		serializer.Serialize(writer, profile, new SerializationContext(TypeCatalogue), new SerializationOptions(MemberSelectionMode.All, MemberIdentificationMode.Index));
+		writer.WriteInt32(lengthRange, writer.WrittenCount - dataStart);
+		return true;
+	}
+
+	protected bool TryWriteProfileUpdateRequestMessage(BufferWriter writer, NetworkProfile profile, ulong revision) {
 		if (!TypeCatalogue.TryFindTypeId(profile.GetType(), out Guid typeId) ||
 		    !TypeCatalogue.TryFindSerializer(profile.GetType(), out INetworkObjectSerializer? serializer)) {
 			return false;
@@ -161,6 +192,7 @@ public abstract partial class RelayPeer {
 		int dataStart = writer.WrittenCount;
 		serializer.Serialize(writer, profile, new SerializationContext(TypeCatalogue), new SerializationOptions(MemberSelectionMode.Dirty, MemberIdentificationMode.Index));
 		writer.WriteInt32(lengthRange, writer.WrittenCount - dataStart);
+		writer.WriteUInt64(revision);
 		return true;
 	}
 
