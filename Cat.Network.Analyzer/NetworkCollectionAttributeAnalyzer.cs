@@ -223,8 +223,8 @@ internal static class NetworkCollectionAttributeAnalyzer {
 				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType));
 		}
 
-		return SymbolEqualityComparer.Default.Equals(type, networkObjectType) ||
-		       NetworkAnalyzerHelpers.InheritsFrom((INamedTypeSymbol)type, networkObjectType);
+		return type is INamedTypeSymbol objectType &&
+		       IsNetworkObjectOrDerived(objectType, networkObjectType);
 	}
 
 	private static bool IsSupportedDictionaryKeyType(ITypeSymbol type) {
