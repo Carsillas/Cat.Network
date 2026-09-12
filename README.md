@@ -418,4 +418,4 @@ Each declared parameter is encoded in declaration order:
 - `int` parameter byte count
 - parameter bytes
 
-Parameter bytes use the same scalar, nullable value type, `Guid`, and `NetworkObject` encodings used by generated serializers. Struct fields use the same ordinal field-name order, but message strings omit the presence marker and reject null: a top-level string occupies its parameter bytes, while a string struct field uses a `uint` UTF-8 byte count followed by those bytes. Structs containing strings therefore have different message bytes from their property, collection, and upgrade encodings.
+Struct fields use the same ordinal field-name order. Message strings omit the presence marker and reject null: a top-level string occupies its parameter bytes, while a string struct field uses a `uint` UTF-8 byte count followed by those bytes. Structs containing strings therefore have different message bytes from their property, collection, and upgrade encodings.
