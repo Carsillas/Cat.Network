@@ -196,7 +196,6 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
 		int offset = 0;
 		int operationCount = ReadInt32(data, ref offset);
-		bool changed = false;
 
 		for (int operationIndex = 0; operationIndex < operationCount; operationIndex++) {
 			if (data.Length - offset < 1) {
@@ -211,29 +210,21 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 					TKey key = ReadKey(data, ref offset, context);
 					TValue value = ReadValue(data, ref offset, context);
 					AddDeserialized(key, value);
-					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Add, key, value));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Remove: {
 					TKey key = ReadKey(data, ref offset, context);
 					RemoveDeserialized(key);
-					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Remove, key));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Set: {
 					TKey key = ReadKey(data, ref offset, context);
 					TValue value = ReadValue(data, ref offset, context);
 					SetDeserialized(key, value);
-					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Set, key, value));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Clear:
 					ClearDeserialized();
-					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Clear, default!));
-					changed = true;
 					break;
 				case NetworkCollectionOperationType.Update: {
 					TKey key = ReadKey(data, ref offset, context);
@@ -243,9 +234,16 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 					}
 
 					if (Items.TryGetValue(key, out TValue? value)) {
-						ValueCodec.DeserializeUpdate(value, data.Slice(offset, valueLength), context);
+						ReadOnlySpan<byte> payload = data.Slice(offset, valueLength);
+						if (value is not NetworkObject) {
+							throw new InvalidOperationException("Dictionary update target must be a non-null NetworkObject.");
+						}
+
+						// A nested callback may remove this key or replace its value. Keep the
+						// original update ahead of that mutation, including when it throws.
 						OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Update, key, value));
-						changed = true;
+						MarkOwnerModified();
+						ValueCodec.DeserializeUpdate(value, payload, context);
 					}
 
 					offset += valueLength;
@@ -254,10 +252,6 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 				default:
 					return;
 			}
-		}
-
-		if (changed) {
-			MarkOwnerModified();
 		}
 	}
 
@@ -292,6 +286,8 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		ValidateValueForAssignment(value);
 		Items.Add(key, value);
 		OnValueAdded(value);
+		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Add, key, value));
+		MarkOwnerModified();
 		ItemAdded?.Invoke(this, key);
 	}
 
@@ -304,6 +300,8 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		ValidateValueForAssignment(value);
 		Items[key] = value;
 		OnValueAdded(value);
+		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Set, key, value));
+		MarkOwnerModified();
 		if (replacedValue) {
 			ValueChanged?.Invoke(this, key);
 		} else {
@@ -313,11 +311,15 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
 	protected void RemoveDeserialized(TKey key) {
 		if (!Items.TryGetValue(key, out TValue? value)) {
+			OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Remove, key));
+			MarkOwnerModified();
 			return;
 		}
 
 		OnValueRemoving(value);
 		Items.Remove(key);
+		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Remove, key));
+		MarkOwnerModified();
 		ItemRemoved?.Invoke(this, key);
 	}
 
@@ -328,6 +330,8 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		}
 
 		Items.Clear();
+		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Clear, default!));
+		MarkOwnerModified();
 		foreach (TKey key in removedKeys) {
 			ItemRemoved?.Invoke(this, key);
 		}
