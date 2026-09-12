@@ -241,12 +241,15 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(generatorDiagnostics, Is.Empty);
 			Assert.That(propertySource, Does.Contain("partial class Player : global::System.IEquatable<Player>, global::Cat.Network.INetworkObject"));
 			Assert.That(propertySource, Does.Contain("public bool Equals(global::Game.Player? other)"));
-			Assert.That(propertySource, Does.Contain("if (!base.Equals(other))"));
+			Assert.That(propertySource, Does.Contain(SyntaxFactory.ParseStatement("return Equals((object?)other);").NormalizeWhitespace().ToFullString()));
+			Assert.That(propertySource, Does.Contain("obj is not global::Game.Player other || ((object)this).GetType() != obj.GetType()"));
+			Assert.That(propertySource, Does.Contain("EqualityComparer<global::System.Int32>.Default.Equals(GetHealth(this), GetHealth(other))"));
 			Assert.That(propertySource, Does.Contain("EqualityComparer<global::System.String>.Default.Equals(GetName(this), GetName(other))"));
 			Assert.That(propertySource, Does.Contain("global::Cat.Network.NetworkObjectEquality.ListEquals<global::System.Int32>(GetScores(this), GetScores(other))"));
 			Assert.That(propertySource, Does.Contain("global::Cat.Network.NetworkObjectEquality.DictionaryEquals<global::System.Int32, global::System.String>(GetLabels(this), GetLabels(other))"));
 			Assert.That(propertySource, Does.Contain("public override int GetHashCode()"));
-			Assert.That(propertySource, Does.Contain("hash.Add(base.GetHashCode());"));
+			Assert.That(propertySource, Does.Contain("hash.Add(((object)this).GetType());"));
+			Assert.That(propertySource, Does.Contain("hash.Add(GetHealth(this));"));
 			Assert.That(propertySource, Does.Contain("hash.Add(GetName(this));"));
 			Assert.That(propertySource, Does.Contain("hash.Add(global::Cat.Network.NetworkObjectEquality.ListHashCode<global::System.Int32>(GetScores(this)));"));
 			Assert.That(propertySource, Does.Contain("hash.Add(global::Cat.Network.NetworkObjectEquality.DictionaryHashCode<global::System.Int32, global::System.String>(GetLabels(this)));"));

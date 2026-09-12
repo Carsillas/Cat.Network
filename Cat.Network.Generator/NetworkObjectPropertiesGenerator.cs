@@ -127,10 +127,17 @@ internal static class NetworkObjectPropertiesGenerator {
 		string equalsBody = EqualityBody(model);
 		string hashCodeBody = HashCodeBody(model);
 
+		// The object override is the virtual entry point even for an inherited IEquatable<T>.
+		// Compare the complete hierarchy there; calling base.Equals would dispatch back here.
 		return $$"""
 			public bool Equals({{model.FullyQualifiedName}}? other)
 			{
-				if (global::System.Object.ReferenceEquals(null, other))
+				return Equals((object?)other);
+			}
+
+			public override bool Equals(object? obj)
+			{
+				if (obj is not {{model.FullyQualifiedName}} other || ((object)this).GetType() != obj.GetType())
 				{
 					return false;
 				}
@@ -142,14 +149,10 @@ internal static class NetworkObjectPropertiesGenerator {
 				return true;
 			}
 
-			public override bool Equals(object? obj)
-			{
-				return obj is {{model.FullyQualifiedName}} other && Equals(other);
-			}
-
 			public override int GetHashCode()
 			{
 				global::System.HashCode hash = new global::System.HashCode();
+				hash.Add(((object)this).GetType());
 				{{hashCodeBody}}
 				return hash.ToHashCode();
 			}
@@ -193,14 +196,11 @@ internal static class NetworkObjectPropertiesGenerator {
 
 	private static string EqualityBody(NetworkObjectTypeModel model) {
 		List<string> comparisons = [];
-		if (HasEqualityBase(model)) {
-			comparisons.Add("if (!base.Equals(other))\n\t\t{\n\t\t\treturn false;\n\t\t}");
-		}
 
-		comparisons.AddRange(model.DeclaredProperties
+		comparisons.AddRange(model.Properties
 			.OrderBy(static property => property.PropertyIndex)
 			.Select(PropertyEqualityComparison));
-		comparisons.AddRange(model.DeclaredCollections
+		comparisons.AddRange(model.Collections
 			.OrderBy(static collection => collection.PropertyIndex)
 			.Select(CollectionEqualityComparison));
 
@@ -235,14 +235,11 @@ internal static class NetworkObjectPropertiesGenerator {
 
 	private static string HashCodeBody(NetworkObjectTypeModel model) {
 		List<string> additions = [];
-		if (HasEqualityBase(model)) {
-			additions.Add("hash.Add(base.GetHashCode());");
-		}
 
-		additions.AddRange(model.DeclaredProperties
+		additions.AddRange(model.Properties
 			.OrderBy(static property => property.PropertyIndex)
 			.Select(static property => $"hash.Add(Get{property.Name}(this));"));
-		additions.AddRange(model.DeclaredCollections
+		additions.AddRange(model.Collections
 			.OrderBy(static collection => collection.PropertyIndex)
 			.Select(CollectionHashCodeAddition));
 
@@ -259,10 +256,6 @@ internal static class NetworkObjectPropertiesGenerator {
 		};
 
 		return $"hash.Add({hasherCall}(Get{collection.Name}(this)));";
-	}
-
-	private static bool HasEqualityBase(NetworkObjectTypeModel model) {
-		return model.BaseTypeName != "global::Cat.Network.NetworkObject";
 	}
 
 	private static string PartialProperty(NetworkPropertyModel property) {
