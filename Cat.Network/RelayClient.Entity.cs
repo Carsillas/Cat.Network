@@ -3,17 +3,23 @@ namespace Cat.Network;
 public partial class RelayClient {
 	public void Spawn(NetworkEntity entity) {
 		ArgumentNullException.ThrowIfNull(entity);
+		long sessionVersion = SessionVersion;
 		if (entity.Id == Guid.Empty) {
 			entity.Id = Guid.NewGuid();
 		}
 
 		bool ownershipGained = OwnedEntityIds.Add(entity.Id);
 		RegisterEntity(entity);
+		if (SessionVersion != sessionVersion) {
+			return;
+		}
 		if (ownershipGained) {
 			RaiseEntityEvent(EntityOwnershipGainedHandlers, entity);
 		}
 
-		EntitiesToSpawn.Add(entity);
+		if (SessionVersion == sessionVersion) {
+			EntitiesToSpawn.Add(entity);
+		}
 	}
 
 	public void Delete(NetworkEntity entity) {
@@ -51,25 +57,29 @@ public partial class RelayClient {
 	}
 
 	protected override void OnCreateEntityMessage(IRelayTransport sender, Guid entityId, Guid typeId, ReadOnlySpan<byte> data) {
+		long sessionVersion = SessionVersion;
 		if (TryGetEntity(entityId, out NetworkEntity? existingEntity)) {
 			existingEntity.Peer = this;
 			return;
 		}
 
-		if (!TryCreateEntity(entityId, typeId, data, out NetworkEntity entity)) {
+		if (!TryCreateEntity(entityId, typeId, data, out NetworkEntity entity) || SessionVersion != sessionVersion) {
 			return;
 		}
 
 		RegisterEntity(entity);
-		ClearDirtyState(entity);
+		if (SessionVersion == sessionVersion) {
+			ClearDirtyState(entity);
+		}
 	}
 
 	protected override void OnUpdateEntityMessage(IRelayTransport sender, Guid entityId, ReadOnlySpan<byte> data) {
+		long sessionVersion = SessionVersion;
 		if (!TryGetEntity(entityId, out NetworkEntity? entity) || Owns(entity)) {
 			return;
 		}
 
-		if (!TryDeserializeEntityUpdate(entity, data)) {
+		if (!TryDeserializeEntityUpdate(entity, data) || SessionVersion != sessionVersion) {
 			return;
 		}
 
@@ -92,7 +102,7 @@ public partial class RelayClient {
 		InvokeReceivedMessage(entityId, data, rpc: false);
 	}
 
-	private void ProcessOutgoingMessages(IRelayTransport transport) {
+	private void ProcessOutgoingMessages(IRelayTransport transport, long sessionVersion) {
 		foreach (NetworkEntity entity in Entities) {
 			if (EntitiesToSpawn.Contains(entity) || EntitiesToDelete.Contains(entity) || !Owns(entity) || !HasDirtyState(entity)) {
 				continue;
@@ -100,16 +110,26 @@ public partial class RelayClient {
 
 			MessageWriter.Clear();
 			if (TryWriteUpdateEntityMessage(MessageWriter, entity)) {
-				transport.Send(MessageWriter.GetWrittenSpan());
+				if (!TrySendSessionMessage(transport, sessionVersion, MessageWriter.GetWrittenSpan())) {
+					return;
+				}
 				ClearDirtyState(entity);
+			}
+			if (!IsCurrentSession(transport, sessionVersion)) {
+				return;
 			}
 		}
 
 		foreach (NetworkEntity entity in EntitiesToSpawn) {
 			MessageWriter.Clear();
 			if (TryWriteCreateEntityMessage(MessageWriter, entity)) {
-				transport.Send(MessageWriter.GetWrittenSpan());
+				if (!TrySendSessionMessage(transport, sessionVersion, MessageWriter.GetWrittenSpan())) {
+					return;
+				}
 				ClearDirtyState(entity);
+			}
+			if (!IsCurrentSession(transport, sessionVersion)) {
+				return;
 			}
 		}
 
@@ -118,23 +138,38 @@ public partial class RelayClient {
 		foreach (NetworkEntity entity in EntitiesToDelete) {
 			MessageWriter.Clear();
 			WriteDeleteEntityMessage(MessageWriter, entity.Id);
-			transport.Send(MessageWriter.GetWrittenSpan());
+			if (!TrySendSessionMessage(transport, sessionVersion, MessageWriter.GetWrittenSpan())) {
+				return;
+			}
 			UnregisterEntity(entity);
+			if (!IsCurrentSession(transport, sessionVersion)) {
+				return;
+			}
 		}
 
 		EntitiesToDelete.Clear();
 
 		while (OutgoingMessageWriters.TryDequeue(out BufferWriter? writer)) {
-			transport.Send(writer.GetWrittenSpan());
-			ReturnMessageWriter(writer);
+			try {
+				if (!TrySendSessionMessage(transport, sessionVersion, writer.GetWrittenSpan())) {
+					return;
+				}
+			} finally {
+				ReturnMessageWriter(writer);
+			}
 		}
 
 		foreach (OwnershipTransferRequest request in OwnershipTransferRequests) {
 			MessageWriter.Clear();
 			WriteOwnershipTransferRequestMessage(MessageWriter, request.EntityId, request.NewOwnerProfileId);
-			transport.Send(MessageWriter.GetWrittenSpan());
+			if (!TrySendSessionMessage(transport, sessionVersion, MessageWriter.GetWrittenSpan())) {
+				return;
+			}
 			if (TryGetEntity(request.EntityId, out NetworkEntity? entity)) {
 				RemoveOwnership(entity);
+			}
+			if (!IsCurrentSession(transport, sessionVersion)) {
+				return;
 			}
 		}
 
@@ -142,9 +177,13 @@ public partial class RelayClient {
 	}
 
 	private bool RegisterEntity(NetworkEntity entity) {
+		long sessionVersion = SessionVersion;
 		if (EntitiesById.TryGetValue(entity.Id, out NetworkEntity? existingEntity) &&
 		    !ReferenceEquals(existingEntity, entity)) {
 			UnregisterEntity(existingEntity);
+			if (SessionVersion != sessionVersion) {
+				return false;
+			}
 		} else if (existingEntity is not null) {
 			entity.Peer = this;
 			return false;

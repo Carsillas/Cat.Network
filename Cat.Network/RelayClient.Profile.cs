@@ -2,22 +2,27 @@ namespace Cat.Network;
 
 public partial class RelayClient {
 	protected override void OnCreateProfileMessage(IRelayTransport sender, Guid profileId, Guid typeId, ReadOnlySpan<byte> data) {
+		long sessionVersion = SessionVersion;
 		if (ProfilesById.ContainsKey(profileId)) {
 			return;
 		}
 
-		if (!TryCreateProfile(profileId, typeId, data, out NetworkProfile profile)) {
+		if (!TryCreateProfile(profileId, typeId, data, out NetworkProfile profile) || SessionVersion != sessionVersion) {
 			return;
 		}
 
 		RegisterProfile(profile);
+		if (SessionVersion != sessionVersion) {
+			return;
+		}
 		UpdateAssignedProfile();
 		ClearDirtyState(profile);
 	}
 
 	protected override void OnUpdateProfileMessage(IRelayTransport sender, Guid profileId, ReadOnlySpan<byte> data) {
+		long sessionVersion = SessionVersion;
 		if (!ProfilesById.TryGetValue(profileId, out NetworkProfile? profile) ||
-		    !TryDeserializeProfileUpdate(profile, data)) {
+		    !TryDeserializeProfileUpdate(profile, data) || SessionVersion != sessionVersion) {
 			return;
 		}
 
@@ -40,12 +45,16 @@ public partial class RelayClient {
 	}
 
 	private bool RegisterProfile(NetworkProfile profile) {
+		long sessionVersion = SessionVersion;
 		if (ProfilesById.TryGetValue(profile.Id, out NetworkProfile? existingProfile)) {
 			if (ReferenceEquals(existingProfile, profile)) {
 				return false;
 			}
 
 			UnregisterProfile(profile.Id);
+			if (SessionVersion != sessionVersion) {
+				return false;
+			}
 		}
 
 		ProfilesById[profile.Id] = profile;
@@ -62,15 +71,15 @@ public partial class RelayClient {
 		return true;
 	}
 
-	private void ProcessOutgoingProfileMessage(IRelayTransport transport) {
-		if (Profile is null || !HasDirtyState(Profile)) {
+	private void ProcessOutgoingProfileMessage(IRelayTransport transport, long sessionVersion) {
+		if (Profile is not { } profile || !HasDirtyState(profile)) {
 			return;
 		}
 
 		MessageWriter.Clear();
-		if (TryWriteProfileUpdateRequestMessage(MessageWriter, Profile)) {
-			transport.Send(MessageWriter.GetWrittenSpan());
-			ClearDirtyState(Profile);
+		if (TryWriteProfileUpdateRequestMessage(MessageWriter, profile) &&
+		    TrySendSessionMessage(transport, sessionVersion, MessageWriter.GetWrittenSpan())) {
+			ClearDirtyState(profile);
 		}
 	}
 
