@@ -33,7 +33,9 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		get => Items[index];
 		set {
 			T previous = Items[index];
-			if (EqualityComparer<T>.Default.Equals(previous, value)) {
+			if (Codec.IsNetworkObject
+			    ? ReferenceEquals(previous, value)
+			    : EqualityComparer<T>.Default.Equals(previous, value)) {
 				return;
 			}
 
