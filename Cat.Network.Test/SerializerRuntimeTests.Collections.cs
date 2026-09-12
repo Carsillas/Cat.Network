@@ -322,8 +322,8 @@ public sealed partial class SerializerRuntimeTests {
 		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
 			BuildIndexField(0, CollectionPayload(
 				CollectionClear(),
-				CollectionDictionaryAdd(Int32(7), Utf8("seven")),
-				CollectionDictionaryAdd(Int32(9), Utf8("nine")))))));
+				CollectionDictionaryAdd(Int32(7), StringValue("seven")),
+				CollectionDictionaryAdd(Int32(9), StringValue("nine")))))));
 	}
 
 	[Test]
@@ -336,7 +336,7 @@ public sealed partial class SerializerRuntimeTests {
 
 		Assert.That(payload, Is.EqualTo(BuildObjectPayload(
 			BuildIndexField(0, CollectionPayload(
-				CollectionDictionaryAdd(Int32(7), Utf8("seven")))))));
+				CollectionDictionaryAdd(Int32(7), StringValue("seven")))))));
 	}
 
 	[Test]
@@ -365,9 +365,9 @@ public sealed partial class SerializerRuntimeTests {
 		byte[] payload = BuildObjectPayload(
 			BuildIndexField(0, CollectionPayload(
 				CollectionClear(),
-				CollectionDictionaryAdd(Int32(3), Utf8("three")),
-				CollectionDictionaryAdd(Int32(5), Utf8("five")),
-				CollectionDictionarySet(Int32(3), Utf8("THREE")),
+				CollectionDictionaryAdd(Int32(3), StringValue("three")),
+				CollectionDictionaryAdd(Int32(5), StringValue("five")),
+				CollectionDictionarySet(Int32(3), StringValue("THREE")),
 				CollectionDictionaryRemove(Int32(5)))));
 		Deserialize(target, catalogue, payload);
 

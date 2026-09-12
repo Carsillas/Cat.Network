@@ -63,6 +63,10 @@ public partial class InventoryState : NetworkObject {
 
 Collection properties are initialized by generated code. Do not assign them yourself.
 
+String list items and dictionary values may be null when declared as `string?`. Each string item, key, or value is encoded inside its existing collection length prefix as one byte `0` for null, or one byte `1` followed by UTF-8 bytes for a nonnull string. Empty strings therefore contain only `1`, while null contains only `0`; no extra string length is added. Dictionary keys must still be nonnull. Missing or invalid markers and extra bytes after a null marker are rejected.
+
+This changes the wire format of **all** string collection items, keys, and values, including those declared as nonnullable `string`: earlier versions used raw UTF-8 without a marker. Old and new formats do not interoperate. Upgrade senders and receivers together and regenerate stored collection payloads; there is no format negotiation or automatic legacy decoding. This item format does not define the field boundaries for strings embedded in structs.
+
 ## Register Types
 
 Runtime serialization uses a `TypeCatalogue`. Register every concrete network object type that may be serialized or deserialized.
