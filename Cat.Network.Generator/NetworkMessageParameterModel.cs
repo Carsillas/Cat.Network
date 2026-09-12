@@ -38,9 +38,9 @@ internal sealed class NetworkMessageParameterModel : IEquatable<NetworkMessagePa
 
 	public ImmutableArray<NetworkStructFieldModel> StructFields { get; }
 
-	public static NetworkMessageParameterModel Create(IParameterSymbol parameter) {
+	public static NetworkMessageParameterModel Create(IParameterSymbol parameter, INamedTypeSymbol? networkObjectType) {
 		(ITypeSymbol effectiveType, bool isNullableValueType) = GetEffectiveType(parameter.Type);
-		(NetworkPropertySerializationKind serializationKind, ImmutableArray<NetworkStructFieldModel> structFields) = GetSerializationMetadata(effectiveType);
+		(NetworkPropertySerializationKind serializationKind, ImmutableArray<NetworkStructFieldModel> structFields) = GetSerializationMetadata(effectiveType, networkObjectType);
 
 		return new NetworkMessageParameterModel(
 			parameter.Type.ToDisplayString(FullyQualifiedTypeFormat),
@@ -87,7 +87,7 @@ internal sealed class NetworkMessageParameterModel : IEquatable<NetworkMessagePa
 		return (type, false);
 	}
 
-	private static (NetworkPropertySerializationKind SerializationKind, ImmutableArray<NetworkStructFieldModel> StructFields) GetSerializationMetadata(ITypeSymbol type) {
+	private static (NetworkPropertySerializationKind SerializationKind, ImmutableArray<NetworkStructFieldModel> StructFields) GetSerializationMetadata(ITypeSymbol type, INamedTypeSymbol? networkObjectType) {
 		switch (type.SpecialType) {
 			case SpecialType.System_Boolean:
 				return (NetworkPropertySerializationKind.Boolean, ImmutableArray<NetworkStructFieldModel>.Empty);
@@ -120,7 +120,8 @@ internal sealed class NetworkMessageParameterModel : IEquatable<NetworkMessagePa
 		}
 
 		for (ITypeSymbol? current = type; current is not null; current = current.BaseType) {
-			if (current.ToDisplayString(FullyQualifiedTypeFormat) == "global::Cat.Network.NetworkObject") {
+			// Nullable reference annotations do not change the serialization kind.
+			if (SymbolEqualityComparer.Default.Equals(current, networkObjectType)) {
 				return (NetworkPropertySerializationKind.NetworkObject, ImmutableArray<NetworkStructFieldModel>.Empty);
 			}
 		}
