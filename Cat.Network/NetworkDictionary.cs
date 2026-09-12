@@ -164,9 +164,30 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 			}
 		} else {
 			HashSet<TKey> touchedKeys = [];
+			HashSet<NetworkObject>? updatedItems = null;
+			HashSet<NetworkObject>? fullySerializedItems = null;
 			foreach (NetworkDictionaryOperation<TKey, TValue> operation in OperationBuffer) {
+				if (operation.OperationType == NetworkCollectionOperationType.Update && operation.Value is NetworkObject updatedItem) {
+					// An earlier full write already contains this live object's final child state.
+					if (fullySerializedItems?.Contains(updatedItem) == true) {
+						continue;
+					}
+
+					// Received updates share a live reference and therefore the same accumulated child delta.
+					updatedItems ??= new(ReferenceEqualityComparer.Instance);
+					if (!updatedItems.Add(updatedItem)) {
+						continue;
+					}
+				}
+
 				WriteOperation(writer, operation, context, options);
 				operationCount++;
+				if (operation.Value is NetworkObject fullItem && operation.OperationType is
+				    (NetworkCollectionOperationType.Add or NetworkCollectionOperationType.Set)) {
+					fullySerializedItems ??= new(ReferenceEqualityComparer.Instance);
+					fullySerializedItems.Add(fullItem);
+				}
+
 				if (operation.OperationType != NetworkCollectionOperationType.Clear) {
 					touchedKeys.Add(operation.Key);
 				}
@@ -174,7 +195,8 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
 			if (ValueCodec.IsNetworkObject) {
 				foreach ((TKey key, TValue value) in Items) {
-					if (touchedKeys.Contains(key) || value is not NetworkObject item || !NetworkCollectionSerializer.HasDirtyState(item)) {
+					if (touchedKeys.Contains(key) || value is not NetworkObject item ||
+					    updatedItems?.Contains(item) == true || !NetworkCollectionSerializer.HasDirtyState(item)) {
 						continue;
 					}
 

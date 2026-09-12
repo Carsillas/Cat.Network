@@ -149,9 +149,30 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 			}
 		} else {
 			HashSet<int> touchedIndices = [];
+			HashSet<NetworkObject>? updatedItems = null;
+			HashSet<NetworkObject>? fullySerializedItems = null;
 			foreach (NetworkCollectionOperation<T> operation in OperationBuffer) {
+				if (operation.OperationType == NetworkCollectionOperationType.Update && operation.Value is NetworkObject updatedItem) {
+					// An earlier full write already contains this live object's final child state.
+					if (fullySerializedItems?.Contains(updatedItem) == true) {
+						continue;
+					}
+
+					// Received updates share a live reference and therefore the same accumulated child delta.
+					updatedItems ??= new(ReferenceEqualityComparer.Instance);
+					if (!updatedItems.Add(updatedItem)) {
+						continue;
+					}
+				}
+
 				WriteOperation(writer, operation, context, options);
 				operationCount++;
+				if (operation.Value is NetworkObject fullItem && operation.OperationType is
+				    (NetworkCollectionOperationType.Add or NetworkCollectionOperationType.Insert or NetworkCollectionOperationType.Set)) {
+					fullySerializedItems ??= new(ReferenceEqualityComparer.Instance);
+					fullySerializedItems.Add(fullItem);
+				}
+
 				if (operation.Index >= 0) {
 					touchedIndices.Add(operation.Index);
 				}
@@ -159,7 +180,8 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 
 			if (Codec.IsNetworkObject) {
 				for (int index = 0; index < Items.Count; index++) {
-					if (touchedIndices.Contains(index) || Items[index] is not NetworkObject item || !NetworkCollectionSerializer.HasDirtyState(item)) {
+					if (touchedIndices.Contains(index) || Items[index] is not NetworkObject item ||
+					    updatedItems?.Contains(item) == true || !NetworkCollectionSerializer.HasDirtyState(item)) {
 						continue;
 					}
 
