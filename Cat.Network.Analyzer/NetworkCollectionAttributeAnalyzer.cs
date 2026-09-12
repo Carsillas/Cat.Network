@@ -213,11 +213,11 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		if (type is INamedTypeSymbol namedType &&
 		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
 		    namedType.TypeArguments.Length == 1) {
-			type = namedType.TypeArguments[0];
+			return IsSupportedCollectionValueType(namedType.TypeArguments[0], networkObjectType);
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			return structType.GetMembers()
+			return NetworkAnalyzerHelpers.HasSupportedStructFieldShape(structType) && structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
 				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType));
@@ -239,7 +239,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			return structType.GetMembers()
+			return NetworkAnalyzerHelpers.HasSupportedStructFieldShape(structType) && structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
 				.All(IsSupportedDictionaryKeyFieldType);
@@ -260,7 +260,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		}
 
 		if (field.Type.TypeKind == TypeKind.Struct && field.Type is INamedTypeSymbol structType) {
-			return structType.GetMembers()
+			return NetworkAnalyzerHelpers.HasSupportedStructFieldShape(structType) && structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static nestedField => !nestedField.IsStatic && nestedField.DeclaredAccessibility == Accessibility.Public)
 				.All(IsSupportedDictionaryKeyFieldType);
@@ -270,6 +270,12 @@ internal static class NetworkCollectionAttributeAnalyzer {
 	}
 
 	private static bool IsSupportedStructFieldType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+		if (type is INamedTypeSymbol namedType &&
+		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
+		    namedType.TypeArguments.Length == 1) {
+			return IsSupportedStructFieldType(namedType.TypeArguments[0], networkObjectType);
+		}
+
 		if (type.SpecialType is SpecialType.System_Boolean or
 		    SpecialType.System_Byte or
 		    SpecialType.System_SByte or
@@ -309,7 +315,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			return structType.GetMembers()
+			return NetworkAnalyzerHelpers.HasSupportedStructFieldShape(structType) && structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
 				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType));
