@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Linq;
+using Cat.Network.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -12,6 +13,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 	private const string DuplicateInheritedNetworkPropertyNameDiagnosticId = "CN0007";
 	private const string NetworkPropertyAttributeCannotUseNetworkEntityTypeDiagnosticId = "CN0027";
 	private const string NetworkPropertyAttributeRequiresSupportedTypeDiagnosticId = "CN0028";
+	private const string NetworkPropertyAttributeRequiresSupportedModifiersDiagnosticId = "CN0030";
 
 	private static readonly DiagnosticDescriptor InvalidNetworkPropertyAttributeRule = new(
 		InvalidNetworkPropertyAttributeDiagnosticId,
@@ -32,7 +34,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 	private static readonly DiagnosticDescriptor NetworkPropertyAttributeRequiresGetAndSetRule = new(
 		NetworkPropertyAttributeRequiresGetAndSetDiagnosticId,
 		"NetworkPropertyAttribute requires get and set accessors",
-		"Property '{0}' is marked with NetworkPropertyAttribute but does not have both get and set accessors",
+		"Property '{0}' is marked with NetworkPropertyAttribute but does not have both get and set accessors; init accessors are not supported",
 		"Usage",
 		DiagnosticSeverity.Error,
 		true);
@@ -56,7 +58,15 @@ internal static class NetworkPropertyAttributeAnalyzer {
 	private static readonly DiagnosticDescriptor NetworkPropertyAttributeRequiresSupportedTypeRule = new(
 		NetworkPropertyAttributeRequiresSupportedTypeDiagnosticId,
 		"NetworkPropertyAttribute requires a supported property type",
-		"Property '{0}' is marked with NetworkPropertyAttribute but type '{1}' is not supported by network property serialization",
+		"Property '{0}' is marked with NetworkPropertyAttribute but type '{1}' is not supported by network property serialization{2}",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
+	private static readonly DiagnosticDescriptor NetworkPropertyAttributeRequiresSupportedModifiersRule = new(
+		NetworkPropertyAttributeRequiresSupportedModifiersDiagnosticId,
+		"Network properties require supported declaration modifiers",
+		"Property '{0}' is marked with NetworkPropertyAttribute but uses unsupported modifier '{1}'",
 		"Usage",
 		DiagnosticSeverity.Error,
 		true);
@@ -67,7 +77,8 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		NetworkPropertyAttributeRequiresGetAndSetRule,
 		DuplicateInheritedNetworkPropertyNameRule,
 		NetworkPropertyAttributeCannotUseNetworkEntityTypeRule,
-		NetworkPropertyAttributeRequiresSupportedTypeRule
+		NetworkPropertyAttributeRequiresSupportedTypeRule,
+		NetworkPropertyAttributeRequiresSupportedModifiersRule
 	];
 
 	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol? networkEntityType, INamedTypeSymbol networkPropertyAttributeType) {
@@ -100,7 +111,15 @@ internal static class NetworkPropertyAttributeAnalyzer {
 				property.Name));
 		}
 
-		if (property.GetMethod is null || property.SetMethod is null) {
+		if (NetworkDeclarationShape.GetUnsupportedModifier(property) is string unsupportedModifier) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkPropertyAttributeRequiresSupportedModifiersRule,
+				property.Locations.FirstOrDefault(),
+				property.Name,
+				unsupportedModifier));
+		}
+
+		if (!NetworkDeclarationShape.HasGetAndSet(property)) {
 			context.ReportDiagnostic(Diagnostic.Create(
 				NetworkPropertyAttributeRequiresGetAndSetRule,
 				property.Locations.FirstOrDefault(),
@@ -116,12 +135,15 @@ internal static class NetworkPropertyAttributeAnalyzer {
 				propertyType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
 		}
 
-		if (!IsSupportedNetworkPropertyType(property.Type, networkObjectType, ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default))) {
+		bool hasReadonlyField = NetworkDeclarationShape.HasReadonlySerializedField(property.Type);
+		if (hasReadonlyField ||
+		    !IsSupportedNetworkPropertyType(property.Type, networkObjectType, ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default))) {
 			context.ReportDiagnostic(Diagnostic.Create(
 				NetworkPropertyAttributeRequiresSupportedTypeRule,
 				property.Locations.FirstOrDefault(),
 				property.Name,
-				property.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+				property.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+				hasReadonlyField ? "; public instance struct fields cannot be readonly" : string.Empty));
 		}
 
 		IPropertySymbol? inheritedNetworkProperty = FindInheritedNetworkPropertyWithSameName(containingType, property.Name, networkPropertyAttributeType);

@@ -132,6 +132,7 @@ internal static class NetworkObjectMessagesGenerator {
 	}
 
 	private static string MessageMethodImplementation(NetworkMessageMethodModel message) {
+		string declarationModifiers = message.Accessibility + (message.HasNewModifier ? " new" : string.Empty);
 		string parameterDeclarations = string.Join(", ", message.Parameters.Select(static parameter => $"{parameter.TypeName} {parameter.Name}"));
 		string writerBody = WriteParameters(message);
 		string localInvocation = message.ReceiveMode == NetworkMessageReceiveModeModel.Event
@@ -140,7 +141,7 @@ internal static class NetworkObjectMessagesGenerator {
 
 		if (message.Kind == NetworkMessageKind.Broadcast) {
 			return $$"""
-				public partial void {{message.Name}}({{parameterDeclarations}})
+				{{declarationModifiers}} partial void {{message.Name}}({{parameterDeclarations}})
 				{
 					if (Peer is not global::Cat.Network.RelayClient client) {
 						throw new global::System.InvalidOperationException("Broadcasts can only be invoked by a connected relay client.");
@@ -158,7 +159,7 @@ internal static class NetworkObjectMessagesGenerator {
 		}
 
 		return $$"""
-			public partial void {{message.Name}}({{parameterDeclarations}})
+			{{declarationModifiers}} partial void {{message.Name}}({{parameterDeclarations}})
 			{
 				if (Peer is not global::Cat.Network.RelayClient client) {
 					throw new global::System.InvalidOperationException("RPCs can only be invoked by a connected relay client.");
