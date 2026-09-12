@@ -6,6 +6,13 @@ namespace Cat.Network;
 
 internal static class NetworkCollectionSerializer {
 	private static ConcurrentDictionary<Type, ItemCodec> Codecs { get; } = new();
+	// Struct fields need boundaries independent of the enclosing collection item.
+	private static ItemCodec StructStringFieldCodec { get; } = new(
+		isNetworkObject: false,
+		serializeFull: static (writer, value, _, _) => WriteStructStringField(writer, (string?)value),
+		serializeUpdate: static (writer, value, _, _) => WriteStructStringField(writer, (string?)value),
+		deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => ReadStructStringField(data, ref offset),
+		deserializeUpdate: static (_, _, _) => throw new InvalidOperationException("String struct fields do not support update operations."));
 
 	public static ItemCodec GetCodec<T>() {
 		return ItemCodecCache<T>.Value;
@@ -279,7 +286,7 @@ internal static class NetworkCollectionSerializer {
 			FieldCodec[] fieldCodecs = declaredType.GetFields(BindingFlags.Instance | BindingFlags.Public)
 				.Where(static field => !field.IsStatic)
 				.OrderBy(static field => field.Name, StringComparer.Ordinal)
-				.Select(field => new FieldCodec(field, GetOrCreateCodec(field.FieldType)))
+				.Select(field => new FieldCodec(field, field.FieldType == typeof(string) ? StructStringFieldCodec : GetOrCreateCodec(field.FieldType)))
 				.ToArray();
 
 			return new ItemCodec(
@@ -307,6 +314,35 @@ internal static class NetworkCollectionSerializer {
 		}
 
 		throw new InvalidOperationException($"Collection item type '{declaredType.FullName}' is not supported.");
+	}
+
+	private static void WriteStructStringField(BufferWriter writer, string? value) {
+		if (value is null) {
+			writer.WriteByte(0);
+			return;
+		}
+
+		writer.WriteByte(1);
+		writer.WriteLengthPrefixedUtf8(value);
+	}
+
+	private static string? ReadStructStringField(ReadOnlySpan<byte> data, ref int offset) {
+		byte hasValue = ReadByte(data, ref offset);
+		if (hasValue == 0) {
+			return null;
+		}
+		if (hasValue != 1) {
+			throw new InvalidOperationException("Collection struct string nullable flag is invalid.");
+		}
+
+		uint byteCount = ReadUInt32(data, ref offset);
+		if (data.Length - offset < byteCount) {
+			throw new InvalidOperationException("Collection struct string payload is truncated.");
+		}
+
+		string value = System.Text.Encoding.UTF8.GetString(data.Slice(offset, (int)byteCount));
+		offset += (int)byteCount;
+		return value;
 	}
 
 	private static Guid GetNetworkObjectTypeId(Type type) {

@@ -390,7 +390,11 @@ For nested `NetworkObject` properties, the value payload starts with `NetworkObj
 |     1 | `Replace` | Read a nested type id and full payload, then replace the object. |
 |     2 | `Clear`   | Clear the nested object reference.                               |
 
-Struct values are encoded by public instance fields in ascending ordinal field-name order. Strings inside struct payloads are length-prefixed because more field data may follow.
+Struct values are encoded by public instance fields in ascending ordinal field-name order. In generated properties, collection items (including dictionary keys and values), and upgrade fields, each string struct field starts with a one-byte presence marker: `0` means null; `1` is followed by a `uint` UTF-8 byte count and exactly that many bytes. Empty strings use marker `1` and byte count `0`. This rule also applies inside nested and nullable structs, so subsequent fields retain their boundaries.
+
+**Collection struct string compatibility:** This corrects the earlier collection encoding, which concatenated raw string bytes with subsequent fields. Full snapshots and dirty operations involving these structs use the corrected format, including dictionary keys in remove operations. The formats are incompatible even when a string is the final or only field. Upgrade all peers exchanging these collection types together; there is no automatic legacy detection or codec selection by object schema version. Regenerate stored collection payloads from original data, or migrate them with a schema-specific legacy parser before loading them. Legacy fields with adjacent unframed strings cannot in general be separated unambiguously.
+
+Generated property and upgrade struct encodings, collection structs without string fields, and top-level string collection item encodings are unchanged by this correction. Message strings follow the separate contract below.
 
 ### RPC And Broadcast Data
 
@@ -414,4 +418,4 @@ Each declared parameter is encoded in declaration order:
 - `int` parameter byte count
 - parameter bytes
 
-Parameter bytes use the same scalar, nullable, struct, string, `Guid`, and `NetworkObject` encodings used by generated serializers.
+Parameter bytes use the same scalar, nullable value type, `Guid`, and `NetworkObject` encodings used by generated serializers. Struct fields use the same ordinal field-name order, but message strings omit the presence marker and reject null: a top-level string occupies its parameter bytes, while a string struct field uses a `uint` UTF-8 byte count followed by those bytes. Structs containing strings therefore have different message bytes from their property, collection, and upgrade encodings.
