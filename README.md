@@ -4,6 +4,33 @@ Cat.Network is an attribute-driven networking and serialization library for .NET
 
 ## Project Setup
 
+Use **.NET SDK 10.0.400 with C# 14** to compile projects that declare network types. This is the tested compiler baseline for the bundled analyzer and generator, which reference Roslyn 5.6.0. Partial property declarations and the generated `field` accessors require a newer language version than the C# 12 default for `net8.0`; C# 13 is also insufficient for the generated accessors.
+
+The runtime library still targets **.NET 8**. Selecting a build SDK does not change that runtime target. Set the language version explicitly in your consuming project:
+
+```xml
+<PropertyGroup>
+  <TargetFramework>net8.0</TargetFramework>
+  <LangVersion>14.0</LangVersion>
+</PropertyGroup>
+```
+
+Place this `global.json` in your solution directory, matching the repository's SDK selection:
+
+```json
+{
+  "sdk": {
+    "version": "10.0.400",
+    "rollForward": "latestPatch",
+    "allowPrerelease": false
+  }
+}
+```
+
+This selects SDK 10.0.400 or later stable patches in the same 10.0.4xx feature band. Run `dotnet --version` from that directory to check the selected SDK. The pin does not install the SDK; install it first. Earlier SDK/compiler hosts have not been verified with these Roslyn extensions.
+
+Running `net8.0` applications and the repository tests also requires the .NET 8 runtime. For repository development, install the .NET 8 SDK alongside SDK 10.0.400 to provide that runtime and the .NET 8 targeting packs; CI provisions both. The .NET 10 SDK alone does not install the .NET 8 runtime.
+
 Reference `Carsillas.Cat.Network` from the project that declares your network types. The runtime package is expected to carry the analyzer and source generator, so consumers get diagnostics and generated implementations from a single reference.
 
 ```xml
