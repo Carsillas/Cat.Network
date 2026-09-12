@@ -34,7 +34,9 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		get => Items[key];
 		set {
 			bool replacedValue = Items.TryGetValue(key, out TValue? previous);
-			if (replacedValue && EqualityComparer<TValue>.Default.Equals(previous, value)) {
+			if (replacedValue && (ValueCodec.IsNetworkObject
+			    ? ReferenceEquals(previous, value)
+			    : EqualityComparer<TValue>.Default.Equals(previous, value))) {
 				return;
 			}
 
