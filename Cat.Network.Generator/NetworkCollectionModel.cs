@@ -13,7 +13,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 	private const string NetworkListMetadataName = "global::Cat.Network.NetworkList<T>";
 	private const string NetworkDictionaryMetadataName = "global::Cat.Network.NetworkDictionary<TKey, TValue>";
 
-	private NetworkCollectionModel(NetworkCollectionKind kind, string typeName, string itemTypeName, string? keyTypeName, string? runtimeKeyTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, int propertyIndex, bool isNetworkObjectItem, string backingFieldName) {
+	private NetworkCollectionModel(NetworkCollectionKind kind, string typeName, string itemTypeName, string? keyTypeName, string? runtimeKeyTypeName, string declaringTypeName, string name, string accessibility, bool hasNewModifier, string getterAccessibility, string setterAccessibility, int propertyIndex, bool isNetworkObjectItem, string backingFieldName) {
 		Kind = kind;
 		TypeName = typeName;
 		ItemTypeName = itemTypeName;
@@ -22,6 +22,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		DeclaringTypeName = declaringTypeName;
 		Name = name;
 		Accessibility = accessibility;
+		HasNewModifier = hasNewModifier;
 		GetterAccessibility = getterAccessibility;
 		SetterAccessibility = setterAccessibility;
 		PropertyIndex = propertyIndex;
@@ -44,6 +45,8 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 	public string Name { get; }
 
 	public string Accessibility { get; }
+
+	public bool HasNewModifier { get; }
 
 	public string GetterAccessibility { get; }
 
@@ -74,7 +77,8 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 			runtimeKeyTypeName,
 			property.ContainingType.ToDisplayString(FullyQualifiedTypeFormat),
 			property.Name,
-			GetAccessibility(property.DeclaredAccessibility),
+			NetworkMemberAccessibility.GetDeclaration(property),
+			NetworkMemberAccessibility.HasNewModifier(property),
 			GetAccessorAccessibility(property, property.GetMethod),
 			GetAccessorAccessibility(property, property.SetMethod),
 			propertyIndex,
@@ -92,6 +96,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		       DeclaringTypeName == other.DeclaringTypeName &&
 		       Name == other.Name &&
 		       Accessibility == other.Accessibility &&
+		       HasNewModifier == other.HasNewModifier &&
 		       GetterAccessibility == other.GetterAccessibility &&
 		       SetterAccessibility == other.SetterAccessibility &&
 		       PropertyIndex == other.PropertyIndex &&
@@ -113,6 +118,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 			hashCode = (hashCode * 397) ^ DeclaringTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ Name.GetHashCode();
 			hashCode = (hashCode * 397) ^ Accessibility.GetHashCode();
+			hashCode = (hashCode * 397) ^ HasNewModifier.GetHashCode();
 			hashCode = (hashCode * 397) ^ GetterAccessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ SetterAccessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ PropertyIndex;
@@ -137,18 +143,6 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 			return string.Empty;
 		}
 
-		return GetAccessibility(accessor.DeclaredAccessibility) + " ";
-	}
-
-	private static string GetAccessibility(Accessibility accessibility) {
-		return accessibility switch {
-			Microsoft.CodeAnalysis.Accessibility.Public => "public",
-			Microsoft.CodeAnalysis.Accessibility.Internal => "internal",
-			Microsoft.CodeAnalysis.Accessibility.Protected => "protected",
-			Microsoft.CodeAnalysis.Accessibility.Private => "private",
-			Microsoft.CodeAnalysis.Accessibility.ProtectedAndInternal => "private protected",
-			Microsoft.CodeAnalysis.Accessibility.ProtectedOrInternal => "protected internal",
-			_ => "private"
-		};
+		return NetworkMemberAccessibility.GetKeywords(accessor.DeclaredAccessibility) + " ";
 	}
 }

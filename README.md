@@ -39,13 +39,17 @@ The generator creates:
 
 Only members marked with `[NetworkProperty]` or `[NetworkCollection]` participate in serialization.
 
+Network property and collection declarations must be concrete instance members; `static`, `abstract`, `virtual`, `override`, `sealed`, `extern`, and `required` modifiers are unsupported. Network properties require `get` and `set` accessors; `init` is unsupported. Private properties, declarations with omitted accessibility, and restricted getter/setter accessibility are supported.
+
+The generator preserves explicit `new` modifiers when replicated members hide ordinary base members. Replicated property names must still be unique across the inheritance chain.
+
 ## Supported Member Types
 
 Network properties support:
 
 - primitive numeric types, `bool`, `string`, and `Guid`
 - nullable value types such as `int?` and `Guid?`
-- structs whose public instance fields are supported member types
+- structs whose public instance fields are writable and are supported member types
 - nested `NetworkObject` references
 
 Network collections support `NetworkList<T>` and `NetworkDictionary<TKey, TValue>` through getter-only partial properties.
@@ -222,7 +226,7 @@ Set `NetworkEntity.DestroyWithOwner` before spawning when the server should dele
 
 ## RPCs And Broadcasts
 
-Entity-scoped messages are declared as partial `void` methods on `NetworkEntity` types.
+Entity-scoped messages are declared as partial `void` methods on `NetworkEntity` types. They must be concrete instance methods without `static`, `abstract`, `virtual`, `override`, `sealed`, or `extern` modifiers.
 
 ```csharp
 [NetworkObject]
@@ -235,7 +239,7 @@ public partial class PlayerEntity : NetworkEntity {
 }
 ```
 
-The generated methods are the public API you call from gameplay code:
+The generator preserves message method accessibility, including private methods and declarations with omitted accessibility, and explicit `new` modifiers. Public methods can be called from gameplay code:
 
 ```csharp
 player.RequestHeal(10);
@@ -257,7 +261,7 @@ Broadcast behavior:
 - The client serializes the arguments immediately and queues a broadcast packet.
 - The server forwards the broadcast to clients that already know the entity, except the owner, and adds the owner profile as the instigator.
 
-RPC and broadcast parameters must be supported serializable types. `NetworkEntity` parameters are intentionally rejected because the server supplies identity through the `NetworkProfile instigator` receive parameter.
+RPC and broadcast parameters must be supported serializable types. Public instance fields in struct parameters must be writable, including fields in nested or nullable structs. `NetworkEntity` parameters are intentionally rejected because the server supplies identity through the `NetworkProfile instigator` receive parameter.
 
 Supported message parameter types include:
 

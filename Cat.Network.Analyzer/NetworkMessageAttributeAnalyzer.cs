@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using Cat.Network.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -23,8 +24,8 @@ internal static class NetworkMessageAttributeAnalyzer {
 
 	private static readonly DiagnosticDescriptor NetworkMessageAttributeRequiresPartialVoidRule = new(
 		NetworkMessageAttributeRequiresPartialVoidDiagnosticId,
-		"Network messages require partial void methods",
-		"Method '{0}' is marked with {1} but is not a non-generic partial void method without ref, out, or in parameters",
+		"Network messages require non-virtual instance partial void methods",
+		"Method '{0}' is marked with {1} but must be a concrete, non-virtual, non-generic instance partial void method without ref, out, or in parameters",
 		"Usage",
 		DiagnosticSeverity.Error,
 		true);
@@ -32,7 +33,7 @@ internal static class NetworkMessageAttributeAnalyzer {
 	private static readonly DiagnosticDescriptor NetworkMessageAttributeParameterUnsupportedRule = new(
 		NetworkMessageAttributeParameterUnsupportedDiagnosticId,
 		"Network message parameter type is not supported",
-		"Parameter '{0}' on network message '{1}' has unsupported type '{2}'",
+		"Parameter '{0}' on network message '{1}' has unsupported type '{2}'{3}",
 		"Usage",
 		DiagnosticSeverity.Error,
 		true);
@@ -104,6 +105,7 @@ internal static class NetworkMessageAttributeAnalyzer {
 		}
 
 		if (!NetworkAnalyzerHelpers.IsPartial(method, context.CancellationToken) ||
+		    NetworkDeclarationShape.GetUnsupportedModifier(method) is not null ||
 		    method.ReturnsVoid == false ||
 		    method.TypeParameters.Length != 0 ||
 		    method.Parameters.Any(static parameter => parameter.RefKind != RefKind.None)) {
@@ -125,13 +127,16 @@ internal static class NetworkMessageAttributeAnalyzer {
 				continue;
 			}
 
-			if (!IsSupportedParameterType(parameter.Type, networkObjectType)) {
+			bool hasReadonlyField = NetworkDeclarationShape.HasReadonlySerializedField(parameter.Type);
+			if (hasReadonlyField ||
+			    !IsSupportedParameterType(parameter.Type, networkObjectType)) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkMessageAttributeParameterUnsupportedRule,
 					parameter.Locations.FirstOrDefault(),
 					parameter.Name,
 					method.Name,
-					parameter.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
+					parameter.Type.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat),
+					hasReadonlyField ? "; public instance struct fields cannot be readonly" : string.Empty));
 			}
 		}
 	}

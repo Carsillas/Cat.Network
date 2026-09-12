@@ -17,6 +17,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <Compile Include="..\Shared\NetworkDeclarationShape.cs" Link="NetworkDeclarationShape.cs"/>
         <AdditionalFiles Include="AnalyzerReleases.Shipped.md"/>
         <AdditionalFiles Include="AnalyzerReleases.Unshipped.md"/>
     </ItemGroup>
