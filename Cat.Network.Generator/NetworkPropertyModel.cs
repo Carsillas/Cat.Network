@@ -156,10 +156,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			ImmutableArray<NetworkStructFieldModel> structFields = structType.GetMembers()
-				.OfType<IFieldSymbol>()
-				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public)
-				.OrderBy(static field => field.Name, StringComparer.Ordinal)
+			ImmutableArray<NetworkStructFieldModel> structFields = NetworkStructFieldSymbols.GetSerializableFields(structType)
 				.Select(NetworkStructFieldModel.Create)
 				.ToImmutableArray();
 
