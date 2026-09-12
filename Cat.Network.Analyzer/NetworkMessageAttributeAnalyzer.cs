@@ -257,7 +257,7 @@ internal static class NetworkMessageAttributeAnalyzer {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			return structType.GetMembers()
+			return NetworkAnalyzerHelpers.HasSupportedStructFieldShape(structType) && structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
 				.All(field => IsSupportedParameterType(field.Type, networkObjectType) && !IsNetworkObjectType(field.Type, networkObjectType));

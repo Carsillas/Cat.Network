@@ -7,6 +7,18 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Cat.Network.Analyzer;
 
 internal static class NetworkAnalyzerHelpers {
+	public static bool HasSupportedStructFieldShape(INamedTypeSymbol type) {
+		// Built-in value types need explicit codecs; their private fields may be omitted from metadata symbols.
+		if (type.SpecialType != SpecialType.None) {
+			return false;
+		}
+
+		IFieldSymbol[] instanceFields = type.GetMembers().OfType<IFieldSymbol>()
+			.Where(static field => !field.IsStatic).ToArray();
+		// Empty structs have no state to lose. A struct with only hidden fields does.
+		return instanceFields.Length == 0 || instanceFields.Any(static field => field.DeclaredAccessibility == Accessibility.Public);
+	}
+
 	public static bool InheritsFrom(INamedTypeSymbol type, INamedTypeSymbol baseType) {
 		for (INamedTypeSymbol? current = type.BaseType; current is not null; current = current.BaseType)
 			if (SymbolEqualityComparer.Default.Equals(current, baseType)) {

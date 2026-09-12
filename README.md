@@ -43,10 +43,14 @@ Only members marked with `[NetworkProperty]` or `[NetworkCollection]` participat
 
 Network properties support:
 
-- primitive numeric types, `bool`, `string`, and `Guid`
+- `byte`, `sbyte`, `short`, `ushort`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `bool`, `string`, and `Guid`
 - nullable value types such as `int?` and `Guid?`
 - structs whose public instance fields are supported member types
 - nested `NetworkObject` references
+
+The struct format serializes only public instance fields, recursively; any additional private fields or properties are not transmitted. Struct fields cannot contain `NetworkObject` references. Structs with no instance fields are supported, including structs with only static fields or computed properties. Structs with instance state but no public instance fields are unsupported.
+
+Types such as `decimal`, `DateTime`, `TimeSpan`, and `char` have no codec and are rejected, including inside other structs or nullable values. These rules also apply to collection items, dictionary keys and values, message parameters, and schema upgrade values. Dictionary keys must be nonnull; nullable value types are not supported as keys or key fields.
 
 Network collections support `NetworkList<T>` and `NetworkDictionary<TKey, TValue>` through getter-only partial properties.
 
@@ -261,7 +265,7 @@ RPC and broadcast parameters must be supported serializable types. `NetworkEntit
 
 Supported message parameter types include:
 
-- primitive numeric types, `bool`, `string`, and `Guid`
+- the numeric types, `bool`, `string`, and `Guid` listed under [Supported Member Types](#supported-member-types)
 - nullable value types
 - supported structs
 - `NetworkObject` types
