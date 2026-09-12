@@ -12,7 +12,7 @@ public class BufferWriter {
 	}
 
 	public BufferWriter(int initialBufferSize) {
-		if (initialBufferSize <= 0) {
+		if (initialBufferSize <= 0 || initialBufferSize > Array.MaxLength) {
 			throw new ArgumentOutOfRangeException(nameof(initialBufferSize));
 		}
 
@@ -44,6 +44,7 @@ public class BufferWriter {
 	}
 
 	public Span<byte> GetSpan(int minByteCount) {
+		ArgumentOutOfRangeException.ThrowIfNegative(minByteCount);
 		EnsureFreeCapacity(minByteCount);
 		return Buffer.AsSpan(WrittenCount);
 	}
@@ -53,6 +54,7 @@ public class BufferWriter {
 	}
 
 	public Range Reserve(int count) {
+		ArgumentOutOfRangeException.ThrowIfNegative(count);
 		EnsureFreeCapacity(count);
 		int start = WrittenCount;
 		Advance(count);
@@ -152,7 +154,7 @@ public class BufferWriter {
 	}
 
 	private void EnsureFreeCapacity(int byteCount) {
-		if (byteCount <= 0) {
+		if (byteCount == 0) {
 			byteCount = 1;
 		}
 
@@ -160,10 +162,14 @@ public class BufferWriter {
 			return;
 		}
 
-		int requiredCapacity = WrittenCount + byteCount;
+		if (byteCount > Array.MaxLength - WrittenCount) {
+			throw new OutOfMemoryException("The buffer cannot exceed the maximum array length.");
+		}
+
+		int requiredCapacity = checked(WrittenCount + byteCount);
 		int newCapacity = Buffer.Length;
 		while (newCapacity < requiredCapacity) {
-			newCapacity *= 2;
+			newCapacity = newCapacity > Array.MaxLength / 2 ? Array.MaxLength : newCapacity * 2;
 		}
 
 		byte[] newBuffer = new byte[newCapacity];
