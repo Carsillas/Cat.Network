@@ -22,7 +22,7 @@
  CN0015  | Usage    | Error    | NetworkCollectionAttribute requires a supported item type
  CN0016  | Usage    | Error    | NetworkCollectionAttribute requires a supported dictionary key type
  CN0017  | Usage    | Error    | UpgradeToAttribute can only be used in NetworkObject-derived types
- CN0018  | Usage    | Error    | UpgradeToAttribute requires a static upgrade method with the expected signature
+ CN0018  | Usage    | Error    | UpgradeToAttribute requires a static, non-async upgrade method with the expected signature
  CN0019  | Usage    | Error    | UpgradeToAttribute target versions must be unique
  CN0020  | Usage    | Error    | UpgradeToAttribute target version must be supported by the NetworkObject schema version
  CN0021  | Usage    | Error    | RPCAttribute and BroadcastAttribute can only be used in NetworkEntity-derived types
