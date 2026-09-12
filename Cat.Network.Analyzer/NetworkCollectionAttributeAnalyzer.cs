@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -146,7 +147,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 				property.Locations.FirstOrDefault(),
 				property.Name));
 		} else if (IsNetworkListType(propertyType)) {
-			if (!IsSupportedCollectionValueType(propertyType.TypeArguments[0], networkObjectType)) {
+			if (!IsSupportedCollectionValueType(propertyType.TypeArguments[0], networkObjectType, context.CancellationToken)) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkCollectionAttributeRequiresSupportedItemTypeRule,
 					property.Locations.FirstOrDefault(),
@@ -154,14 +155,14 @@ internal static class NetworkCollectionAttributeAnalyzer {
 					propertyType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
 			}
 		} else if (IsNetworkDictionaryType(propertyType)) {
-			if (!IsSupportedDictionaryKeyType(propertyType.TypeArguments[0])) {
+			if (!IsSupportedDictionaryKeyType(propertyType.TypeArguments[0], ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default), context.CancellationToken)) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkCollectionAttributeRequiresSupportedKeyTypeRule,
 					property.Locations.FirstOrDefault(),
 					property.Name,
 					propertyType.TypeArguments[0].ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
 			}
-			if (!IsSupportedCollectionValueType(propertyType.TypeArguments[1], networkObjectType)) {
+			if (!IsSupportedCollectionValueType(propertyType.TypeArguments[1], networkObjectType, context.CancellationToken)) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkCollectionAttributeRequiresSupportedItemTypeRule,
 					property.Locations.FirstOrDefault(),
@@ -205,7 +206,9 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		return type.OriginalDefinition.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat) == NetworkDictionaryMetadataName;
 	}
 
-	private static bool IsSupportedCollectionValueType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+	private static bool IsSupportedCollectionValueType(ITypeSymbol type, INamedTypeSymbol networkObjectType, CancellationToken cancellationToken) {
+		cancellationToken.ThrowIfCancellationRequested();
+
 		if (IsSupportedScalarOrStringOrGuidType(type)) {
 			return true;
 		}
@@ -217,17 +220,20 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+			ImmutableHashSet<ITypeSymbol> visitedTypes = ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default).Add(structType);
 			return structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
-				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType));
+				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType, visitedTypes, cancellationToken));
 		}
 
 		return SymbolEqualityComparer.Default.Equals(type, networkObjectType) ||
 		       NetworkAnalyzerHelpers.InheritsFrom((INamedTypeSymbol)type, networkObjectType);
 	}
 
-	private static bool IsSupportedDictionaryKeyType(ITypeSymbol type) {
+	private static bool IsSupportedDictionaryKeyType(ITypeSymbol type, ImmutableHashSet<ITypeSymbol> visitedTypes, CancellationToken cancellationToken) {
+		cancellationToken.ThrowIfCancellationRequested();
+
 		if (type is INamedTypeSymbol namedType &&
 		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
 		    namedType.TypeArguments.Length == 1) {
@@ -239,37 +245,22 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+			if (visitedTypes.Count >= NetworkAnalyzerHelpers.MaxStructNestingDepth || visitedTypes.Contains(structType)) {
+				return false;
+			}
+
+			ImmutableHashSet<ITypeSymbol> nextVisitedTypes = visitedTypes.Add(structType);
 			return structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
-				.All(IsSupportedDictionaryKeyFieldType);
+				.All(field => IsSupportedDictionaryKeyType(field.Type, nextVisitedTypes, cancellationToken));
 		}
 
 		return false;
 	}
 
-	private static bool IsSupportedDictionaryKeyFieldType(IFieldSymbol field) {
-		if (field.Type is INamedTypeSymbol namedType &&
-		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
-		    namedType.TypeArguments.Length == 1) {
-			return false;
-		}
-
-		if (IsSupportedScalarOrStringOrGuidType(field.Type)) {
-			return true;
-		}
-
-		if (field.Type.TypeKind == TypeKind.Struct && field.Type is INamedTypeSymbol structType) {
-			return structType.GetMembers()
-				.OfType<IFieldSymbol>()
-				.Where(static nestedField => !nestedField.IsStatic && nestedField.DeclaredAccessibility == Accessibility.Public)
-				.All(IsSupportedDictionaryKeyFieldType);
-		}
-
-		return false;
-	}
-
-	private static bool IsSupportedStructFieldType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+	private static bool IsSupportedStructFieldType(ITypeSymbol type, INamedTypeSymbol networkObjectType, ImmutableHashSet<ITypeSymbol> visitedTypes, CancellationToken cancellationToken) {
+		cancellationToken.ThrowIfCancellationRequested();
 		if (type.SpecialType is SpecialType.System_Boolean or
 		    SpecialType.System_Byte or
 		    SpecialType.System_SByte or
@@ -309,10 +300,15 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+			if (visitedTypes.Count >= NetworkAnalyzerHelpers.MaxStructNestingDepth || visitedTypes.Contains(structType)) {
+				return false;
+			}
+
+			ImmutableHashSet<ITypeSymbol> nextVisitedTypes = visitedTypes.Add(structType);
 			return structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
-				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType));
+				.All(field => IsSupportedStructFieldType(field.Type, networkObjectType, nextVisitedTypes, cancellationToken));
 		}
 
 		return false;
