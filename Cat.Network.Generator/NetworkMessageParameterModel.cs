@@ -10,12 +10,13 @@ internal sealed class NetworkMessageParameterModel : IEquatable<NetworkMessagePa
 		SymbolDisplayGlobalNamespaceStyle.Included,
 		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
-		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
+		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
 
 	private static readonly SymbolDisplayFormat FullyQualifiedNonNullableTypeFormat = new(
 		SymbolDisplayGlobalNamespaceStyle.Included,
 		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
-		SymbolDisplayGenericsOptions.IncludeTypeParameters);
+		SymbolDisplayGenericsOptions.IncludeTypeParameters,
+		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
 
 	private NetworkMessageParameterModel(string typeName, string runtimeTypeName, string name, NetworkPropertySerializationKind serializationKind, bool isNullableValueType, ImmutableArray<NetworkStructFieldModel> structFields) {
 		TypeName = typeName;
