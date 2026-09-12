@@ -2,14 +2,7 @@ namespace Cat.Network;
 
 public sealed class NetworkObjectList<T> : NetworkList<T> where T : NetworkObject? {
 	protected override void ValidateItemForAssignment(T item) {
-		if (item is null) {
-			return;
-		}
-
-		INetworkObject networkObject = item;
-		if (networkObject.Parent is not null) {
-			throw new InvalidOperationException("NetworkObjects may only occupy one networked property or list at a time.");
-		}
+		NetworkObject.ValidateAttachment(item, Owner, PropertyIndex, isCollectionItem: true);
 	}
 
 	protected override void OnItemAdded(T item) {
