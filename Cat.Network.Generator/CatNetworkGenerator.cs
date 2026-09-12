@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Cat.Network.Shared;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -13,7 +14,14 @@ public sealed class CatNetworkGenerator : IIncrementalGenerator {
 			.ForAttributeWithMetadataName(
 				NetworkObjectAttributeMetadataName,
 				static (node, _) => node is ClassDeclarationSyntax,
-				static (syntaxContext, _) => NetworkObjectTypeModel.Create((INamedTypeSymbol)syntaxContext.TargetSymbol))
+				static (syntaxContext, cancellationToken) => {
+					INamedTypeSymbol type = (INamedTypeSymbol)syntaxContext.TargetSymbol;
+					return NetworkMemberNames.HasInheritedNameCollision(type, cancellationToken)
+						? null
+						: NetworkObjectTypeModel.Create(type);
+				})
+			.Where(static model => model is not null)
+			.Select(static (model, _) => model!)
 			.Collect();
 
 		context.RegisterSourceOutput(networkObjectTypes, static (sourceProductionContext, models) => {

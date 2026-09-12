@@ -19,6 +19,7 @@
     <ItemGroup>
         <AdditionalFiles Include="AnalyzerReleases.Shipped.md"/>
         <AdditionalFiles Include="AnalyzerReleases.Unshipped.md"/>
+        <Compile Include="..\Shared\NetworkMemberNames.cs" Link="Shared\NetworkMemberNames.cs"/>
     </ItemGroup>
 
     <ItemGroup>
