@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 
 namespace Cat.Network.Generator;
@@ -38,9 +39,11 @@ internal sealed class NetworkMessageParameterModel : IEquatable<NetworkMessagePa
 
 	public ImmutableArray<NetworkStructFieldModel> StructFields { get; }
 
-	public static NetworkMessageParameterModel Create(IParameterSymbol parameter) {
+	public static NetworkMessageParameterModel Create(IParameterSymbol parameter, CancellationToken cancellationToken) {
+		cancellationToken.ThrowIfCancellationRequested();
+
 		(ITypeSymbol effectiveType, bool isNullableValueType) = GetEffectiveType(parameter.Type);
-		(NetworkPropertySerializationKind serializationKind, ImmutableArray<NetworkStructFieldModel> structFields) = GetSerializationMetadata(effectiveType);
+		(NetworkPropertySerializationKind serializationKind, ImmutableArray<NetworkStructFieldModel> structFields) = GetSerializationMetadata(effectiveType, cancellationToken);
 
 		return new NetworkMessageParameterModel(
 			parameter.Type.ToDisplayString(FullyQualifiedTypeFormat),
@@ -87,7 +90,7 @@ internal sealed class NetworkMessageParameterModel : IEquatable<NetworkMessagePa
 		return (type, false);
 	}
 
-	private static (NetworkPropertySerializationKind SerializationKind, ImmutableArray<NetworkStructFieldModel> StructFields) GetSerializationMetadata(ITypeSymbol type) {
+	private static (NetworkPropertySerializationKind SerializationKind, ImmutableArray<NetworkStructFieldModel> StructFields) GetSerializationMetadata(ITypeSymbol type, CancellationToken cancellationToken) {
 		switch (type.SpecialType) {
 			case SpecialType.System_Boolean:
 				return (NetworkPropertySerializationKind.Boolean, ImmutableArray<NetworkStructFieldModel>.Empty);
@@ -130,7 +133,7 @@ internal sealed class NetworkMessageParameterModel : IEquatable<NetworkMessagePa
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
 				.OrderBy(static field => field.Name, StringComparer.Ordinal)
-				.Select(NetworkStructFieldModel.Create)
+				.Select(field => NetworkStructFieldModel.Create(field, cancellationToken))
 				.ToImmutableArray();
 
 			if (structFields.All(static field => field.SerializationKind != NetworkPropertySerializationKind.Unsupported &&

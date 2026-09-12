@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -116,7 +117,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 				propertyType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)));
 		}
 
-		if (!IsSupportedNetworkPropertyType(property.Type, networkObjectType, ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default))) {
+		if (!IsSupportedNetworkPropertyType(property.Type, networkObjectType, ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default), context.CancellationToken)) {
 			context.ReportDiagnostic(Diagnostic.Create(
 				NetworkPropertyAttributeRequiresSupportedTypeRule,
 				property.Locations.FirstOrDefault(),
@@ -162,7 +163,9 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		       NetworkAnalyzerHelpers.InheritsFrom(type, networkEntityType);
 	}
 
-	private static bool IsSupportedNetworkPropertyType(ITypeSymbol type, INamedTypeSymbol networkObjectType, ImmutableHashSet<ITypeSymbol> visitedTypes) {
+	private static bool IsSupportedNetworkPropertyType(ITypeSymbol type, INamedTypeSymbol networkObjectType, ImmutableHashSet<ITypeSymbol> visitedTypes, CancellationToken cancellationToken) {
+		cancellationToken.ThrowIfCancellationRequested();
+
 		if (IsSupportedScalarOrStringOrGuidType(type)) {
 			return true;
 		}
@@ -174,7 +177,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			if (visitedTypes.Contains(structType)) {
+			if (visitedTypes.Count >= NetworkAnalyzerHelpers.MaxStructNestingDepth || visitedTypes.Contains(structType)) {
 				return false;
 			}
 
@@ -182,7 +185,7 @@ internal static class NetworkPropertyAttributeAnalyzer {
 			return structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
-				.All(field => IsSupportedNetworkPropertyType(field.Type, networkObjectType, nextVisitedTypes) &&
+				.All(field => IsSupportedNetworkPropertyType(field.Type, networkObjectType, nextVisitedTypes, cancellationToken) &&
 				              !IsNetworkObjectCompatibleType(field.Type, networkObjectType));
 		}
 
