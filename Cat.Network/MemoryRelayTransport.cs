@@ -7,7 +7,7 @@ public sealed class MemoryRelayTransport : IRelayTransport {
 	public event MessageHandler? MessageReceived;
 	public event Action<IRelayTransport>? Disconnected;
 
-	private Queue<byte[]> ReceivedMessages { get; } = new();
+	private Queue<byte[]> ReceivedMessages { get; set; } = new();
 
 	public void Send(ReadOnlySpan<byte> message) {
 		if (Remote is null) {
@@ -21,6 +21,15 @@ public sealed class MemoryRelayTransport : IRelayTransport {
 		while (ReceivedMessages.TryDequeue(out byte[] message)) {
 			MessageReceived?.Invoke(this, message);
 		}
+	}
+
+	internal void PrependReceivedMessages(IEnumerable<byte[]> messages) {
+		Queue<byte[]> queuedMessages = new(messages);
+		foreach (byte[] message in ReceivedMessages) {
+			queuedMessages.Enqueue(message);
+		}
+
+		ReceivedMessages = queuedMessages;
 	}
 
 	public void Disconnect() {
