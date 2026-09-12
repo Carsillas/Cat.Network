@@ -392,6 +392,14 @@ For nested `NetworkObject` properties, the value payload starts with `NetworkObj
 
 Struct values are encoded by public instance fields in ascending ordinal field-name order. Strings inside struct payloads are length-prefixed because more field data may follow.
 
+Value tuples use their physical storage fields: `Item1` through `Item7`, followed by recursive `Rest` storage for longer tuples. Element aliases do not add fields or change payload order. For example, `(int Z, int A)` and `(int, int)` both encode two integers in `Item1`, `Item2` order. This also applies inside structs, nullable values, collections, and message parameters.
+
+**Tuple wire compatibility:** Earlier generators emitted extra fields for nondefault tuple aliases and emitted flattened `Item8` and later elements as well as `Rest`. Correcting this changes generated property and message payloads for named tuples with nondefault aliases and for all tuples longer than seven elements, including unnamed tuples and affected nested values. Short unnamed tuples and tuples using only their default `ItemN` names retain their encoding when their nested field layouts are unchanged. Collection item and typed upgrade codecs already used physical fields, so their tuple encodings are unchanged.
+
+Regenerate and update communicating endpoints together when using an affected schema. Previously stored payloads with duplicated tuple fields are not automatically detected or converted. Decode those bytes with the original schema and generator, or an explicit converter for that legacy layout, then write the values with the corrected encoding. Increasing the schema version and calling `reader.Get<T>()` alone cannot convert these old duplicate-field payloads. Once values use the corrected encoding, unnamed-to-named and alias-renaming property migrations can use the normal typed upgrade reader and writer.
+
+Message IDs still hash the declared parameter type display, which includes tuple aliases. Changing a message parameter's aliases therefore still changes its message ID, even though its physical parameter payload stays the same.
+
 ### RPC And Broadcast Data
 
 Client-authored RPC and broadcast payloads contain:
