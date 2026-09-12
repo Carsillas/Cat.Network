@@ -8,7 +8,7 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 		SymbolDisplayGlobalNamespaceStyle.Included,
 		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
-		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
+		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers);
 
 	private const string NetworkListMetadataName = "global::Cat.Network.NetworkList<T>";
 	private const string NetworkDictionaryMetadataName = "global::Cat.Network.NetworkDictionary<TKey, TValue>";
