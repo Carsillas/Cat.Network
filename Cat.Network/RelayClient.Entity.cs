@@ -93,6 +93,10 @@ public partial class RelayClient {
 	}
 
 	private void ProcessOutgoingMessages(IRelayTransport transport) {
+		// Outgoing lifecycle callbacks can queue more work. Defer it to the next tick.
+		NetworkEntity[] deleteBatch = EntitiesToDelete.ToArray();
+		OwnershipTransferRequest[] ownershipTransferBatch = OwnershipTransferRequests.ToArray();
+
 		foreach (NetworkEntity entity in Entities) {
 			if (EntitiesToSpawn.Contains(entity) || EntitiesToDelete.Contains(entity) || !Owns(entity) || !HasDirtyState(entity)) {
 				continue;
@@ -115,30 +119,37 @@ public partial class RelayClient {
 
 		EntitiesToSpawn.Clear();
 
-		foreach (NetworkEntity entity in EntitiesToDelete) {
+		foreach (NetworkEntity entity in deleteBatch) {
+			if (!EntitiesToDelete.Contains(entity)) {
+				continue;
+			}
+
 			MessageWriter.Clear();
 			WriteDeleteEntityMessage(MessageWriter, entity.Id);
 			transport.Send(MessageWriter.GetWrittenSpan());
+			EntitiesToDelete.Remove(entity);
 			UnregisterEntity(entity);
 		}
-
-		EntitiesToDelete.Clear();
 
 		while (OutgoingMessageWriters.TryDequeue(out BufferWriter? writer)) {
 			transport.Send(writer.GetWrittenSpan());
 			ReturnMessageWriter(writer);
 		}
 
-		foreach (OwnershipTransferRequest request in OwnershipTransferRequests) {
+		foreach (OwnershipTransferRequest request in ownershipTransferBatch) {
+			// An earlier callback may have canceled or replaced this exact request.
+			if (!OwnershipTransferRequests.Contains(request)) {
+				continue;
+			}
+
 			MessageWriter.Clear();
 			WriteOwnershipTransferRequestMessage(MessageWriter, request.EntityId, request.NewOwnerProfileId);
 			transport.Send(MessageWriter.GetWrittenSpan());
+			OwnershipTransferRequests.Remove(request);
 			if (TryGetEntity(request.EntityId, out NetworkEntity? entity)) {
 				RemoveOwnership(entity);
 			}
 		}
-
-		OwnershipTransferRequests.Clear();
 	}
 
 	private bool RegisterEntity(NetworkEntity entity) {
@@ -190,7 +201,11 @@ public partial class RelayClient {
 		return true;
 	}
 
-	private readonly record struct OwnershipTransferRequest(Guid EntityId, Guid NewOwnerProfileId);
+	// Replacing a request must invalidate its batch entry even when both ids are unchanged.
+	private sealed class OwnershipTransferRequest(Guid entityId, Guid newOwnerProfileId) {
+		public Guid EntityId { get; } = entityId;
+		public Guid NewOwnerProfileId { get; } = newOwnerProfileId;
+	}
 
 	private void InvokeReceivedMessage(Guid entityId, ReadOnlySpan<byte> data, bool rpc) {
 		if (!TryGetEntity(entityId, out NetworkEntity? entity) ||

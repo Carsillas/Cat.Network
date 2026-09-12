@@ -11,7 +11,7 @@ public partial class RelayClient(TypeCatalogue typeCatalogue) : RelayPeer(typeCa
 	private Dictionary<Guid, NetworkEntity> EntitiesById { get; } = [];
 	private HashSet<Guid> OwnedEntityIds { get; } = [];
 	private HashSet<NetworkEntity> EntitiesToSpawn { get; } = [];
-	private HashSet<NetworkEntity> EntitiesToDelete { get; } = [];
+	private HashSet<NetworkEntity> EntitiesToDelete { get; } = new(ReferenceEqualityComparer.Instance);
 	private List<OwnershipTransferRequest> OwnershipTransferRequests { get; } = [];
 	private Dictionary<Guid, NetworkProfile> ProfilesById { get; } = [];
 	private Queue<BufferWriter> OutgoingMessageWriters { get; } = [];
