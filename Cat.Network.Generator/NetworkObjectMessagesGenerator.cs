@@ -150,6 +150,9 @@ internal static class NetworkObjectMessagesGenerator {
 					}
 					global::Cat.Network.NetworkProfile instigator = client.Profile ?? throw new global::System.InvalidOperationException("Cannot invoke a broadcast before the local profile has been assigned.");
 					{{localInvocation}}
+					if (!global::System.Object.ReferenceEquals(client.Profile, instigator)) {
+						throw new global::System.InvalidOperationException("Cannot queue a broadcast after its relay session has ended or its local profile has changed.");
+					}
 					global::Cat.Network.BufferWriter writer = client.RentBroadcastMessageWriter(this, {{message.Id}}UL, out global::Cat.Network.SerializationContext context);
 					{{writerBody}}
 					client.QueueRentedMessageWriter(writer);
