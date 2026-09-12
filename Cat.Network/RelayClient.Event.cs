@@ -101,7 +101,8 @@ public partial class RelayClient {
 	}
 
 	private void RaiseEntityEvent(List<Action<NetworkEntity>> handlers, NetworkEntity entity) {
-		foreach (Action<NetworkEntity> handler in handlers) {
+		// Subscription changes take effect on the next notification.
+		foreach (Action<NetworkEntity> handler in handlers.ToArray()) {
 			try {
 				handler(entity);
 			} catch (Exception exception) {
@@ -111,7 +112,7 @@ public partial class RelayClient {
 	}
 
 	private void RaiseProfileEvent(List<Action<NetworkProfile>> handlers, NetworkProfile profile) {
-		foreach (Action<NetworkProfile> handler in handlers) {
+		foreach (Action<NetworkProfile> handler in handlers.ToArray()) {
 			try {
 				handler(profile);
 			} catch (Exception exception) {
@@ -121,7 +122,7 @@ public partial class RelayClient {
 	}
 
 	private void RaiseEventHandlerException(Exception exception) {
-		foreach (Action<Exception> handler in EventHandlerExceptionHandlers) {
+		foreach (Action<Exception> handler in EventHandlerExceptionHandlers.ToArray()) {
 			try {
 				handler(exception);
 			} catch (Exception) {
