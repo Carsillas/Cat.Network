@@ -98,8 +98,8 @@ internal static class NetworkObjectMessagesGenerator {
 		}
 
 		return $$"""
-			event {{message.Name}}RpcHandler? {{message.Name}}Received;
-			void Raise{{message.Name}}({{parameters}});
+			event {{message.ReceiveName}}RpcHandler? {{message.ReceiveName}}Received;
+			void Raise{{message.ReceiveName}}({{parameters}});
 			""";
 	}
 
@@ -112,13 +112,13 @@ internal static class NetworkObjectMessagesGenerator {
 	private static string MessageMember(NetworkMessageMethodModel message, string interfaceName) {
 		string eventMembers = message.ReceiveMode == NetworkMessageReceiveModeModel.Event
 			? $$"""
-				public delegate void {{message.Name}}RpcHandler({{ReceiveParameters(message)}});
+				public delegate void {{message.ReceiveName}}RpcHandler({{ReceiveParameters(message)}});
 
-				public event {{message.Name}}RpcHandler? {{message.Name}}Received;
+				public event {{message.ReceiveName}}RpcHandler? {{message.ReceiveName}}Received;
 
-				void {{message.DeclaringTypeName}}.{{interfaceName}}.Raise{{message.Name}}({{ReceiveParameters(message)}})
+				void {{message.DeclaringTypeName}}.{{interfaceName}}.Raise{{message.ReceiveName}}({{ReceiveParameters(message)}})
 				{
-					{{message.Name}}Received?.Invoke({{ReceiveArgumentNames(message)}});
+					{{message.ReceiveName}}Received?.Invoke({{ReceiveArgumentNames(message)}});
 				}
 				"""
 			: string.Empty;
@@ -135,7 +135,7 @@ internal static class NetworkObjectMessagesGenerator {
 		string parameterDeclarations = string.Join(", ", message.Parameters.Select(static parameter => $"{parameter.TypeName} {parameter.Name}"));
 		string writerBody = WriteParameters(message);
 		string localInvocation = message.ReceiveMode == NetworkMessageReceiveModeModel.Event
-			? $"(({message.DeclaringTypeName}.{(message.Kind == NetworkMessageKind.Rpc ? "RPC" : "Broadcast")})this).Raise{message.Name}(client, instigator{ReceiveForwardedArguments(message)});"
+			? $"(({message.DeclaringTypeName}.{(message.Kind == NetworkMessageKind.Rpc ? "RPC" : "Broadcast")})this).Raise{message.ReceiveName}(client, instigator{ReceiveForwardedArguments(message)});"
 			: $"(({message.DeclaringTypeName}.{(message.Kind == NetworkMessageKind.Rpc ? "RPC" : "Broadcast")})this).{message.Name}(client, instigator{ReceiveForwardedArguments(message)});";
 
 		if (message.Kind == NetworkMessageKind.Broadcast) {
@@ -210,7 +210,7 @@ internal static class NetworkObjectMessagesGenerator {
 	private static string MessageDispatchCase(NetworkMessageMethodModel message, string interfaceName) {
 		string readParameters = ReadParameters(message);
 		string invocation = message.ReceiveMode == NetworkMessageReceiveModeModel.Event
-			? $"(({message.DeclaringTypeName}.{interfaceName})this).Raise{message.Name}(client, instigator{ReceiveForwardedArguments(message)});"
+			? $"(({message.DeclaringTypeName}.{interfaceName})this).Raise{message.ReceiveName}(client, instigator{ReceiveForwardedArguments(message)});"
 			: $"(({message.DeclaringTypeName}.{interfaceName})this).{message.Name}(client, instigator{ReceiveForwardedArguments(message)});";
 
 		return $$"""

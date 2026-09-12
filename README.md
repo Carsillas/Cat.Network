@@ -280,6 +280,21 @@ player.RequestHealReceived += (RelayClient client, NetworkProfile instigator, in
 
 Event mode is useful when entities are mostly replicated data and behavior lives in systems or proxy-side code.
 
+When event-mode overloads would share a receive name, the generator uses `Method_<messageId>Received`, `Method_<messageId>RpcHandler`, and `RaiseMethod_<messageId>`. The suffix is the existing signature-based message id formatted as 16 uppercase hexadecimal digits. RPC and broadcast events share the same name space. Additional underscores avoid collisions with other message names. Send methods and wire ids are unchanged.
+
+For example, event-mode `Update(int amount)` and `Update(string text)` messages have separate subscriptions:
+
+```csharp
+player.Update_BE1FF51FD688F0C7Received += (client, instigator, amount) => {
+	// Handle the integer overload.
+};
+player.Update_6930FE5D445906BEReceived += (client, instigator, text) => {
+	// Handle the string overload.
+};
+```
+
+An unambiguous event keeps its original `MethodReceived` name. Adding an overload in a derived type preserves the base event name and qualifies the conflicting derived event. Ordinary methods and explicit receive overloads do not require event renaming.
+
 ### Explicit Receive Mode
 
 Use `NetworkMessageReceiveMode.Explicit` when the entity itself should handle the message.
