@@ -32,6 +32,8 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 
 	public string Name { get; }
 
+	public string Identifier => GeneratedNames.Escape(Name);
+
 	public ulong Id { get; }
 
 	public ImmutableArray<NetworkMessageParameterModel> Parameters { get; }

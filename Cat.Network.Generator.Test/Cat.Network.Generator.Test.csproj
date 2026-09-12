@@ -19,6 +19,7 @@
     <ItemGroup>
         <ProjectReference Include="..\Cat.Network\Cat.Network.csproj"/>
         <ProjectReference Include="..\Cat.Network.Generator\Cat.Network.Generator.csproj"/>
+        <ProjectReference Include="..\Cat.Network.Analyzer\Cat.Network.Analyzer.csproj"/>
     </ItemGroup>
 
     <ItemGroup>

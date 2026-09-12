@@ -70,7 +70,7 @@ internal static class NetworkObjectPropertiesGenerator {
 			members.Select(member => string.Format(
 				PropertyInfoEntryTemplate,
 				member.PropertyIndex,
-				member.Name)));
+				GeneratedNames.Escape(member.Name))));
 	}
 
 	private static string PartialProperties(NetworkObjectTypeModel model) {
@@ -186,7 +186,7 @@ internal static class NetworkObjectPropertiesGenerator {
 	private static string UpgradeMethod(NetworkObjectUpgradeMethodModel method) {
 		return $$"""
 			internal static void __CatNetworkUpgradeTo{{method.TargetVersion}}(global::Cat.Network.NetworkObjectUpgradeReader reader, global::Cat.Network.NetworkObjectUpgradeWriter writer) {
-				{{method.Name}}(reader, writer);
+				{{GeneratedNames.Escape(method.Name)}}(reader, writer);
 			}
 			""";
 	}
@@ -271,7 +271,7 @@ internal static class NetworkObjectPropertiesGenerator {
 				NetworkObjectPartialPropertyTemplate,
 				property.Accessibility,
 				property.TypeName,
-				property.Name,
+				property.Identifier,
 				property.GetterAccessibility,
 				property.SetterAccessibility,
 				property.PropertyIndex,
@@ -283,7 +283,7 @@ internal static class NetworkObjectPropertiesGenerator {
 			PartialPropertyTemplate,
 			property.Accessibility,
 			property.TypeName,
-			property.Name,
+			property.Identifier,
 			property.GetterAccessibility,
 			property.SetterAccessibility,
 			property.PropertyIndex,
@@ -302,14 +302,14 @@ internal static class NetworkObjectPropertiesGenerator {
 			global::Cat.Network.PropertyChangedEventArgs propertyChangedArgs = new global::Cat.Network.PropertyChangedEventArgs
 			{
 				Index = {{property.PropertyIndex}},
-				Name = nameof({{property.Name}})
+				Name = nameof({{property.Identifier}})
 			};
 			((global::Cat.Network.INetworkObject)this).OnPropertyChanged(propertyChangedArgs);
 
 			global::Cat.Network.PropertyChangedEventArgs<{{property.TypeName}}> args = new global::Cat.Network.PropertyChangedEventArgs<{{property.TypeName}}>
 			{
 				Index = {{property.PropertyIndex}},
-				Name = nameof({{property.Name}}),
+				Name = nameof({{property.Identifier}}),
 				PreviousValue = oldValue,
 				CurrentValue = field
 			};
@@ -321,7 +321,7 @@ internal static class NetworkObjectPropertiesGenerator {
 		return string.Format(
 			CollectionPartialPropertyTemplate,
 			collection.TypeName,
-			collection.Name,
+			collection.Identifier,
 			collection.GetterAccessibility,
 			CollectionConcreteType(collection),
 			collection.Accessibility);
