@@ -513,7 +513,7 @@ internal static class NetworkObjectSerializerGenerator {
 					field.StructFields.Select(nestedField => SerializeStructFieldBody(nestedField, nestedAccessor, fieldPath + "__" + nestedField.Name)));
 
 				return $$"""
-					{{field.TypeName}} {{fieldPath}} = {{targetExpression}}.{{field.Name}};
+					{{field.TypeName}} {{fieldPath}} = {{targetExpression}}.{{field.Identifier}};
 					if (!{{fieldPath}}.HasValue) {
 						writer.WriteByte(0);
 					} else {
@@ -524,7 +524,7 @@ internal static class NetworkObjectSerializerGenerator {
 			}
 
 			return $$"""
-				{{field.TypeName}} {{fieldPath}} = {{targetExpression}}.{{field.Name}};
+				{{field.TypeName}} {{fieldPath}} = {{targetExpression}}.{{field.Identifier}};
 				if (!{{fieldPath}}.HasValue) {
 					writer.WriteByte(0);
 				} else {
@@ -540,12 +540,12 @@ internal static class NetworkObjectSerializerGenerator {
 				field.StructFields.Select(nestedField => SerializeStructFieldBody(nestedField, fieldPath, fieldPath + "__" + nestedField.Name)));
 
 			return $$"""
-				{{field.RuntimeTypeName}} {{fieldPath}} = {{targetExpression}}.{{field.Name}};
+				{{field.RuntimeTypeName}} {{fieldPath}} = {{targetExpression}}.{{field.Identifier}};
 				{{nestedBody}}
 				""";
 		}
 
-		return SerializeNonNullableStructFieldWrite(field, $"{targetExpression}.{field.Name}");
+		return SerializeNonNullableStructFieldWrite(field, $"{targetExpression}.{field.Identifier}");
 	}
 
 	private static string SerializeNonNullableStructFieldWrite(NetworkStructFieldModel field, string valueExpression) {
@@ -700,18 +700,18 @@ internal static class NetworkObjectSerializerGenerator {
 						return;
 					}
 
-					byte has{{field.Name}}Value = valueData[0];
+					byte {{fieldPath}}HasValue = valueData[0];
 					valueData = valueData[1..];
-					switch (has{{field.Name}}Value) {
+					switch ({{fieldPath}}HasValue) {
 						case 0:
-							{{targetExpression}}.{{field.Name}} = null;
+							{{targetExpression}}.{{field.Identifier}} = null;
 							break;
 						case 1:
 							{{field.RuntimeTypeName}} {{fieldPath}} = default;
 
 							{{nestedBody}}
 
-							{{targetExpression}}.{{field.Name}} = {{fieldPath}};
+							{{targetExpression}}.{{field.Identifier}} = {{fieldPath}};
 							break;
 						default:
 							return;
@@ -724,14 +724,14 @@ internal static class NetworkObjectSerializerGenerator {
 					return;
 				}
 
-				byte has{{field.Name}}Value = valueData[0];
+				byte {{fieldPath}}HasValue = valueData[0];
 				valueData = valueData[1..];
-				switch (has{{field.Name}}Value) {
+				switch ({{fieldPath}}HasValue) {
 					case 0:
-						{{targetExpression}}.{{field.Name}} = null;
+						{{targetExpression}}.{{field.Identifier}} = null;
 						break;
 					case 1:
-						{{DeserializeNonNullableStructFieldAssignment(field, targetExpression)}}
+						{{DeserializeNonNullableStructFieldAssignment(field, targetExpression, fieldPath)}}
 						break;
 					default:
 						return;
@@ -749,21 +749,21 @@ internal static class NetworkObjectSerializerGenerator {
 
 				{{nestedBody}}
 
-				{{targetExpression}}.{{field.Name}} = {{fieldPath}};
+				{{targetExpression}}.{{field.Identifier}} = {{fieldPath}};
 				""";
 		}
 
-		return DeserializeNonNullableStructFieldAssignment(field, targetExpression);
+		return DeserializeNonNullableStructFieldAssignment(field, targetExpression, fieldPath);
 	}
 
-	private static string DeserializeNonNullableStructFieldAssignment(NetworkStructFieldModel field, string targetExpression) {
+	private static string DeserializeNonNullableStructFieldAssignment(NetworkStructFieldModel field, string targetExpression, string fieldPath) {
 		return field.SerializationKind switch {
 			NetworkPropertySerializationKind.Boolean => $$"""
 				if (valueData.Length < 1) {
 					return;
 				}
 
-				{{targetExpression}}.{{field.Name}} = valueData[0] != 0;
+				{{targetExpression}}.{{field.Identifier}} = valueData[0] != 0;
 				valueData = valueData[1..];
 				""",
 			NetworkPropertySerializationKind.Byte => $$"""
@@ -771,7 +771,7 @@ internal static class NetworkObjectSerializerGenerator {
 					return;
 				}
 
-				{{targetExpression}}.{{field.Name}} = valueData[0];
+				{{targetExpression}}.{{field.Identifier}} = valueData[0];
 				valueData = valueData[1..];
 				""",
 			NetworkPropertySerializationKind.SByte => $$"""
@@ -779,7 +779,7 @@ internal static class NetworkObjectSerializerGenerator {
 					return;
 				}
 
-				{{targetExpression}}.{{field.Name}} = unchecked((sbyte)valueData[0]);
+				{{targetExpression}}.{{field.Identifier}} = unchecked((sbyte)valueData[0]);
 				valueData = valueData[1..];
 				""",
 			NetworkPropertySerializationKind.Int16 => StructBinaryPrimitiveBody(field, targetExpression, "ReadInt16LittleEndian", 2),
@@ -795,11 +795,11 @@ internal static class NetworkObjectSerializerGenerator {
 					return;
 				}
 
-				byte has{{field.Name}}Value = valueData[0];
+				byte {{fieldPath}}HasValue = valueData[0];
 				valueData = valueData[1..];
-				switch (has{{field.Name}}Value) {
+				switch ({{fieldPath}}HasValue) {
 					case 0:
-						{{targetExpression}}.{{field.Name}} = null!;
+						{{targetExpression}}.{{field.Identifier}} = null!;
 						break;
 					case 1:
 						if (valueData.Length < 4) {
@@ -812,7 +812,7 @@ internal static class NetworkObjectSerializerGenerator {
 							return;
 						}
 
-						{{targetExpression}}.{{field.Name}} = global::System.Text.Encoding.UTF8.GetString(valueData[..(int)stringByteCount]);
+						{{targetExpression}}.{{field.Identifier}} = global::System.Text.Encoding.UTF8.GetString(valueData[..(int)stringByteCount]);
 						valueData = valueData[(int)stringByteCount..];
 						break;
 					default:
@@ -824,7 +824,7 @@ internal static class NetworkObjectSerializerGenerator {
 					return;
 				}
 
-				{{targetExpression}}.{{field.Name}} = new global::System.Guid(valueData[..16]);
+				{{targetExpression}}.{{field.Identifier}} = new global::System.Guid(valueData[..16]);
 				valueData = valueData[16..];
 				""",
 			_ => """
@@ -839,7 +839,7 @@ internal static class NetworkObjectSerializerGenerator {
 				return;
 			}
 
-			{{targetExpression}}.{{field.Name}} = global::System.Buffers.Binary.BinaryPrimitives.{{binaryPrimitiveMethod}}(valueData);
+			{{targetExpression}}.{{field.Identifier}} = global::System.Buffers.Binary.BinaryPrimitives.{{binaryPrimitiveMethod}}(valueData);
 			valueData = valueData[{{byteLength}}..];
 			""";
 	}

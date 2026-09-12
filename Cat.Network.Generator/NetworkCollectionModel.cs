@@ -43,6 +43,8 @@ internal sealed class NetworkCollectionModel : IEquatable<NetworkCollectionModel
 
 	public string Name { get; }
 
+	public string Identifier => GeneratedNames.Escape(Name);
+
 	public string Accessibility { get; }
 
 	public string GetterAccessibility { get; }
