@@ -209,21 +209,21 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		ImmutableArray<NetworkMessageMethodModel>.Builder broadcasts = ImmutableArray.CreateBuilder<NetworkMessageMethodModel>();
 
 		foreach (INamedTypeSymbol currentType in inheritanceChain) {
+			ImmutableArray<NetworkMessageMethodModel>.Builder currentMessages = ImmutableArray.CreateBuilder<NetworkMessageMethodModel>();
 			foreach (IMethodSymbol method in currentType.GetMembers().OfType<IMethodSymbol>().OrderBy(static method => method.Name, StringComparer.Ordinal)) {
 				foreach (AttributeData attribute in method.GetAttributes()) {
 					if (attribute.AttributeClass?.ToDisplayString() == RPCAttributeMetadataName) {
-						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Rpc);
-						rpcs.Add(model);
-						if (SymbolEqualityComparer.Default.Equals(currentType, type)) {
-							declaredRpcs.Add(model);
-						}
+						currentMessages.Add(NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Rpc));
 					} else if (attribute.AttributeClass?.ToDisplayString() == BroadcastAttributeMetadataName) {
-						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Broadcast);
-						broadcasts.Add(model);
-						if (SymbolEqualityComparer.Default.Equals(currentType, type)) {
-							declaredBroadcasts.Add(model);
-						}
+						currentMessages.Add(NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Broadcast));
 					}
+				}
+			}
+			foreach (NetworkMessageMethodModel declaredModel in NetworkMessageReceiveNames.Assign(currentMessages.ToImmutable(), rpcs.Concat(broadcasts))) {
+				NetworkMessageMethodModel model = NetworkMessageReceiveNames.PreserveReferencedApi(declaredModel, currentType);
+				(model.Kind == NetworkMessageKind.Rpc ? rpcs : broadcasts).Add(model);
+				if (SymbolEqualityComparer.Default.Equals(currentType, type)) {
+					(model.Kind == NetworkMessageKind.Rpc ? declaredRpcs : declaredBroadcasts).Add(model);
 				}
 			}
 		}
