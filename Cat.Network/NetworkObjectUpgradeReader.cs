@@ -18,11 +18,7 @@ public sealed class NetworkObjectUpgradeReader {
 	public IReadOnlyList<NetworkObjectUpgradeField> Fields { get; }
 
 	public T Get<T>(string name) {
-		ArgumentException.ThrowIfNullOrWhiteSpace(name);
-		if (!fieldsByName.TryGetValue(name, out NetworkObjectUpgradeField field)) {
-			throw new KeyNotFoundException($"Upgrade payload does not contain a field named '{name}'.");
-		}
-
+		NetworkObjectUpgradeField field = GetField(name);
 		return NetworkObjectUpgradeCodec.Deserialize<T>(field.Value.Span, context);
 	}
 
@@ -35,6 +31,15 @@ public sealed class NetworkObjectUpgradeReader {
 
 		value = NetworkObjectUpgradeCodec.Deserialize<T>(field.Value.Span, context);
 		return true;
+	}
+
+	internal NetworkObjectUpgradeField GetField(string name) {
+		ArgumentException.ThrowIfNullOrWhiteSpace(name);
+		if (!fieldsByName.TryGetValue(name, out NetworkObjectUpgradeField field)) {
+			throw new KeyNotFoundException($"Upgrade payload does not contain a field named '{name}'.");
+		}
+
+		return field;
 	}
 
 	public static bool TryCreate(ReadOnlySpan<byte> data, SerializationContext context, out NetworkObjectUpgradeReader reader) {

@@ -104,7 +104,7 @@ Use `MemberSelectionMode.All` for full payloads and `MemberSelectionMode.Dirty` 
 
 ## Version Upgrades
 
-Set the current schema version on `[NetworkObject]`. Upgrade methods are static methods marked with `[UpgradeTo(version)]` and must upgrade exactly one version step at a time.
+Set the current schema version on `[NetworkObject]`. Upgrade methods are static methods marked with `[UpgradeTo(version)]` and must upgrade exactly one version step at a time. All upgrade reads and writes must finish synchronously before the method returns; `async void` methods and deferred or background writes are not supported.
 
 ```csharp
 [NetworkObject(Version = 2)]
@@ -130,7 +130,23 @@ Upgrade rules:
 - each `[UpgradeTo]` method moves from `version - 1` to `version`
 - missing sequential upgrade steps make deserialization fail
 - `CopyExcept(...)` copies unchanged old fields by name
-- `Write(name, value)` writes fields in the new schema shape
+- `Copy(sourceName, destinationName)` appends an existing source field's encoded value under the destination name
+- `Get<T>`, `TryGet<T>`, and `Write(name, value)` decode or encode supported scalar, nullable, string, `Guid`, struct, and `NetworkObject` values; typed collection reads and writes are not supported
+
+Use `Copy` to rename a list or dictionary while preserving its serialized value bytes:
+
+```csharp
+[UpgradeTo(2)]
+private static void UpgradeToVersion2(NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer) {
+	writer.CopyExcept("Values", "Labels");
+	writer.Copy("Values", "Items");
+	writer.Copy("Labels", "Names");
+}
+```
+
+`Copy` requires a source reader and a present source field, and both names must be nonempty and non-whitespace. Source lookup is ordinal and case-sensitive; if a name occurs more than once, the last occurrence is copied, as with `Get<T>`. A missing source field throws `KeyNotFoundException`. Copying does not remove fields or replace fields already written: exclude the old names, and any destination fields being replaced, from `CopyExcept` when renaming.
+
+Raw copying does not decode or transform collection contents, change element types, or convert legacy wire encodings. The destination must accept the existing value encoding. Collection content transformations through typed `Get`/`Write` remain unsupported; encoding changes require a separate compatible conversion. Finish copying before returning from the upgrade method, since the generated serializer then completes the writer.
 
 ## Clone Behavior
 
