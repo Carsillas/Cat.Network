@@ -334,6 +334,15 @@ public partial class RelayValueCollectionState : NetworkEntity {
 }
 
 [NetworkObject]
+public partial class RelayCollectionsState : NetworkEntity {
+	[NetworkCollection]
+	public partial NetworkDictionary<int, string> Labels { get; }
+
+	[NetworkCollection]
+	public partial NetworkList<int> Values { get; }
+}
+
+[NetworkObject]
 public partial class RelayObjectCollectionState : NetworkEntity {
 	[NetworkCollection]
 	public partial NetworkList<DirtyChildState> Children { get; }
