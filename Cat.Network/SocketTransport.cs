@@ -60,12 +60,16 @@ public sealed class SocketTransport : IRelayTransport, IDisposable {
 
 	private IEnumerator<int> ReadAvailablePackets() {
 		while (true) {
-			while (Socket.Available < LengthPrefixSize) {
-				yield return WaitingForPacket;
-			}
-
-			if (!TryReceiveAll(ReceiveBuffer.AsSpan(0, LengthPrefixSize))) {
-				yield break;
+			int receivedByteCount = 0;
+			while (receivedByteCount < LengthPrefixSize) {
+				int bytesRead = ReceiveAvailable(ReceiveBuffer.AsSpan(receivedByteCount, LengthPrefixSize - receivedByteCount));
+				if (bytesRead == WaitingForPacket) {
+					yield return WaitingForPacket;
+				} else if (bytesRead == 0) {
+					yield break;
+				} else {
+					receivedByteCount += bytesRead;
+				}
 			}
 
 			int packetSize = BinaryPrimitives.ReadInt32LittleEndian(ReceiveBuffer.AsSpan(0, LengthPrefixSize));
@@ -74,12 +78,16 @@ public sealed class SocketTransport : IRelayTransport, IDisposable {
 				yield break;
 			}
 
-			while (Socket.Available < packetSize) {
-				yield return WaitingForPacket;
-			}
-
-			if (!TryReceiveAll(ReceiveBuffer.AsSpan(0, packetSize))) {
-				yield break;
+			receivedByteCount = 0;
+			while (receivedByteCount < packetSize) {
+				int bytesRead = ReceiveAvailable(ReceiveBuffer.AsSpan(receivedByteCount, packetSize - receivedByteCount));
+				if (bytesRead == WaitingForPacket) {
+					yield return WaitingForPacket;
+				} else if (bytesRead == 0) {
+					yield break;
+				} else {
+					receivedByteCount += bytesRead;
+				}
 			}
 
 			yield return packetSize;
@@ -106,25 +114,26 @@ public sealed class SocketTransport : IRelayTransport, IDisposable {
 		}
 	}
 
-	private bool TryReceiveAll(Span<byte> buffer) {
+	private int ReceiveAvailable(Span<byte> buffer) {
 		try {
-			while (!buffer.IsEmpty) {
-				int bytesRead = Socket.Receive(buffer, SocketFlags.None);
-				if (bytesRead == 0) {
-					Dispose();
-					return false;
-				}
-
-				buffer = buffer[bytesRead..];
+			// Read readiness also signals EOF, including when no bytes remain buffered.
+			if (!Socket.Poll(0, SelectMode.SelectRead)) {
+				return WaitingForPacket;
+			}
+			int bytesRead = Socket.Receive(buffer, SocketFlags.None);
+			if (bytesRead == 0) {
+				Dispose();
 			}
 
-			return true;
+			return bytesRead;
+		} catch (SocketException exception) when (exception.SocketErrorCode == SocketError.WouldBlock) {
+			return WaitingForPacket;
 		} catch (SocketException) {
 			Dispose();
-			return false;
+			return 0;
 		} catch (ObjectDisposedException) {
 			Dispose();
-			return false;
+			return 0;
 		}
 	}
 }
