@@ -140,6 +140,14 @@ Concrete network object types get a covariant `Clone()` implementation. Network 
 PlayerState snapshot = player.Clone();
 ```
 
+## Equality Behavior
+
+Generated `Equals` and `IEquatable<T>` implementations compare the runtime type and all network properties and collections, including inherited members. Comparisons through a base type include derived state. Scalar properties use `EqualityComparer<T>.Default`; nested network objects and collections use structural equality. Parent links, dirty tracking, and other non-network state do not affect equality. The `==` and `!=` operators retain reference equality.
+
+`GetHashCode()` uses the same runtime type and network state. Hash values can change when the object changes or the generator is updated; they are not persistent identifiers.
+
+When upgrading from the earlier generator's inheritance equality, regenerate and rebuild every assembly that declares a type in the hierarchy. Mixing older generated derived equality with newly generated base equality can recurse between their `Equals` methods. Public equality signatures and the serialized format are unchanged.
+
 ## Relay Entities And Profiles
 
 `NetworkEntity` is the replicated object base class. `NetworkProfile` represents a connected client identity and is distributed through a separate profile channel.
