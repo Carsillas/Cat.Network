@@ -109,6 +109,10 @@ internal static class NetworkObjectPropertiesGenerator {
 				{
 					Set{{property.Name}}(clone, ({{property.TypeName}}){{property.Name}}Value.Clone());
 				}
+				else
+				{
+					Set{{property.Name}}(clone, null!);
+				}
 				""";
 		}
 
