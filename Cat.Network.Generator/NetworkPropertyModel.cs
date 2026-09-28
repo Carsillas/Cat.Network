@@ -155,7 +155,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 			}
 		}
 
-		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType && NetworkStructFieldModel.HasSupportedStructFieldShape(structType)) {
 			ImmutableArray<NetworkStructFieldModel> structFields = structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public)

@@ -277,7 +277,7 @@ internal static class NetworkObjectMessagesGenerator {
 	}
 
 	private static string SerializeParameterValue(NetworkMessageParameterModel parameter, string valueExpression) {
-		if (parameter.IsNullableValueType) {
+		if (parameter.IsNullableValueType && parameter.SerializationKind != NetworkPropertySerializationKind.Unsupported) {
 			string currentValue = $"__catNetwork{parameter.Name}Value";
 			return $$"""
 				{{parameter.TypeName}} {{currentValue}} = {{valueExpression}};
@@ -416,7 +416,7 @@ internal static class NetworkObjectMessagesGenerator {
 	}
 
 	private static string DeserializeParameterValue(NetworkMessageParameterModel parameter, string valueData, string targetName) {
-		if (parameter.IsNullableValueType) {
+		if (parameter.IsNullableValueType && parameter.SerializationKind != NetworkPropertySerializationKind.Unsupported) {
 			string localValue = $"__catNetwork{parameter.Name}Value";
 			return $$"""
 				if ({{valueData}}.Length < 1) {

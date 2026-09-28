@@ -276,7 +276,12 @@ internal static class NetworkCollectionSerializer {
 		}
 
 		if (declaredType.IsValueType) {
-			FieldCodec[] fieldCodecs = declaredType.GetFields(BindingFlags.Instance | BindingFlags.Public)
+			FieldInfo[] publicFields = declaredType.GetFields(BindingFlags.Instance | BindingFlags.Public);
+			if (!NetworkStructFields.HasSupportedShape(declaredType, publicFields)) {
+				throw new InvalidOperationException($"Collection item type '{declaredType.FullName}' is not supported: structs must expose public instance fields or have no instance fields.");
+			}
+
+			FieldCodec[] fieldCodecs = publicFields
 				.Where(static field => !field.IsStatic)
 				.OrderBy(static field => field.Name, StringComparer.Ordinal)
 				.Select(field => new FieldCodec(field, GetOrCreateCodec(field.FieldType)))

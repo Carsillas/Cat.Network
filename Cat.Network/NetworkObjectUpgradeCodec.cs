@@ -5,10 +5,12 @@ namespace Cat.Network;
 
 internal static class NetworkObjectUpgradeCodec {
 	public static void Serialize<T>(BufferWriter writer, T value, SerializationContext context) {
+		EnsureSupportedType(typeof(T));
 		SerializeValue(writer, typeof(T), value, context, stringLengthPrefixed: false, networkObjectAsProperty: true);
 	}
 
 	public static T Deserialize<T>(ReadOnlySpan<byte> data, SerializationContext context) {
+		EnsureSupportedType(typeof(T));
 		int offset = 0;
 		object? value = DeserializeValue(typeof(T), data, ref offset, context, stringLengthPrefixed: false, networkObjectAsProperty: true);
 		if (offset != data.Length) {
@@ -16,6 +18,12 @@ internal static class NetworkObjectUpgradeCodec {
 		}
 
 		return (T)value!;
+	}
+
+	private static void EnsureSupportedType(Type type) {
+		if (!typeof(NetworkObject).IsAssignableFrom(type) && !IsSupportedStructFieldType(type, new HashSet<Type>())) {
+			throw new InvalidOperationException($"Upgrade field type '{type.FullName}' is not supported.");
+		}
 	}
 
 	private static void SerializeValue(BufferWriter writer, Type type, object? value, SerializationContext context, bool stringLengthPrefixed, bool networkObjectAsProperty) {
@@ -236,7 +244,7 @@ internal static class NetworkObjectUpgradeCodec {
 
 		try {
 			FieldInfo[] fields = GetSerializableStructFields(type).ToArray();
-			return fields.Length > 0 && fields.All(field => IsSupportedStructFieldType(field.FieldType, visitedTypes));
+			return NetworkStructFields.HasSupportedShape(type, fields) && fields.All(field => IsSupportedStructFieldType(field.FieldType, visitedTypes));
 		} finally {
 			visitedTypes.Remove(type);
 		}

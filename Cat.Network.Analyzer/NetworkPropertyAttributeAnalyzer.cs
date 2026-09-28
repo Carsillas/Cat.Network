@@ -170,11 +170,11 @@ internal static class NetworkPropertyAttributeAnalyzer {
 		if (type is INamedTypeSymbol namedType &&
 		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
 		    namedType.TypeArguments.Length == 1) {
-			type = namedType.TypeArguments[0];
+			return IsSupportedNetworkPropertyType(namedType.TypeArguments[0], networkObjectType, visitedTypes);
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			if (visitedTypes.Contains(structType)) {
+			if (!NetworkAnalyzerHelpers.HasSupportedStructFieldShape(structType) || visitedTypes.Contains(structType)) {
 				return false;
 			}
 

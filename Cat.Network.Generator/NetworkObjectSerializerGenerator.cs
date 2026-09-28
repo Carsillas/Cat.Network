@@ -352,8 +352,8 @@ internal static class NetworkObjectSerializerGenerator {
 					}
 					""";
 			default:
-				return """
-					return;
+				return $$"""
+					throw new global::System.InvalidOperationException("Network property '{{EscapeStringLiteral(property.Name)}}' type '{{EscapeStringLiteral(property.TypeName)}}' is not supported.");
 					""";
 		}
 	}
@@ -419,8 +419,8 @@ internal static class NetworkObjectSerializerGenerator {
 			case NetworkPropertySerializationKind.NetworkObject:
 				return SerializeNetworkObjectPropertyBody(property, propertyIndex);
 			default:
-				return """
-					return;
+				return $$"""
+					throw new global::System.InvalidOperationException("Network property '{{EscapeStringLiteral(property.Name)}}' type '{{EscapeStringLiteral(property.TypeName)}}' is not supported.");
 					""";
 		}
 	}
@@ -845,7 +845,7 @@ internal static class NetworkObjectSerializerGenerator {
 	}
 
 	private static string MaybeWrapNullableValueType(NetworkPropertyModel property, string body) {
-		if (!property.IsNullableValueType) {
+		if (!property.IsNullableValueType || property.SerializationKind == NetworkPropertySerializationKind.Unsupported) {
 			return body;
 		}
 

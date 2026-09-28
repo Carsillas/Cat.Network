@@ -6,6 +6,18 @@ using Microsoft.CodeAnalysis;
 namespace Cat.Network.Generator;
 
 internal sealed class NetworkStructFieldModel : IEquatable<NetworkStructFieldModel> {
+	public static bool HasSupportedStructFieldShape(INamedTypeSymbol type) {
+		// Built-in value types need explicit codecs; their private fields may be omitted from metadata symbols.
+		if (type.SpecialType != SpecialType.None) {
+			return false;
+		}
+
+		IFieldSymbol[] instanceFields = type.GetMembers().OfType<IFieldSymbol>()
+			.Where(static field => !field.IsStatic).ToArray();
+		// Keep the same public-field/empty-struct rule as the analyzer and runtime codecs.
+		return instanceFields.Length == 0 || instanceFields.Any(static field => field.DeclaredAccessibility == Accessibility.Public);
+	}
+
 	private static readonly SymbolDisplayFormat FullyQualifiedTypeFormat = new(
 		SymbolDisplayGlobalNamespaceStyle.Included,
 		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
@@ -124,7 +136,7 @@ internal sealed class NetworkStructFieldModel : IEquatable<NetworkStructFieldMod
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			if (visitedTypes.Contains(structType)) {
+			if (!HasSupportedStructFieldShape(structType) || visitedTypes.Contains(structType)) {
 				return (NetworkPropertySerializationKind.Unsupported, ImmutableArray<NetworkStructFieldModel>.Empty);
 			}
 
