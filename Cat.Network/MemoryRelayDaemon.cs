@@ -40,6 +40,11 @@ public sealed class MemoryRelayDaemon : IDaemon {
 				pendingConnections.RemoveAt(i);
 				connection.Transport.MessageReceived -= OnPendingConnectionMessageReceived;
 				pendingConnectionsByTransport.Remove(connection.Transport);
+				if (connection.BufferedMessages.Count > 0) {
+					// Deliver application input only after the accepting peer can subscribe.
+					connection.Transport.PrependReceivedMessages(connection.BufferedMessages);
+				}
+
 				acceptedConnections.Enqueue(new AcceptedConnection(connection.Transport, ProfileFactory()));
 			}
 		}
@@ -64,11 +69,14 @@ public sealed class MemoryRelayDaemon : IDaemon {
 
 		if (RelayHandshake.IsPong(message)) {
 			connection.Accepted = true;
+		} else if (!RelayHandshake.IsPing(message)) {
+			connection.BufferedMessages.Enqueue(message.ToArray());
 		}
 	}
 
-	private sealed class PendingConnection(IRelayTransport transport) {
-		public IRelayTransport Transport { get; } = transport;
+	private sealed class PendingConnection(MemoryRelayTransport transport) {
+		public MemoryRelayTransport Transport { get; } = transport;
+		public Queue<byte[]> BufferedMessages { get; } = new();
 		public bool PingSent { get; set; }
 		public bool Accepted { get; set; }
 	}
