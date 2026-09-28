@@ -9,9 +9,10 @@ on:
   pull_request:
     branches:
       - main
+      - rewrite
 
 env:
-  DOTNET_VERSION: '8.0.x'
+  DOTNET_TEST_SDK_VERSION: '8.0.x'
   CONFIGURATION: Release
 
 jobs:
@@ -23,10 +24,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup Compiler SDK And .NET 8 Test Runtime
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
+          dotnet-version: ${{ env.DOTNET_TEST_SDK_VERSION }}
+
+      - name: Show Selected SDK And Installed Runtimes
+        run: dotnet --info
 
       - name: Restore
         run: dotnet restore Cat.Network.sln
@@ -39,6 +44,10 @@ jobs:
 
       - name: Pack
         run: dotnet pack Cat.Network/Cat.Network.csproj --configuration ${{ env.CONFIGURATION }} --no-build --output artifacts -p:ContinuousIntegrationBuild=true
+
+      - name: Test Package Consumer
+        shell: pwsh
+        run: ./smoke/PackageConsumer/verify.ps1 -Configuration ${{ env.CONFIGURATION }}
 
       - name: Upload Package Artifact
         uses: actions/upload-artifact@v4
@@ -56,10 +65,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup Compiler SDK And .NET 8 Test Runtime
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
+          dotnet-version: ${{ env.DOTNET_TEST_SDK_VERSION }}
+
+      - name: Show Selected SDK And Installed Runtimes
+        run: dotnet --info
 
       - name: Extract Version
         id: version
