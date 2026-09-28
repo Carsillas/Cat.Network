@@ -3,6 +3,23 @@ namespace Cat.Network;
 public partial class RelayClient {
 	public void Spawn(NetworkEntity entity) {
 		ArgumentNullException.ThrowIfNull(entity);
+		if (entity.Peer is not null) {
+			if (!ReferenceEquals(entity.Peer, this)) {
+				throw new InvalidOperationException("Cannot spawn a network entity that is attached to another relay peer.");
+			}
+
+			if (!EntitiesById.TryGetValue(entity.Id, out NetworkEntity? registeredEntity) ||
+			    !ReferenceEquals(registeredEntity, entity) || !Owns(entity)) {
+				throw new InvalidOperationException("Cannot spawn a network entity that is not registered and owned by this client.");
+			}
+
+			return;
+		}
+
+		if (entity.Id != Guid.Empty && EntitiesById.ContainsKey(entity.Id)) {
+			throw new InvalidOperationException("Cannot spawn a network entity with an id already registered by this client.");
+		}
+
 		if (entity.Id == Guid.Empty) {
 			entity.Id = Guid.NewGuid();
 		}
