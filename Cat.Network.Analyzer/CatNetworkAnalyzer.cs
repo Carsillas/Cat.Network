@@ -23,6 +23,7 @@ namespace Cat.Network.Analyzer;
 		..NetworkObjectAttributeAnalyzer.SupportedDiagnostics,
 		..NetworkPropertyAttributeAnalyzer.SupportedDiagnostics,
 		..NetworkCollectionAttributeAnalyzer.SupportedDiagnostics,
+		..NetworkMemberNameAnalyzer.SupportedDiagnostics,
 		..UpgradeToAttributeAnalyzer.SupportedDiagnostics,
 		..NetworkMessageAttributeAnalyzer.SupportedDiagnostics
 	];
@@ -52,6 +53,7 @@ namespace Cat.Network.Analyzer;
 			NetworkObjectAttributeAnalyzer.Register(compilationContext, networkObjectType, networkObjectAttributeType);
 			NetworkPropertyAttributeAnalyzer.Register(compilationContext, networkObjectType, networkEntityType, networkPropertyAttributeType);
 			NetworkCollectionAttributeAnalyzer.Register(compilationContext, networkObjectType, networkCollectionAttributeType);
+			NetworkMemberNameAnalyzer.Register(compilationContext, networkObjectType);
 			if (upgradeToAttributeType is not null && upgradeReaderType is not null && upgradeWriterType is not null) {
 				UpgradeToAttributeAnalyzer.Register(compilationContext, networkObjectType, networkObjectAttributeType, upgradeToAttributeType, upgradeReaderType, upgradeWriterType);
 			}
