@@ -163,9 +163,21 @@ internal static class NetworkCollectionSerializer {
 		if (declaredType == typeof(string)) {
 			return new ItemCodec(
 				isNetworkObject: false,
-				serializeFull: static (writer, value, _, _) => writer.WriteUtf8((string)value!),
-				serializeUpdate: static (writer, value, _, _) => writer.WriteUtf8((string)value!),
+				serializeFull: static (writer, value, _, _) => WriteStringItem(writer, (string?)value),
+				serializeUpdate: static (writer, value, _, _) => WriteStringItem(writer, (string?)value),
 				deserializeFull: static (ReadOnlySpan<byte> data, ref int offset, SerializationContext _) => {
+					if (!TryReadByte(data, ref offset, out byte hasValue)) {
+						throw new InvalidOperationException("Collection item string payload is truncated.");
+					}
+
+					if (hasValue == 0) {
+						return null;
+					}
+
+					if (hasValue != 1) {
+						throw new InvalidOperationException("Collection item string nullable flag is invalid.");
+					}
+
 					string value = System.Text.Encoding.UTF8.GetString(data[offset..]);
 					offset = data.Length;
 					return value;
@@ -307,6 +319,16 @@ internal static class NetworkCollectionSerializer {
 		}
 
 		throw new InvalidOperationException($"Collection item type '{declaredType.FullName}' is not supported.");
+	}
+
+	private static void WriteStringItem(BufferWriter writer, string? value) {
+		if (value is null) {
+			writer.WriteByte(0);
+			return;
+		}
+
+		writer.WriteByte(1);
+		writer.WriteUtf8(value);
 	}
 
 	private static Guid GetNetworkObjectTypeId(Type type) {
