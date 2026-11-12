@@ -11,6 +11,17 @@ public partial class RelayServer {
 		}
 	}
 
+	protected override void OnProfileUpdateRequest(IRelayTransport sender, Guid typeId, ReadOnlySpan<byte> data, ulong revision) {
+		if (!ClientsByTransport.TryGetValue(sender, out RemoteClient? client) || revision <= client.ProfileRevision) {
+			return;
+		}
+
+		OnProfileUpdateRequest(sender, typeId, data);
+		client.ProfileRevision = revision;
+		// Even an unchanged or application-rejected request must resolve a deferred owner snapshot.
+		client.ProfileSynchronizationPending = true;
+	}
+
 	private void ProcessProfileRelevancy() {
 		SentProfileWorkingSet.Clear();
 
@@ -19,9 +30,18 @@ public partial class RelayServer {
 
 			foreach (RemoteClient otherClient in Clients) {
 				if (client.KnownProfileIds.Contains(otherClient.Profile.Id)) {
-					if (!HasDirtyState(otherClient.Profile) ||
-					    !SendProfileUpdate(client, otherClient.Profile)) {
-						continue;
+					if (ReferenceEquals(client, otherClient)) {
+						if ((!HasDirtyState(client.Profile) && !client.ProfileSynchronizationPending) ||
+						    !SendProfileSynchronization(client)) {
+							continue;
+						}
+
+						client.ProfileSynchronizationPending = false;
+					} else {
+						if (!HasDirtyState(otherClient.Profile) ||
+						    !SendProfileUpdate(client, otherClient.Profile)) {
+							continue;
+						}
 					}
 
 					SentProfileWorkingSet.Add(otherClient.Profile);
@@ -80,6 +100,15 @@ public partial class RelayServer {
 	private bool SendProfileUpdate(RemoteClient client, NetworkProfile profile) {
 		MessageWriter.Clear();
 		if (TryWriteUpdateProfileMessage(MessageWriter, profile)) {
+			return TrySend(client, MessageWriter.GetWrittenSpan());
+		}
+
+		return false;
+	}
+
+	private bool SendProfileSynchronization(RemoteClient client) {
+		MessageWriter.Clear();
+		if (TryWriteSynchronizeProfileMessage(MessageWriter, client.Profile, client.ProfileRevision)) {
 			return TrySend(client, MessageWriter.GetWrittenSpan());
 		}
 

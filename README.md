@@ -220,6 +220,16 @@ client.AssignOwner(projectile, otherProfileId);
 
 Set `NetworkEntity.DestroyWithOwner` before spawning when the server should delete the entity if its owner disconnects. This is useful for owned transient objects such as player avatars, projectiles, or session-bound objects. When the owner disconnects, the server removes flagged entities from `IEntityStorage` and sends normal delete messages to clients that knew them. Entities with `DestroyWithOwner = false` remain in storage, lose their owner, and may be reassigned by the usual relevancy flow.
 
+### Profile Synchronization
+
+After profile assignment, edits to `RelayClient.Profile` are sent as dirty updates with increasing request revisions. The server applies requests in receive order and sends dirty updates to other clients. The assigned client receives a complete `Synchronize` snapshot with the latest processed revision, even when the request changes no values or an overridden request handler rejects it. Server-originated changes also produce an owner snapshot, carrying the most recently processed revision.
+
+The assigned client applies a snapshot only when it acknowledges the latest sent request and there are no newer unsent edits. Otherwise it defers synchronization until the next request produces a fresh snapshot. This prevents an earlier response from replaying local collection operations or erasing newer edits. Server corrections are retained in the server state and reach the owner once its pending edits have caught up; continuous local editing can defer their display. An acknowledgement describes processed requests, not acceptance of every requested value. Later applied scalar assignments win; this is not a collection merge or index-rebasing protocol. Coordinate simultaneous server/client collection edits at the application level, since an indexed operation must still be valid for the server's current collection.
+
+An owner snapshot with the same full serialized bytes as the local profile is skipped, preserving local callbacks and child references. Applying a correction preserves the root profile and its collection containers, but can replace child objects and collection entries and raise collection events. Reacquire child references after corrections. Owner synchronization serializes the entire profile, so its bandwidth and comparison cost grow with profile size. Other clients continue to receive partial updates. Relays expect reliable, ordered delivery and serialized calls to `Tick()` and profile mutation.
+
+**Compatibility:** upgrade clients and servers together; mixed protocol versions are unsupported. `UpdateRequest` now requires a trailing `ulong` revision, and `Synchronize` is a new message kind. Custom callers of the protected `TryWriteProfileUpdateRequestMessage` helper must supply an increasing nonzero revision for each assigned profile. Existing overrides of `OnProfileUpdateRequest(sender, typeId, data)` still run after revision validation; custom notifications to the assigned client must use `Synchronize` rather than an unacknowledged `Update`.
+
 ## RPCs And Broadcasts
 
 Entity-scoped messages are declared as partial `void` methods on `NetworkEntity` types.
@@ -357,9 +367,12 @@ Profile messages start with:
 |------:|------------------|----------------------------------------------------------------------------|
 |     0 | `Assign`         | `Guid` profile id. Assigns the local client profile id.                    |
 |     1 | `Create`         | `Guid` profile id, `Guid` type id, `int` profile byte count, object data.  |
-|     2 | `Update`         | `Guid` profile id, `int` profile byte count, dirty object data.            |
+|     2 | `Update`         | `Guid` profile id, `int` profile byte count, dirty object data for an observed profile. |
 |     3 | `Delete`         | `Guid` profile id. Removes a profile from the client.                      |
-|     4 | `UpdateRequest`  | `Guid` type id, `int` profile byte count, dirty assigned-profile data.     |
+|     4 | `UpdateRequest`  | `Guid` type id, `int` profile byte count, dirty assigned-profile data, `ulong` request revision. |
+|     5 | `Synchronize`    | `Guid` assigned profile id, `ulong` processed request revision, `int` profile byte count, full object data. |
+
+Request revisions start at one for each assigned profile. The server ignores revisions no greater than the last processed revision, preventing replay of a request. Revision zero in a `Synchronize` message means no request has been processed yet. The byte count excludes the trailing request revision. Profile creation/assignment and observer update formats are unchanged; old requests without a revision are ignored.
 
 ### Object Data
 

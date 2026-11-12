@@ -137,6 +137,8 @@ public partial class RelayServer : RelayPeer {
 	private sealed class RemoteClient(IRelayTransport transport, NetworkProfile profile) {
 		public IRelayTransport Transport { get; } = transport;
 		public NetworkProfile Profile { get; } = profile;
+		public ulong ProfileRevision { get; set; }
+		public bool ProfileSynchronizationPending { get; set; }
 		public HashSet<Guid> KnownEntityIds { get; } = [];
 		public HashSet<Guid> OwnedEntityIds { get; } = [];
 		public HashSet<Guid> KnownProfileIds { get; } = [];

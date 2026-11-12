@@ -1,6 +1,9 @@
 namespace Cat.Network;
 
 public partial class RelayClient {
+	private ulong SentProfileRevision { get; set; }
+	private BufferWriter ProfileSnapshotWriter { get; } = new();
+
 	protected override void OnCreateProfileMessage(IRelayTransport sender, Guid profileId, Guid typeId, ReadOnlySpan<byte> data) {
 		if (ProfilesById.ContainsKey(profileId)) {
 			return;
@@ -25,7 +28,35 @@ public partial class RelayClient {
 		ClearDirtyState(profile);
 	}
 
+	protected override void OnSynchronizeProfileMessage(IRelayTransport sender, Guid profileId, ulong revision, ReadOnlySpan<byte> data) {
+		if (ProfileId != profileId ||
+		    !ProfilesById.TryGetValue(profileId, out NetworkProfile? profile) ||
+		    revision != SentProfileRevision || HasDirtyState(profile)) {
+			// The next request will receive a fresh snapshot including the deferred server changes.
+			return;
+		}
+
+		if (!TypeCatalogue.TryFindSerializer(profile.GetType(), out INetworkObjectSerializer? serializer)) {
+			return;
+		}
+
+		// An unchanged acknowledgement must not replay collection events or replace child objects.
+		ProfileSnapshotWriter.Clear();
+		SerializationContext context = new(TypeCatalogue);
+		serializer.Serialize(ProfileSnapshotWriter, profile, context, new SerializationOptions(MemberSelectionMode.All, MemberIdentificationMode.Index));
+		if (data.SequenceEqual(ProfileSnapshotWriter.GetWrittenSpan())) {
+			return;
+		}
+
+		serializer.Deserialize(profile, data, context);
+		ClearDirtyState(profile);
+	}
+
 	protected override void OnAssignProfileMessage(IRelayTransport sender, Guid profileId) {
+		if (ProfileId != profileId) {
+			SentProfileRevision = 0;
+		}
+
 		ProfileId = profileId;
 		UpdateAssignedProfile();
 	}
@@ -34,6 +65,7 @@ public partial class RelayClient {
 		if (ProfileId == profileId) {
 			ProfileId = null;
 			Profile = null;
+			SentProfileRevision = 0;
 		}
 
 		UnregisterProfile(profileId);
@@ -68,8 +100,10 @@ public partial class RelayClient {
 		}
 
 		MessageWriter.Clear();
-		if (TryWriteProfileUpdateRequestMessage(MessageWriter, Profile)) {
+		ulong revision = checked(SentProfileRevision + 1);
+		if (TryWriteProfileUpdateRequestMessage(MessageWriter, Profile, revision)) {
 			transport.Send(MessageWriter.GetWrittenSpan());
+			SentProfileRevision = revision;
 			ClearDirtyState(Profile);
 		}
 	}

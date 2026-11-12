@@ -5,5 +5,6 @@ public enum ProfileMessageKind : byte {
 	Create,
 	Update,
 	Delete,
-	UpdateRequest
+	UpdateRequest,
+	Synchronize
 }
