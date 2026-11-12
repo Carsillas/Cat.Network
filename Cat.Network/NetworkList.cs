@@ -148,18 +148,19 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 				operationCount++;
 			}
 		} else {
-			HashSet<int> touchedIndices = [];
+			// Structural operations shift indices; track the child instances whose state was written.
+			HashSet<NetworkObject> serializedItems = new(ReferenceEqualityComparer.Instance);
 			foreach (NetworkCollectionOperation<T> operation in OperationBuffer) {
 				WriteOperation(writer, operation, context, options);
 				operationCount++;
-				if (operation.Index >= 0) {
-					touchedIndices.Add(operation.Index);
+				if (operation.Value is NetworkObject item) {
+					serializedItems.Add(item);
 				}
 			}
 
 			if (Codec.IsNetworkObject) {
 				for (int index = 0; index < Items.Count; index++) {
-					if (touchedIndices.Contains(index) || Items[index] is not NetworkObject item || !NetworkCollectionSerializer.HasDirtyState(item)) {
+					if (Items[index] is not NetworkObject item || serializedItems.Contains(item) || !NetworkCollectionSerializer.HasDirtyState(item)) {
 						continue;
 					}
 
