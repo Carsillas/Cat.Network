@@ -32,6 +32,8 @@ internal sealed class NetworkStructFieldModel : IEquatable<NetworkStructFieldMod
 
 	public string Name { get; }
 
+	public string Identifier => GeneratedNames.Escape(Name);
+
 	public NetworkPropertySerializationKind SerializationKind { get; }
 
 	public bool IsNullableValueType { get; }

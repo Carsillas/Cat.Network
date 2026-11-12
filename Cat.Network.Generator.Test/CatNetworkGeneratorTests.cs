@@ -157,7 +157,7 @@ public sealed class CatNetworkGeneratorTests {
 			Assert.That(messageSource, Does.Contain("partial class Player : global::Cat.Network.INetworkRpcTarget, global::Game.Player.Broadcast"));
 			Assert.That(messageSource, Does.Contain("public partial interface Broadcast"));
 			Assert.That(messageSource, Does.Contain("void PlayImpact(global::Cat.Network.RelayClient client, global::Cat.Network.NetworkProfile instigator, global::System.Int32 effectId);"));
-			Assert.That(messageSource, Does.Contain("if (!IsOwner)"));
+			Assert.That(messageSource, Does.Contain("if (!this.IsOwner)"));
 			Assert.That(messageSource, Does.Contain("client.RentBroadcastMessageWriter(this, "));
 			Assert.That(messageSource, Does.Contain("client.QueueRentedMessageWriter(writer);"));
 			Assert.That(messageSource, Does.Contain("((global::Game.Player.Broadcast)this).PlayImpact(client, instigator, effectId);"));
