@@ -269,7 +269,7 @@ internal static class NetworkObjectPropertiesGenerator {
 		if (property.SerializationKind == NetworkPropertySerializationKind.NetworkObject) {
 			return string.Format(
 				NetworkObjectPartialPropertyTemplate,
-				property.Accessibility,
+				property.Accessibility + (property.HasNewModifier ? " new" : string.Empty),
 				property.TypeName,
 				property.Name,
 				property.GetterAccessibility,
@@ -281,7 +281,7 @@ internal static class NetworkObjectPropertiesGenerator {
 
 		return string.Format(
 			PartialPropertyTemplate,
-			property.Accessibility,
+			property.Accessibility + (property.HasNewModifier ? " new" : string.Empty),
 			property.TypeName,
 			property.Name,
 			property.GetterAccessibility,
@@ -324,7 +324,7 @@ internal static class NetworkObjectPropertiesGenerator {
 			collection.Name,
 			collection.GetterAccessibility,
 			CollectionConcreteType(collection),
-			collection.Accessibility);
+			collection.Accessibility + (collection.HasNewModifier ? " new" : string.Empty));
 	}
 
 	private static string CollectionInitializer(NetworkCollectionModel collection) {

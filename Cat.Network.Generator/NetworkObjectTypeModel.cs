@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text;
 using System.Linq;
+using Cat.Network.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 
 namespace Cat.Network.Generator;
@@ -91,7 +92,15 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 
 	public ImmutableArray<NetworkMessageMethodModel> Broadcasts { get; }
 
-	public static NetworkObjectTypeModel Create(INamedTypeSymbol type) {
+	public static NetworkObjectTypeModel? Create(INamedTypeSymbol type) {
+		// Omitting a required property alone still makes Clone's constructor call invalid,
+		// including on derived types that inherit the unsupported required member.
+		if (GetInheritanceChain(type)
+			.SelectMany(static current => current.GetMembers().OfType<IPropertySymbol>())
+			.Any(static property => property.IsRequired && (HasNetworkPropertyAttribute(property) || HasNetworkCollectionAttribute(property)))) {
+			return null;
+		}
+
 		string @namespace = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
 		string typeName = type.Name;
 		string fullyQualifiedName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -210,6 +219,11 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 
 		foreach (INamedTypeSymbol currentType in inheritanceChain) {
 			foreach (IMethodSymbol method in currentType.GetMembers().OfType<IMethodSymbol>().OrderBy(static method => method.Name, StringComparer.Ordinal)) {
+				if (NetworkDeclarationShape.GetUnsupportedModifier(method) is not null ||
+				    method.Parameters.Any(static parameter => NetworkDeclarationShape.HasReadonlySerializedField(parameter.Type))) {
+					continue;
+				}
+
 				foreach (AttributeData attribute in method.GetAttributes()) {
 					if (attribute.AttributeClass?.ToDisplayString() == RPCAttributeMetadataName) {
 						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Rpc);
@@ -263,6 +277,12 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 				         .OfType<IPropertySymbol>()
 				         .Where(static property => HasNetworkPropertyAttribute(property) || HasNetworkCollectionAttribute(property))
 				         .OrderBy(static property => property.Name, StringComparer.Ordinal)) {
+				if (NetworkDeclarationShape.GetUnsupportedModifier(property) is not null ||
+				    (HasNetworkPropertyAttribute(property) &&
+				     (!NetworkDeclarationShape.HasGetAndSet(property) || NetworkDeclarationShape.HasReadonlySerializedField(property.Type)))) {
+					continue;
+				}
+
 				if (HasNetworkPropertyAttribute(property)) {
 					NetworkPropertyModel model = NetworkPropertyModel.Create(property, propertyIndex);
 					properties.Add(model);

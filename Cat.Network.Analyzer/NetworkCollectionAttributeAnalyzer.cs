@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Linq;
+using Cat.Network.CodeAnalysis;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -15,6 +16,7 @@ internal static class NetworkCollectionAttributeAnalyzer {
 	private const string NetworkCollectionAttributeRequiresSupportedItemTypeDiagnosticId = "CN0015";
 	private const string NetworkCollectionAttributeRequiresSupportedKeyTypeDiagnosticId = "CN0016";
 	private const string NetworkCollectionTypeRequiresNetworkCollectionAttributeDiagnosticId = "CN0026";
+	private const string NetworkCollectionAttributeRequiresSupportedModifiersDiagnosticId = "CN0031";
 
 	private const string NetworkListMetadataName = "global::Cat.Network.NetworkList<T>";
 	private const string NetworkDictionaryMetadataName = "global::Cat.Network.NetworkDictionary<TKey, TValue>";
@@ -83,6 +85,14 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		DiagnosticSeverity.Error,
 		true);
 
+	private static readonly DiagnosticDescriptor NetworkCollectionAttributeRequiresSupportedModifiersRule = new(
+		NetworkCollectionAttributeRequiresSupportedModifiersDiagnosticId,
+		"Network collections require supported declaration modifiers",
+		"Property '{0}' is marked with NetworkCollectionAttribute but uses unsupported modifier '{1}'",
+		"Usage",
+		DiagnosticSeverity.Error,
+		true);
+
 	public static ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = [
 		InvalidNetworkCollectionAttributeRule,
 		NetworkCollectionAttributeRequiresPartialRule,
@@ -91,7 +101,8 @@ internal static class NetworkCollectionAttributeAnalyzer {
 		NetworkCollectionAttributeCannotBeInitializedRule,
 		NetworkCollectionAttributeRequiresSupportedItemTypeRule,
 		NetworkCollectionAttributeRequiresSupportedKeyTypeRule,
-		NetworkCollectionTypeRequiresNetworkCollectionAttributeRule
+		NetworkCollectionTypeRequiresNetworkCollectionAttributeRule,
+		NetworkCollectionAttributeRequiresSupportedModifiersRule
 	];
 
 	public static void Register(CompilationStartAnalysisContext context, INamedTypeSymbol networkObjectType, INamedTypeSymbol networkCollectionAttributeType) {
@@ -131,6 +142,14 @@ internal static class NetworkCollectionAttributeAnalyzer {
 				NetworkCollectionAttributeRequiresPartialRule,
 				property.Locations.FirstOrDefault(),
 				property.Name));
+		}
+
+		if (NetworkDeclarationShape.GetUnsupportedModifier(property) is string unsupportedModifier) {
+			context.ReportDiagnostic(Diagnostic.Create(
+				NetworkCollectionAttributeRequiresSupportedModifiersRule,
+				property.Locations.FirstOrDefault(),
+				property.Name,
+				unsupportedModifier));
 		}
 
 		if (property.GetMethod is null || property.SetMethod is not null) {

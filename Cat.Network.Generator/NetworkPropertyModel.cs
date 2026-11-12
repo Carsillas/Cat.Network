@@ -17,12 +17,13 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
 		SymbolDisplayGenericsOptions.IncludeTypeParameters);
 
-	private NetworkPropertyModel(string typeName, string runtimeTypeName, string declaringTypeName, string name, string accessibility, string getterAccessibility, string setterAccessibility, int propertyIndex, NetworkPropertySerializationKind serializationKind, bool isNullableValueType, ImmutableArray<NetworkStructFieldModel> structFields) {
+	private NetworkPropertyModel(string typeName, string runtimeTypeName, string declaringTypeName, string name, string accessibility, bool hasNewModifier, string getterAccessibility, string setterAccessibility, int propertyIndex, NetworkPropertySerializationKind serializationKind, bool isNullableValueType, ImmutableArray<NetworkStructFieldModel> structFields) {
 		TypeName = typeName;
 		RuntimeTypeName = runtimeTypeName;
 		DeclaringTypeName = declaringTypeName;
 		Name = name;
 		Accessibility = accessibility;
+		HasNewModifier = hasNewModifier;
 		GetterAccessibility = getterAccessibility;
 		SetterAccessibility = setterAccessibility;
 		PropertyIndex = propertyIndex;
@@ -40,6 +41,8 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 	public string Name { get; }
 
 	public string Accessibility { get; }
+
+	public bool HasNewModifier { get; }
 
 	public string GetterAccessibility { get; }
 
@@ -62,7 +65,8 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 			effectiveType.WithNullableAnnotation(NullableAnnotation.NotAnnotated).ToDisplayString(FullyQualifiedNonNullableTypeFormat),
 			property.ContainingType.ToDisplayString(FullyQualifiedTypeFormat),
 			property.Name,
-			GetAccessibility(property.DeclaredAccessibility),
+			NetworkMemberAccessibility.GetDeclaration(property),
+			NetworkMemberAccessibility.HasNewModifier(property),
 			GetAccessorAccessibility(property, property.GetMethod),
 			GetAccessorAccessibility(property, property.SetMethod),
 			propertyIndex,
@@ -78,6 +82,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 		       DeclaringTypeName == other.DeclaringTypeName &&
 		       Name == other.Name &&
 		       Accessibility == other.Accessibility &&
+		       HasNewModifier == other.HasNewModifier &&
 		       GetterAccessibility == other.GetterAccessibility &&
 		       SetterAccessibility == other.SetterAccessibility &&
 		       PropertyIndex == other.PropertyIndex &&
@@ -97,6 +102,7 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 			hashCode = (hashCode * 397) ^ DeclaringTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ Name.GetHashCode();
 			hashCode = (hashCode * 397) ^ Accessibility.GetHashCode();
+			hashCode = (hashCode * 397) ^ HasNewModifier.GetHashCode();
 			hashCode = (hashCode * 397) ^ GetterAccessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ SetterAccessibility.GetHashCode();
 			hashCode = (hashCode * 397) ^ PropertyIndex;
@@ -177,25 +183,6 @@ internal sealed class NetworkPropertyModel : IEquatable<NetworkPropertyModel> {
 			return string.Empty;
 		}
 
-		return GetAccessibility(accessor.DeclaredAccessibility) + " ";
-	}
-
-	private static string GetAccessibility(Accessibility accessibility) {
-		switch (accessibility) {
-			case Microsoft.CodeAnalysis.Accessibility.Public:
-				return "public";
-			case Microsoft.CodeAnalysis.Accessibility.Internal:
-				return "internal";
-			case Microsoft.CodeAnalysis.Accessibility.Protected:
-				return "protected";
-			case Microsoft.CodeAnalysis.Accessibility.Private:
-				return "private";
-			case Microsoft.CodeAnalysis.Accessibility.ProtectedAndInternal:
-				return "private protected";
-			case Microsoft.CodeAnalysis.Accessibility.ProtectedOrInternal:
-				return "protected internal";
-			default:
-				return "private";
-		}
+		return NetworkMemberAccessibility.GetKeywords(accessor.DeclaredAccessibility) + " ";
 	}
 }
