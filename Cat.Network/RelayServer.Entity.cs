@@ -63,6 +63,7 @@ public partial class RelayServer {
 
 	protected override void OnRpcMessage(IRelayTransport sender, Guid entityId, ReadOnlySpan<byte> data) {
 		if (!ClientsByTransport.TryGetValue(sender, out RemoteClient? client) ||
+		    !client.KnownEntityIds.Contains(entityId) ||
 		    !EntityStorage.TryGetEntity(entityId, out _) ||
 		    IsOwner(client, entityId) ||
 		    !OwnerProfileIdsByEntityId.TryGetValue(entityId, out Guid ownerProfileId) ||
