@@ -129,10 +129,7 @@ internal sealed class NetworkStructFieldModel : IEquatable<NetworkStructFieldMod
 			}
 
 			ImmutableHashSet<ITypeSymbol> nextVisitedTypes = visitedTypes.Add(structType);
-			ImmutableArray<NetworkStructFieldModel> structFields = structType.GetMembers()
-				.OfType<IFieldSymbol>()
-				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public)
-				.OrderBy(static field => field.Name, StringComparer.Ordinal)
+			ImmutableArray<NetworkStructFieldModel> structFields = NetworkStructFieldSymbols.GetSerializableFields(structType)
 				.Select(field => Create(field, nextVisitedTypes))
 				.ToImmutableArray();
 
