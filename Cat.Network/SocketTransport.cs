@@ -9,6 +9,7 @@ public sealed class SocketTransport : IRelayTransport, IDisposable {
 	private const int WaitingForPacket = -1;
 
 	private Socket Socket { get; }
+	private int MaxPacketSize { get; }
 	private byte[] ReceiveBuffer { get; }
 	private IEnumerator<int> ReceiveEnumerator { get; }
 	private bool Disposed { get; set; }
@@ -20,7 +21,8 @@ public sealed class SocketTransport : IRelayTransport, IDisposable {
 		}
 
 		Socket = socket;
-		ReceiveBuffer = new byte[Math.Max(LengthPrefixSize, (int)maxPacketSize)];
+		MaxPacketSize = (int)maxPacketSize;
+		ReceiveBuffer = new byte[Math.Max(LengthPrefixSize, MaxPacketSize)];
 		ReceiveEnumerator = ReadAvailablePackets();
 	}
 
@@ -29,7 +31,7 @@ public sealed class SocketTransport : IRelayTransport, IDisposable {
 
 	public void Send(ReadOnlySpan<byte> message) {
 		ObjectDisposedException.ThrowIf(Disposed, this);
-		if (message.Length > ReceiveBuffer.Length) {
+		if (message.Length > MaxPacketSize) {
 			throw new ArgumentOutOfRangeException(nameof(message));
 		}
 
@@ -69,7 +71,7 @@ public sealed class SocketTransport : IRelayTransport, IDisposable {
 			}
 
 			int packetSize = BinaryPrimitives.ReadInt32LittleEndian(ReceiveBuffer.AsSpan(0, LengthPrefixSize));
-			if (packetSize < 0 || packetSize > ReceiveBuffer.Length) {
+			if (packetSize < 0 || packetSize > MaxPacketSize) {
 				Dispose();
 				yield break;
 			}
