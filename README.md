@@ -10,7 +10,23 @@ Reference `Carsillas.Cat.Network` from the project that declares your network ty
 <PackageReference Include="Carsillas.Cat.Network" Version="x.y.z" />
 ```
 
-When working from source, reference `Cat.Network/Cat.Network.csproj`.
+When working from source, the project declaring network types must reference the runtime **and both compiler extensions**. The runtime project's analyzer/generator project references do not propagate to the consuming project.
+
+For a consumer at `<checkout>/MyGame/MyGame.csproj`, alongside the checkout's `Cat.Network`, `Cat.Network.Analyzer`, and `Cat.Network.Generator` directories, add:
+
+```xml
+<ItemGroup>
+  <ProjectReference Include="../Cat.Network/Cat.Network.csproj" />
+  <ProjectReference Include="../Cat.Network.Analyzer/Cat.Network.Analyzer.csproj"
+                    OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  <ProjectReference Include="../Cat.Network.Generator/Cat.Network.Generator.csproj"
+                    OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+</ItemGroup>
+```
+
+These paths are relative to the consuming `.csproj`; adjust them if your project is elsewhere. `OutputItemType="Analyzer"` loads each compiler extension into the consumer's compilation, and `ReferenceOutputAssembly="false"` keeps it out of the consumer's runtime references. Package consumers keep the single package reference above, which includes both extensions.
+
+The [source-reference smoke fixture](tests/SourceReferenceSmoke/README.md) is a complete consumer project with a command that checks generated properties, `Clone()`, and analyzer diagnostics.
 
 ## Define Network Objects
 
