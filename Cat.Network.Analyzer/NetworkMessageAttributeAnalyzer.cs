@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 
@@ -125,7 +126,7 @@ internal static class NetworkMessageAttributeAnalyzer {
 				continue;
 			}
 
-			if (!IsSupportedParameterType(parameter.Type, networkObjectType)) {
+			if (!IsSupportedParameterType(parameter.Type, networkObjectType, ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default), context.CancellationToken)) {
 				context.ReportDiagnostic(Diagnostic.Create(
 					NetworkMessageAttributeParameterUnsupportedRule,
 					parameter.Locations.FirstOrDefault(),
@@ -224,11 +225,13 @@ internal static class NetworkMessageAttributeAnalyzer {
 		return true;
 	}
 
-	private static bool IsSupportedParameterType(ITypeSymbol type, INamedTypeSymbol networkObjectType) {
+	private static bool IsSupportedParameterType(ITypeSymbol type, INamedTypeSymbol networkObjectType, ImmutableHashSet<ITypeSymbol> visitedTypes, CancellationToken cancellationToken) {
+		cancellationToken.ThrowIfCancellationRequested();
+
 		if (type is INamedTypeSymbol namedType &&
 		    namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T &&
 		    namedType.TypeArguments.Length == 1) {
-			return IsSupportedParameterType(namedType.TypeArguments[0], networkObjectType);
+			return IsSupportedParameterType(namedType.TypeArguments[0], networkObjectType, visitedTypes, cancellationToken);
 		}
 
 		switch (type.SpecialType) {
@@ -257,10 +260,15 @@ internal static class NetworkMessageAttributeAnalyzer {
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
+			if (visitedTypes.Count >= NetworkAnalyzerHelpers.MaxStructNestingDepth || visitedTypes.Contains(structType)) {
+				return false;
+			}
+
+			ImmutableHashSet<ITypeSymbol> nextVisitedTypes = visitedTypes.Add(structType);
 			return structType.GetMembers()
 				.OfType<IFieldSymbol>()
 				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Accessibility.Public)
-				.All(field => IsSupportedParameterType(field.Type, networkObjectType) && !IsNetworkObjectType(field.Type, networkObjectType));
+				.All(field => IsSupportedParameterType(field.Type, networkObjectType, nextVisitedTypes, cancellationToken) && !IsNetworkObjectType(field.Type, networkObjectType));
 		}
 
 		return false;

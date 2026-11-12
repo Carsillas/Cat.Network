@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 
 namespace Cat.Network.Generator;
@@ -36,9 +37,9 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 
 	public ImmutableArray<NetworkMessageParameterModel> Parameters { get; }
 
-	public static NetworkMessageMethodModel Create(IMethodSymbol method, AttributeData attribute, NetworkMessageKind kind) {
+	public static NetworkMessageMethodModel Create(IMethodSymbol method, AttributeData attribute, NetworkMessageKind kind, CancellationToken cancellationToken) {
 		ImmutableArray<NetworkMessageParameterModel> parameters = method.Parameters
-			.Select(NetworkMessageParameterModel.Create)
+			.Select(parameter => NetworkMessageParameterModel.Create(parameter, cancellationToken))
 			.ToImmutableArray();
 
 		return new NetworkMessageMethodModel(

@@ -1,11 +1,16 @@
 using System;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 
 namespace Cat.Network.Generator;
 
 internal sealed class NetworkStructFieldModel : IEquatable<NetworkStructFieldModel> {
+	// Match the analyzer's limit: expanding generic structs need not repeat a
+	// constructed symbol, and must not recurse indefinitely during generation.
+	private const int MaxStructNestingDepth = 128;
+
 	private static readonly SymbolDisplayFormat FullyQualifiedTypeFormat = new(
 		SymbolDisplayGlobalNamespaceStyle.Included,
 		SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces,
@@ -38,13 +43,15 @@ internal sealed class NetworkStructFieldModel : IEquatable<NetworkStructFieldMod
 
 	public ImmutableArray<NetworkStructFieldModel> StructFields { get; }
 
-	public static NetworkStructFieldModel Create(IFieldSymbol field) {
-		return Create(field, ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default));
+	public static NetworkStructFieldModel Create(IFieldSymbol field, CancellationToken cancellationToken) {
+		return Create(field, ImmutableHashSet<ITypeSymbol>.Empty.WithComparer(SymbolEqualityComparer.Default).Add(field.ContainingType), cancellationToken);
 	}
 
-	private static NetworkStructFieldModel Create(IFieldSymbol field, ImmutableHashSet<ITypeSymbol> visitedTypes) {
+	private static NetworkStructFieldModel Create(IFieldSymbol field, ImmutableHashSet<ITypeSymbol> visitedTypes, CancellationToken cancellationToken) {
+		cancellationToken.ThrowIfCancellationRequested();
+
 		(ITypeSymbol effectiveType, bool isNullableValueType) = GetEffectiveType(field.Type);
-		(NetworkPropertySerializationKind serializationKind, ImmutableArray<NetworkStructFieldModel> structFields) = GetSerializationMetadata(effectiveType, visitedTypes);
+		(NetworkPropertySerializationKind serializationKind, ImmutableArray<NetworkStructFieldModel> structFields) = GetSerializationMetadata(effectiveType, visitedTypes, cancellationToken);
 
 		return new NetworkStructFieldModel(
 			field.Type.ToDisplayString(FullyQualifiedTypeFormat),
@@ -91,7 +98,7 @@ internal sealed class NetworkStructFieldModel : IEquatable<NetworkStructFieldMod
 		return (type, false);
 	}
 
-	private static (NetworkPropertySerializationKind SerializationKind, ImmutableArray<NetworkStructFieldModel> StructFields) GetSerializationMetadata(ITypeSymbol type, ImmutableHashSet<ITypeSymbol> visitedTypes) {
+	private static (NetworkPropertySerializationKind SerializationKind, ImmutableArray<NetworkStructFieldModel> StructFields) GetSerializationMetadata(ITypeSymbol type, ImmutableHashSet<ITypeSymbol> visitedTypes, CancellationToken cancellationToken) {
 		switch (type.SpecialType) {
 			case SpecialType.System_Boolean:
 				return (NetworkPropertySerializationKind.Boolean, ImmutableArray<NetworkStructFieldModel>.Empty);
@@ -124,22 +131,26 @@ internal sealed class NetworkStructFieldModel : IEquatable<NetworkStructFieldMod
 		}
 
 		if (type.TypeKind == TypeKind.Struct && type is INamedTypeSymbol structType) {
-			if (visitedTypes.Contains(structType)) {
+			if (visitedTypes.Count >= MaxStructNestingDepth || visitedTypes.Contains(structType)) {
 				return (NetworkPropertySerializationKind.Unsupported, ImmutableArray<NetworkStructFieldModel>.Empty);
 			}
 
 			ImmutableHashSet<ITypeSymbol> nextVisitedTypes = visitedTypes.Add(structType);
-			ImmutableArray<NetworkStructFieldModel> structFields = structType.GetMembers()
-				.OfType<IFieldSymbol>()
-				.Where(static field => !field.IsStatic && field.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public)
-				.OrderBy(static field => field.Name, StringComparer.Ordinal)
-				.Select(field => Create(field, nextVisitedTypes))
-				.ToImmutableArray();
+			ImmutableArray<NetworkStructFieldModel>.Builder structFields = ImmutableArray.CreateBuilder<NetworkStructFieldModel>();
+			foreach (IFieldSymbol field in structType.GetMembers()
+				         .OfType<IFieldSymbol>()
+				         .Where(static field => !field.IsStatic && field.DeclaredAccessibility == Microsoft.CodeAnalysis.Accessibility.Public)
+				         .OrderBy(static field => field.Name, StringComparer.Ordinal)) {
+				NetworkStructFieldModel model = Create(field, nextVisitedTypes, cancellationToken);
+				if (model.SerializationKind is NetworkPropertySerializationKind.Unsupported or NetworkPropertySerializationKind.NetworkObject) {
+					// Do not expand sibling branches after a recursive/unsupported field.
+					return (NetworkPropertySerializationKind.Unsupported, ImmutableArray<NetworkStructFieldModel>.Empty);
+				}
 
-			if (structFields.All(static field => field.SerializationKind != NetworkPropertySerializationKind.Unsupported &&
-			                                    field.SerializationKind != NetworkPropertySerializationKind.NetworkObject)) {
-				return (NetworkPropertySerializationKind.Struct, structFields);
+				structFields.Add(model);
 			}
+
+			return (NetworkPropertySerializationKind.Struct, structFields.ToImmutable());
 		}
 
 		return (NetworkPropertySerializationKind.Unsupported, ImmutableArray<NetworkStructFieldModel>.Empty);

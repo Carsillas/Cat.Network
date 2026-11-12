@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text;
 using System.Linq;
+using System.Threading;
 using Microsoft.CodeAnalysis;
 
 namespace Cat.Network.Generator;
@@ -91,7 +92,9 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 
 	public ImmutableArray<NetworkMessageMethodModel> Broadcasts { get; }
 
-	public static NetworkObjectTypeModel Create(INamedTypeSymbol type) {
+	public static NetworkObjectTypeModel Create(INamedTypeSymbol type, CancellationToken cancellationToken) {
+		cancellationToken.ThrowIfCancellationRequested();
+
 		string @namespace = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
 		string typeName = type.Name;
 		string fullyQualifiedName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
@@ -107,9 +110,9 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 		string serializerHintName = $"{hintName}_Serializer";
 		string typeId = CreateStableTypeId(type);
 		ushort version = GetVersion(type);
-		(ImmutableArray<NetworkPropertyModel> declaredProperties, ImmutableArray<NetworkCollectionModel> declaredCollections, ImmutableArray<NetworkPropertyModel> properties, ImmutableArray<NetworkCollectionModel> collections) = GetNetworkMembers(type);
+		(ImmutableArray<NetworkPropertyModel> declaredProperties, ImmutableArray<NetworkCollectionModel> declaredCollections, ImmutableArray<NetworkPropertyModel> properties, ImmutableArray<NetworkCollectionModel> collections) = GetNetworkMembers(type, cancellationToken);
 		ImmutableArray<NetworkObjectUpgradeMethodModel> upgradeMethods = GetUpgradeMethods(type);
-		(ImmutableArray<NetworkMessageMethodModel> declaredRpcs, ImmutableArray<NetworkMessageMethodModel> rpcs, ImmutableArray<NetworkMessageMethodModel> declaredBroadcasts, ImmutableArray<NetworkMessageMethodModel> broadcasts) = GetNetworkMessages(type);
+		(ImmutableArray<NetworkMessageMethodModel> declaredRpcs, ImmutableArray<NetworkMessageMethodModel> rpcs, ImmutableArray<NetworkMessageMethodModel> declaredBroadcasts, ImmutableArray<NetworkMessageMethodModel> broadcasts) = GetNetworkMessages(type, cancellationToken);
 
 		return new NetworkObjectTypeModel(@namespace, typeName, fullyQualifiedName, baseTypeName, hasBaseProperties, type.IsAbstract, InheritsFrom(type, "global::Cat.Network.NetworkEntity"), hintName, serializerHintName, GetAccessibility(type.DeclaredAccessibility), serializerTypeName, typeId, version, declaredProperties, declaredCollections, properties, collections, upgradeMethods, declaredRpcs, rpcs, declaredBroadcasts, broadcasts);
 	}
@@ -201,7 +204,7 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 			.ToImmutableArray();
 	}
 
-	private static (ImmutableArray<NetworkMessageMethodModel> DeclaredRpcs, ImmutableArray<NetworkMessageMethodModel> Rpcs, ImmutableArray<NetworkMessageMethodModel> DeclaredBroadcasts, ImmutableArray<NetworkMessageMethodModel> Broadcasts) GetNetworkMessages(INamedTypeSymbol type) {
+	private static (ImmutableArray<NetworkMessageMethodModel> DeclaredRpcs, ImmutableArray<NetworkMessageMethodModel> Rpcs, ImmutableArray<NetworkMessageMethodModel> DeclaredBroadcasts, ImmutableArray<NetworkMessageMethodModel> Broadcasts) GetNetworkMessages(INamedTypeSymbol type, CancellationToken cancellationToken) {
 		ImmutableArray<INamedTypeSymbol> inheritanceChain = GetInheritanceChain(type);
 		ImmutableArray<NetworkMessageMethodModel>.Builder declaredRpcs = ImmutableArray.CreateBuilder<NetworkMessageMethodModel>();
 		ImmutableArray<NetworkMessageMethodModel>.Builder rpcs = ImmutableArray.CreateBuilder<NetworkMessageMethodModel>();
@@ -212,13 +215,13 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 			foreach (IMethodSymbol method in currentType.GetMembers().OfType<IMethodSymbol>().OrderBy(static method => method.Name, StringComparer.Ordinal)) {
 				foreach (AttributeData attribute in method.GetAttributes()) {
 					if (attribute.AttributeClass?.ToDisplayString() == RPCAttributeMetadataName) {
-						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Rpc);
+						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Rpc, cancellationToken);
 						rpcs.Add(model);
 						if (SymbolEqualityComparer.Default.Equals(currentType, type)) {
 							declaredRpcs.Add(model);
 						}
 					} else if (attribute.AttributeClass?.ToDisplayString() == BroadcastAttributeMetadataName) {
-						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Broadcast);
+						NetworkMessageMethodModel model = NetworkMessageMethodModel.Create(method, attribute, NetworkMessageKind.Broadcast, cancellationToken);
 						broadcasts.Add(model);
 						if (SymbolEqualityComparer.Default.Equals(currentType, type)) {
 							declaredBroadcasts.Add(model);
@@ -250,7 +253,7 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 			attribute.AttributeClass?.ToDisplayString() == NetworkCollectionAttributeMetadataName);
 	}
 
-	private static (ImmutableArray<NetworkPropertyModel> DeclaredProperties, ImmutableArray<NetworkCollectionModel> DeclaredCollections, ImmutableArray<NetworkPropertyModel> Properties, ImmutableArray<NetworkCollectionModel> Collections) GetNetworkMembers(INamedTypeSymbol type) {
+	private static (ImmutableArray<NetworkPropertyModel> DeclaredProperties, ImmutableArray<NetworkCollectionModel> DeclaredCollections, ImmutableArray<NetworkPropertyModel> Properties, ImmutableArray<NetworkCollectionModel> Collections) GetNetworkMembers(INamedTypeSymbol type, CancellationToken cancellationToken) {
 		ImmutableArray<INamedTypeSymbol> inheritanceChain = GetInheritanceChain(type);
 		ImmutableArray<NetworkPropertyModel>.Builder declaredProperties = ImmutableArray.CreateBuilder<NetworkPropertyModel>();
 		ImmutableArray<NetworkCollectionModel>.Builder declaredCollections = ImmutableArray.CreateBuilder<NetworkCollectionModel>();
@@ -264,7 +267,7 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 				         .Where(static property => HasNetworkPropertyAttribute(property) || HasNetworkCollectionAttribute(property))
 				         .OrderBy(static property => property.Name, StringComparer.Ordinal)) {
 				if (HasNetworkPropertyAttribute(property)) {
-					NetworkPropertyModel model = NetworkPropertyModel.Create(property, propertyIndex);
+					NetworkPropertyModel model = NetworkPropertyModel.Create(property, propertyIndex, cancellationToken);
 					properties.Add(model);
 					if (SymbolEqualityComparer.Default.Equals(currentType, type)) {
 						declaredProperties.Add(model);
