@@ -104,7 +104,7 @@ Use `MemberSelectionMode.All` for full payloads and `MemberSelectionMode.Dirty` 
 
 ## Version Upgrades
 
-Set the current schema version on `[NetworkObject]`. Upgrade methods are static methods marked with `[UpgradeTo(version)]` and must upgrade exactly one version step at a time.
+Set the current schema version on `[NetworkObject]`. Upgrade methods are synchronous static `void` methods marked with `[UpgradeTo(version)]` and must upgrade exactly one version step at a time.
 
 ```csharp
 [NetworkObject(Version = 2)]
@@ -128,6 +128,7 @@ Upgrade rules:
 - upgrades only run for name-mode payloads
 - index-mode payloads throw if an upgrade is required
 - each `[UpgradeTo]` method moves from `version - 1` to `version`
+- all upgrade writes must finish before the method returns; `async` upgrade methods (including `async void`) are rejected with CN0018
 - missing sequential upgrade steps make deserialization fail
 - `CopyExcept(...)` copies unchanged old fields by name
 - `Write(name, value)` writes fields in the new schema shape

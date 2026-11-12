@@ -22,8 +22,8 @@ internal static class UpgradeToAttributeAnalyzer {
 
 	private static readonly DiagnosticDescriptor UpgradeToMethodRequiresValidSignatureRule = new(
 		UpgradeToMethodRequiresValidSignatureDiagnosticId,
-		"UpgradeToAttribute requires a static upgrade method with the expected signature",
-		"Upgrade method '{0}' must be static, non-generic, return void, and accept (NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer)",
+		"UpgradeToAttribute requires a static, non-async upgrade method with the expected signature",
+		"Upgrade method '{0}' must be static, non-async, non-generic, return void, and accept (NetworkObjectUpgradeReader reader, NetworkObjectUpgradeWriter writer)",
 		"Usage",
 		DiagnosticSeverity.Error,
 		true);
@@ -132,7 +132,10 @@ internal static class UpgradeToAttributeAnalyzer {
 	}
 
 	private static bool HasExpectedSignature(IMethodSymbol method, INamedTypeSymbol upgradeReaderType, INamedTypeSymbol upgradeWriterType) {
+		// Partial method declarations do not carry the implementation's async modifier.
 		return method.IsStatic &&
+		       !method.IsAsync &&
+		       method.PartialImplementationPart?.IsAsync != true &&
 		       !method.IsGenericMethod &&
 		       method.ReturnsVoid &&
 		       method.Parameters.Length == 2 &&
