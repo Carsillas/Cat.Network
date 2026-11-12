@@ -92,18 +92,15 @@ internal sealed class NetworkObjectTypeModel : IEquatable<NetworkObjectTypeModel
 	public ImmutableArray<NetworkMessageMethodModel> Broadcasts { get; }
 
 	public static NetworkObjectTypeModel Create(INamedTypeSymbol type) {
-		string @namespace = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString();
-		string typeName = type.Name;
+		string @namespace = type.ContainingNamespace.IsGlobalNamespace ? string.Empty : type.ContainingNamespace.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat.WithGlobalNamespaceStyle(SymbolDisplayGlobalNamespaceStyle.Omitted));
+		string typeName = NetworkTypeNames.Identifier(type.Name);
 		string fullyQualifiedName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 		bool hasBaseProperties = type.BaseType is not null && type.BaseType.SpecialType != SpecialType.System_Object;
 		string baseTypeName = hasBaseProperties
-			? type.BaseType!.ToDisplayString(FullyQualifiedTypeFormat)
+			? type.BaseType!.ToDisplayString(FullyQualifiedTypeFormat.WithMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers))
 			: "global::Cat.Network.NetworkObject";
-		string hintName = fullyQualifiedName
-			.Replace("global::", string.Empty)
-			.Replace(".", "_")
-			.Replace("+", "_");
-		string serializerTypeName = $"__CatNetwork_{typeName}_Serializer";
+		string hintName = NetworkTypeNames.HintName(type);
+		string serializerTypeName = $"__CatNetwork_{type.Name}_Serializer";
 		string serializerHintName = $"{hintName}_Serializer";
 		string typeId = CreateStableTypeId(type);
 		ushort version = GetVersion(type);

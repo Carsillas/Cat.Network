@@ -44,7 +44,7 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 		return new NetworkMessageMethodModel(
 			kind,
 			GetReceiveMode(attribute),
-			method.ContainingType.ToDisplayString(FullyQualifiedTypeFormat),
+			method.ContainingType.ToDisplayString(FullyQualifiedTypeFormat.WithMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier | SymbolDisplayMiscellaneousOptions.EscapeKeywordIdentifiers)),
 			method.Name,
 			CreateStableMessageId(method),
 			parameters);
