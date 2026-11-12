@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 
 namespace Cat.Network;
@@ -190,75 +189,60 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 	}
 
 	void INetworkCollection.Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
-		if (data.Length < 4) {
-			return;
-		}
-
-		int offset = 0;
-		int operationCount = ReadInt32(data, ref offset);
-		bool changed = false;
+		NetworkCollectionReader reader = new(data);
+		int operationCount = reader.ReadOperationCount();
 
 		for (int operationIndex = 0; operationIndex < operationCount; operationIndex++) {
-			if (data.Length - offset < 1) {
-				return;
-			}
-
-			NetworkCollectionOperationType operationType = (NetworkCollectionOperationType)data[offset];
-			offset++;
+			NetworkCollectionOperationType operationType = reader.ReadOperationType();
 
 			switch (operationType) {
 				case NetworkCollectionOperationType.Add: {
-					TKey key = ReadKey(data, ref offset, context);
-					TValue value = ReadValue(data, ref offset, context);
+					TKey key = KeyCodec.DeserializeFull<TKey>(reader.ReadPayload(), context);
+					if (Items.ContainsKey(key)) {
+						throw new InvalidOperationException("Dictionary add key already exists.");
+					}
+
+					TValue value = ValueCodec.DeserializeFull<TValue>(reader.ReadPayload(), context);
 					AddDeserialized(key, value);
-					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Add, key, value));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Remove: {
-					TKey key = ReadKey(data, ref offset, context);
+					TKey key = KeyCodec.DeserializeFull<TKey>(reader.ReadPayload(), context);
 					RemoveDeserialized(key);
-					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Remove, key));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Set: {
-					TKey key = ReadKey(data, ref offset, context);
-					TValue value = ReadValue(data, ref offset, context);
+					TKey key = KeyCodec.DeserializeFull<TKey>(reader.ReadPayload(), context);
+					TValue value = ValueCodec.DeserializeFull<TValue>(reader.ReadPayload(), context);
 					SetDeserialized(key, value);
-					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Set, key, value));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Clear:
 					ClearDeserialized();
-					OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Clear, default!));
-					changed = true;
 					break;
 				case NetworkCollectionOperationType.Update: {
-					TKey key = ReadKey(data, ref offset, context);
-					int valueLength = ReadInt32(data, ref offset);
-					if (data.Length - offset < valueLength) {
-						return;
+					TKey key = KeyCodec.DeserializeFull<TKey>(reader.ReadPayload(), context);
+					ReadOnlySpan<byte> payload = reader.ReadPayload();
+					if (!Items.TryGetValue(key, out TValue? value) || value is not NetworkObject) {
+						throw new InvalidOperationException("Dictionary update target must be an existing non-null NetworkObject.");
 					}
 
-					if (Items.TryGetValue(key, out TValue? value)) {
-						ValueCodec.DeserializeUpdate(value, data.Slice(offset, valueLength), context);
+					try {
+						ValueCodec.DeserializeUpdate(value, payload, context);
+					} finally {
+						// Preserve any state applied before a nested deserializer fails. The
+						// outgoing update serializes this value's current dirty state.
 						OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Update, key, value));
-						changed = true;
+						MarkOwnerModified();
 					}
-
-					offset += valueLength;
 					break;
 				}
 				default:
-					return;
+					throw new InvalidOperationException($"Unsupported dictionary operation '{operationType}'.");
 			}
 		}
 
-		if (changed) {
-			MarkOwnerModified();
-		}
+		reader.EnsureFullyConsumed();
 	}
 
 	void INetworkCollection.ClearDirtyState(SerializationContext context) {
@@ -292,18 +276,22 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		ValidateValueForAssignment(value);
 		Items.Add(key, value);
 		OnValueAdded(value);
+		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Add, key, value));
+		MarkOwnerModified();
 		ItemAdded?.Invoke(this, key);
 	}
 
 	protected void SetDeserialized(TKey key, TValue value) {
+		ValidateValueForAssignment(value);
 		bool replacedValue = Items.TryGetValue(key, out TValue? previous);
 		if (replacedValue) {
 			OnValueRemoving(previous!);
 		}
 
-		ValidateValueForAssignment(value);
 		Items[key] = value;
 		OnValueAdded(value);
+		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Set, key, value));
+		MarkOwnerModified();
 		if (replacedValue) {
 			ValueChanged?.Invoke(this, key);
 		} else {
@@ -313,11 +301,15 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
 	protected void RemoveDeserialized(TKey key) {
 		if (!Items.TryGetValue(key, out TValue? value)) {
+			OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Remove, key));
+			MarkOwnerModified();
 			return;
 		}
 
 		OnValueRemoving(value);
 		Items.Remove(key);
+		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Remove, key));
+		MarkOwnerModified();
 		ItemRemoved?.Invoke(this, key);
 	}
 
@@ -328,6 +320,8 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		}
 
 		Items.Clear();
+		OperationBuffer.Add(new NetworkDictionaryOperation<TKey, TValue>(NetworkCollectionOperationType.Clear, default!));
+		MarkOwnerModified();
 		foreach (TKey key in removedKeys) {
 			ItemRemoved?.Invoke(this, key);
 		}
@@ -366,28 +360,6 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		}
 	}
 
-	private static TKey ReadKey(ReadOnlySpan<byte> data, ref int offset, SerializationContext context) {
-		int keyLength = ReadInt32(data, ref offset);
-		if (data.Length - offset < keyLength) {
-			throw new InvalidOperationException("Dictionary key payload is truncated.");
-		}
-
-		TKey key = KeyCodec.DeserializeFull<TKey>(data.Slice(offset, keyLength), context);
-		offset += keyLength;
-		return key;
-	}
-
-	private static TValue ReadValue(ReadOnlySpan<byte> data, ref int offset, SerializationContext context) {
-		int valueLength = ReadInt32(data, ref offset);
-		if (data.Length - offset < valueLength) {
-			throw new InvalidOperationException("Dictionary value payload is truncated.");
-		}
-
-		TValue value = ValueCodec.DeserializeFull<TValue>(data.Slice(offset, valueLength), context);
-		offset += valueLength;
-		return value;
-	}
-
 	private static void WriteKey(BufferWriter writer, TKey key, SerializationContext context, SerializationOptions options) {
 		Range keyLengthRange = writer.Reserve(4);
 		int keyStart = writer.WrittenCount;
@@ -405,12 +377,6 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 		}
 
 		writer.WriteInt32(valueLengthRange, writer.WrittenCount - valueStart);
-	}
-
-	private static int ReadInt32(ReadOnlySpan<byte> data, ref int offset) {
-		int value = BinaryPrimitives.ReadInt32LittleEndian(data[offset..]);
-		offset += 4;
-		return value;
 	}
 
 	private static void WriteOperationType(BufferWriter writer, NetworkCollectionOperationType operationType) {

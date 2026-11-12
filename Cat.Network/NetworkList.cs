@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Buffers.Binary;
 using System.Collections.Generic;
 
 namespace Cat.Network;
@@ -178,81 +177,66 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 	}
 
 	void INetworkCollection.Deserialize(ReadOnlySpan<byte> data, SerializationContext context) {
-		if (data.Length < 4) {
-			return;
-		}
-
-		int offset = 0;
-		int operationCount = ReadInt32(data, ref offset);
-		bool changed = false;
+		NetworkCollectionReader reader = new(data);
+		int operationCount = reader.ReadOperationCount();
 
 		for (int operationIndex = 0; operationIndex < operationCount; operationIndex++) {
-			if (data.Length - offset < 1) {
-				return;
-			}
-
-			NetworkCollectionOperationType operationType = (NetworkCollectionOperationType)data[offset];
-			offset++;
+			NetworkCollectionOperationType operationType = reader.ReadOperationType();
 
 			switch (operationType) {
 				case NetworkCollectionOperationType.Add: {
-					int itemLength = ReadInt32(data, ref offset);
-					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
-					offset += itemLength;
+					T item = Codec.DeserializeFull<T>(reader.ReadPayload(), context);
 					AddDeserialized(item);
-					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Add, Items.Count - 1, item));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Insert: {
-					int index = ReadInt32(data, ref offset);
-					int itemLength = ReadInt32(data, ref offset);
-					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
-					offset += itemLength;
+					int index = reader.ReadInt32();
+					ValidateDeserializedIndex(index, allowEnd: true);
+					T item = Codec.DeserializeFull<T>(reader.ReadPayload(), context);
 					InsertDeserialized(index, item);
-					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Insert, index, item));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Remove: {
-					int index = ReadInt32(data, ref offset);
+					int index = reader.ReadInt32();
+					ValidateDeserializedIndex(index);
 					RemoveAtDeserialized(index);
-					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Remove, index));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Set: {
-					int index = ReadInt32(data, ref offset);
-					int itemLength = ReadInt32(data, ref offset);
-					T item = Codec.DeserializeFull<T>(data.Slice(offset, itemLength), context);
-					offset += itemLength;
+					int index = reader.ReadInt32();
+					ValidateDeserializedIndex(index);
+					T item = Codec.DeserializeFull<T>(reader.ReadPayload(), context);
 					SetDeserialized(index, item);
-					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Set, index, item));
-					changed = true;
 					break;
 				}
 				case NetworkCollectionOperationType.Clear:
 					ClearDeserialized();
-					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Clear));
-					changed = true;
 					break;
 				case NetworkCollectionOperationType.Update: {
-					int index = ReadInt32(data, ref offset);
-					int itemLength = ReadInt32(data, ref offset);
-					Codec.DeserializeUpdate(Items[index], data.Slice(offset, itemLength), context);
-					offset += itemLength;
-					OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Update, index, Items[index]));
-					changed = true;
+					int index = reader.ReadInt32();
+					ValidateDeserializedIndex(index);
+					ReadOnlySpan<byte> payload = reader.ReadPayload();
+					T item = Items[index];
+					if (item is not NetworkObject) {
+						throw new InvalidOperationException("Collection update target must be a non-null NetworkObject.");
+					}
+
+					try {
+						Codec.DeserializeUpdate(item, payload, context);
+					} finally {
+						// A nested serializer can throw after modifying the live child. Forward its
+						// current dirty state, never the possibly malformed incoming bytes.
+						OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Update, index, item));
+						MarkOwnerModified();
+					}
 					break;
 				}
 				default:
-					return;
+					throw new InvalidOperationException($"Unsupported collection operation '{operationType}'.");
 			}
 		}
 
-		if (changed) {
-			MarkOwnerModified();
-		}
+		reader.EnsureFullyConsumed();
 	}
 
 	void INetworkCollection.ClearDirtyState(SerializationContext context) {
@@ -286,6 +270,8 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		ValidateItemForAssignment(item);
 		Items.Add(item);
 		OnItemAdded(item);
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Add, Items.Count - 1, item));
+		MarkOwnerModified();
 		ItemAdded?.Invoke(this, Items.Count - 1);
 	}
 
@@ -293,15 +279,19 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		ValidateItemForAssignment(item);
 		Items.Insert(index, item);
 		OnItemAdded(item);
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Insert, index, item));
+		MarkOwnerModified();
 		ItemAdded?.Invoke(this, index);
 	}
 
 	protected void SetDeserialized(int index, T item) {
 		T previous = Items[index];
-		OnItemRemoving(previous);
 		ValidateItemForAssignment(item);
+		OnItemRemoving(previous);
 		Items[index] = item;
 		OnItemAdded(item);
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Set, index, item));
+		MarkOwnerModified();
 		IndexChanged?.Invoke(this, index);
 	}
 
@@ -309,6 +299,8 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		T item = Items[index];
 		OnItemRemoving(item);
 		Items.RemoveAt(index);
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Remove, index));
+		MarkOwnerModified();
 		ItemRemoved?.Invoke(this, index);
 	}
 
@@ -319,6 +311,8 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		}
 
 		Items.Clear();
+		OperationBuffer.Add(new NetworkCollectionOperation<T>(NetworkCollectionOperationType.Clear));
+		MarkOwnerModified();
 		for (int index = removedCount - 1; index >= 0; index--) {
 			ItemRemoved?.Invoke(this, index);
 		}
@@ -379,10 +373,10 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 		}
 	}
 
-	private static int ReadInt32(ReadOnlySpan<byte> data, ref int offset) {
-		int value = BinaryPrimitives.ReadInt32LittleEndian(data[offset..]);
-		offset += 4;
-		return value;
+	private void ValidateDeserializedIndex(int index, bool allowEnd = false) {
+		if (index < 0 || index > Items.Count || (!allowEnd && index == Items.Count)) {
+			throw new InvalidOperationException($"Collection operation index '{index}' is out of range.");
+		}
 	}
 
 	private static void WriteOperationType(BufferWriter writer, NetworkCollectionOperationType operationType) {
