@@ -168,29 +168,42 @@ catalogue.Register(typeof(ProjectileEntity));
 
 ## Relay Server
 
-The server accepts transports from an `IDaemon`, receives a `NetworkProfile` for each accepted connection, and asks `IEntityStorage` which entities are relevant to each profile.
+The server accepts transports from an `IDaemon`, receives a `NetworkProfile` for each accepted connection, and asks an `EntityStorage` implementation which entities are relevant to each profile.
 
 ```csharp
-public sealed class WorldStorage : IEntityStorage {
+using System;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using Cat.Network;
+
+public sealed class WorldStorage : EntityStorage {
 	private readonly Dictionary<Guid, NetworkEntity> entities = [];
 
-	public bool RegisterEntity(NetworkEntity entity) => entities.TryAdd(entity.Id, entity);
-	public bool UnregisterEntity(Guid id) => entities.Remove(id);
-	public bool TryGetEntity(Guid id, out NetworkEntity? entity) => entities.TryGetValue(id, out entity);
+	protected override IEnumerable<NetworkEntity> GetRegisteredEntities() => entities.Values;
+	protected override void AddEntity(NetworkEntity entity) => entities.Add(entity.Id, entity);
+	protected override void RemoveEntity(Guid id) => entities.Remove(id);
+	public override bool TryGetEntity(Guid id, [NotNullWhen(true)] out NetworkEntity? entity) => entities.TryGetValue(id, out entity);
 
-	public void PopulateRelevantEntities(NetworkProfile profile, ICollection<NetworkEntity> results) {
+	public override void PopulateRelevantEntities(NetworkProfile profile, ICollection<NetworkEntity> results) {
 		foreach (NetworkEntity entity in entities.Values) {
 			results.Add(entity);
 		}
 	}
 }
+```
 
+Keep `WorldStorage` in its own file. Using the catalogue and network types from the preceding section, put the setup statements below in `Main` or before type declarations in a top-level program:
+
+```csharp
+WorldStorage storage = new();
 IDaemon daemon = new MemoryRelayDaemon(() => new PlayerProfile());
-RelayServer server = new(daemon, catalogue, new WorldStorage());
+RelayServer server = new(daemon, catalogue, storage);
 server.Tick();
 ```
 
-Real storage implementations can use spatial partitioning or other world-state indexes inside `PopulateRelevantEntities`. The relay reuses caller-provided collections and diffs relevant ids against each client's known ids.
+Call the inherited `storage.RegisterEntity(entity)` and `storage.UnregisterEntity(id)` methods to add and remove entities. The base class assigns missing IDs, validates that new entities are detached, and manages their relay attachment. Constructing `RelayServer` also attaches entities registered beforehand through `GetRegisteredEntities`. The storage overrides only maintain the backing collection and lookup; they do not repeat this bookkeeping.
+
+This example makes every stored entity relevant to every profile. Real storage implementations can use spatial partitioning or other world-state indexes inside `PopulateRelevantEntities`. Append relevant entities to the supplied results collection; the relay reuses it and diffs relevant ids against each client's known ids.
 
 ## Relay Client
 
@@ -218,7 +231,7 @@ client.AssignOwner(projectile, otherProfileId);
 
 `NetworkEntity.IsSpawned` reports whether the entity is currently attached to a relay peer. `NetworkObject.IsOwner` reports whether the local peer owns that object through its anchored entity.
 
-Set `NetworkEntity.DestroyWithOwner` before spawning when the server should delete the entity if its owner disconnects. This is useful for owned transient objects such as player avatars, projectiles, or session-bound objects. When the owner disconnects, the server removes flagged entities from `IEntityStorage` and sends normal delete messages to clients that knew them. Entities with `DestroyWithOwner = false` remain in storage, lose their owner, and may be reassigned by the usual relevancy flow.
+Set `NetworkEntity.DestroyWithOwner` before spawning when the server should delete the entity if its owner disconnects. This is useful for owned transient objects such as player avatars, projectiles, or session-bound objects. When the owner disconnects, the server removes flagged entities from `EntityStorage` and sends normal delete messages to clients that knew them. Entities with `DestroyWithOwner = false` remain in storage, lose their owner, and may be reassigned by the usual relevancy flow.
 
 ## RPCs And Broadcasts
 
