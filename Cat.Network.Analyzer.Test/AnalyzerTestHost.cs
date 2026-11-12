@@ -6,12 +6,12 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace Cat.Network.Analyzer.Test;
 
 internal static class AnalyzerTestHost {
-	public static async Task<ImmutableArray<Diagnostic>> GetAnalyzerDiagnosticsAsync(string source) {
+	public static async Task<ImmutableArray<Diagnostic>> GetAnalyzerDiagnosticsAsync(string source, CancellationToken cancellationToken = default) {
 		CSharpCompilation compilation = CreateCompilation(source);
 		ImmutableArray<DiagnosticAnalyzer> analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(new CatNetworkAnalyzer());
 		CompilationWithAnalyzers compilationWithAnalyzers = compilation.WithAnalyzers(analyzers);
 
-		return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync();
+		return await compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync(cancellationToken);
 	}
 
 	private static CSharpCompilation CreateCompilation(string source) {

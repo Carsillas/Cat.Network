@@ -7,6 +7,10 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace Cat.Network.Analyzer;
 
 internal static class NetworkAnalyzerHelpers {
+	// Invalid generic structs can expand forever without repeating a constructed
+	// symbol. Bound field nesting as well as tracking the active symbol path.
+	public const int MaxStructNestingDepth = 128;
+
 	public static bool InheritsFrom(INamedTypeSymbol type, INamedTypeSymbol baseType) {
 		for (INamedTypeSymbol? current = type.BaseType; current is not null; current = current.BaseType)
 			if (SymbolEqualityComparer.Default.Equals(current, baseType)) {
