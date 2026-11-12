@@ -36,9 +36,9 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 
 	public ImmutableArray<NetworkMessageParameterModel> Parameters { get; }
 
-	public static NetworkMessageMethodModel Create(IMethodSymbol method, AttributeData attribute, NetworkMessageKind kind) {
+	public static NetworkMessageMethodModel Create(IMethodSymbol method, AttributeData attribute, NetworkMessageKind kind, INamedTypeSymbol? networkObjectType) {
 		ImmutableArray<NetworkMessageParameterModel> parameters = method.Parameters
-			.Select(NetworkMessageParameterModel.Create)
+			.Select(parameter => NetworkMessageParameterModel.Create(parameter, networkObjectType))
 			.ToImmutableArray();
 
 		return new NetworkMessageMethodModel(

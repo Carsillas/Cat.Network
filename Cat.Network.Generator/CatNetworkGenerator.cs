@@ -13,7 +13,9 @@ public sealed class CatNetworkGenerator : IIncrementalGenerator {
 			.ForAttributeWithMetadataName(
 				NetworkObjectAttributeMetadataName,
 				static (node, _) => node is ClassDeclarationSyntax,
-				static (syntaxContext, _) => NetworkObjectTypeModel.Create((INamedTypeSymbol)syntaxContext.TargetSymbol))
+				static (syntaxContext, _) => NetworkObjectTypeModel.Create(
+					(INamedTypeSymbol)syntaxContext.TargetSymbol,
+					syntaxContext.SemanticModel.Compilation.GetTypeByMetadataName("Cat.Network.NetworkObject")))
 			.Collect();
 
 		context.RegisterSourceOutput(networkObjectTypes, static (sourceProductionContext, models) => {
