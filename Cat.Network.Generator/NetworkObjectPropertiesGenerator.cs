@@ -157,6 +157,10 @@ internal static class NetworkObjectPropertiesGenerator {
 	}
 
 	private static string InitializeMembers(NetworkObjectTypeModel model) {
+		NetworkPropertyModel[] childProperties = model.Properties
+			.Where(static property => property.SerializationKind == NetworkPropertySerializationKind.NetworkObject)
+			.OrderBy(static property => property.PropertyIndex)
+			.ToArray();
 		string collectionInitializers = string.Join(
 			"\n",
 			model.Collections
@@ -166,7 +170,64 @@ internal static class NetworkObjectPropertiesGenerator {
 		return string.Format(
 			InitializeMembersTemplate,
 			model.Namespace == "Cat.Network" ? "INetworkObject" : "global::Cat.Network.INetworkObject",
-			collectionInitializers);
+			collectionInitializers,
+			childProperties.Length == 0 ? string.Empty : InitializedChildValidation(childProperties),
+			childProperties.Length == 0 ? string.Empty : InitializedChildAttachmentTemplate);
+	}
+
+	private static string InitializedChildValidation(IEnumerable<NetworkPropertyModel> properties) {
+		string validations = string.Join("\n", properties.Select(static property =>
+			$"ValidateInitializedChild(Get{property.Name}(this), {property.PropertyIndex});"));
+
+		return $$"""
+			// Validate all default values before attaching any child or resetting dirty state.
+			global::System.Collections.Generic.Dictionary<global::Cat.Network.NetworkObject, int>? initializedChildren = null;
+			{{validations}}
+
+			void ValidateInitializedChild(global::Cat.Network.NetworkObject? value, int propertyIndex)
+			{
+				if (value is null)
+				{
+					return;
+				}
+				global::Cat.Network.INetworkObject child = value;
+				if (child.Parent is not null && (!global::System.Object.ReferenceEquals(child.Parent, this) || child.PropertyIndex != propertyIndex || child.IsCollectionItem))
+				{
+					throw new global::System.InvalidOperationException("NetworkObjects may only occupy one networked property or collection at a time.");
+				}
+
+				global::Cat.Network.INetworkObject? ancestor = this;
+				global::Cat.Network.INetworkObject? slowAncestor = this;
+				while (ancestor is not null)
+				{
+					if (global::System.Object.ReferenceEquals(ancestor, value))
+					{
+						throw new global::System.InvalidOperationException("A NetworkObject cannot own itself or one of its ancestors.");
+					}
+					ancestor = ancestor.Parent;
+					if (ancestor is null)
+					{
+						break;
+					}
+					if (global::System.Object.ReferenceEquals(ancestor, value))
+					{
+						throw new global::System.InvalidOperationException("A NetworkObject cannot own itself or one of its ancestors.");
+					}
+					ancestor = ancestor.Parent;
+					slowAncestor = slowAncestor!.Parent;
+					if (ancestor is not null && global::System.Object.ReferenceEquals(ancestor, slowAncestor))
+					{
+						throw new global::System.InvalidOperationException("The NetworkObject owner chain contains a cycle.");
+					}
+				}
+
+				initializedChildren ??= new global::System.Collections.Generic.Dictionary<global::Cat.Network.NetworkObject, int>(global::System.Collections.Generic.ReferenceEqualityComparer.Instance);
+				if (!initializedChildren.TryAdd(value, propertyIndex))
+				{
+					throw new global::System.InvalidOperationException("NetworkObjects may only occupy one networked property at a time.");
+				}
+			}
+			""";
 	}
 
 	private static string CollectionAccessorMethods(NetworkObjectTypeModel model) {
@@ -508,11 +569,25 @@ internal static class NetworkObjectPropertiesGenerator {
 	                                                 """;
 
 	private const string InitializeMembersTemplate = """
+		void {0}.Initialize()
+		{{
+			{2}
+			((global::Cat.Network.INetworkObject)this).PropertyStates = new global::Cat.Network.NetworkPropertyState[Properties.Length];
+			{1}
+			{3}
+		}}
+		""";
 
-	                                         	void {0}.Initialize()
-	                                         	{{
-	                                         		((global::Cat.Network.INetworkObject)this).PropertyStates = new global::Cat.Network.NetworkPropertyState[Properties.Length];
-	                                         		{1}
-	                                         	}}
-	                                         """;
+	private const string InitializedChildAttachmentTemplate = """
+		if (initializedChildren is not null)
+		{
+			foreach (global::System.Collections.Generic.KeyValuePair<global::Cat.Network.NetworkObject, int> entry in initializedChildren)
+			{
+				global::Cat.Network.INetworkObject child = entry.Key;
+				child.Parent = this;
+				child.PropertyIndex = entry.Value;
+				child.IsCollectionItem = false;
+			}
+		}
+		""";
 }
