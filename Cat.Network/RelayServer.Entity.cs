@@ -160,6 +160,7 @@ public partial class RelayServer {
 						}
 
 						client.KnownEntityIds.Add(entity.Id);
+						DirtyEntityWorkingSet.Add(entity);
 					} else {
 						continue;
 					}
@@ -188,6 +189,7 @@ public partial class RelayServer {
 			RelevantEntityIdWorkingSet.Clear();
 		}
 
+		// Keep pending deltas until all observers have been processed.
 		foreach (NetworkEntity entity in DirtyEntityWorkingSet) {
 			ClearDirtyState(entity);
 		}
