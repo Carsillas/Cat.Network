@@ -615,6 +615,60 @@ public sealed partial class SerializerRuntimeTests {
 		});
 	}
 
+	[TestCase(false)]
+	[TestCase(true)]
+	public void RelayServer_NewClientJoins_PreservesExistingRelevantOwner(bool serverCreated) {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayValueState));
+		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
+		TestEntityStorage serverStorage = new();
+		RelayServer server = new(daemon, catalogue, serverStorage);
+		RelayClient firstClient = new(catalogue);
+		RelayClient secondClient = new(catalogue);
+
+		firstClient.Connect(daemon.Connect());
+		Pump(server, firstClient);
+
+		RelayValueState entity = new() { Value = 3 };
+		if (serverCreated) {
+			serverStorage.RegisterEntity(entity);
+		} else {
+			firstClient.Spawn(entity);
+		}
+		Pump(server, firstClient);
+		Assert.That(firstClient.TryGetEntity(entity.Id, out NetworkEntity? firstClientEntity), Is.True);
+		Assert.That(firstClientEntity!.IsOwner, Is.True);
+		int ownershipLostCount = 0;
+		firstClient.EntityOwnershipLost += lost => {
+			if (lost.Id == entity.Id) {
+				ownershipLostCount++;
+			}
+		};
+
+		// TestEntityStorage keeps every entity relevant to every client throughout the join.
+		secondClient.Connect(daemon.Connect());
+		for (int tick = 0; tick < 8; tick++) {
+			server.Tick();
+			firstClient.Tick();
+			secondClient.Tick();
+			Assert.That(firstClientEntity.IsOwner, Is.True, $"Original owner lost ownership on tick {tick}.");
+			if (secondClient.TryGetEntity(entity.Id, out NetworkEntity? observedEntity)) {
+				Assert.That(observedEntity!.IsOwner, Is.False, $"Joining client gained ownership on tick {tick}.");
+			}
+		}
+
+		Assert.That(secondClient.TryGetEntity(entity.Id, out NetworkEntity? secondClientEntity), Is.True);
+		Assert.That(ownershipLostCount, Is.Zero);
+
+		((RelayValueState)firstClientEntity).Value = 19;
+		Pump(server, firstClient, secondClient);
+		Assert.Multiple(() => {
+			Assert.That(firstClientEntity.IsOwner, Is.True);
+			Assert.That(secondClientEntity!.IsOwner, Is.False);
+			Assert.That(((RelayValueState)secondClientEntity).Value, Is.EqualTo(19));
+			Assert.That(ownershipLostCount, Is.Zero);
+		});
+	}
+
 	[Test]
 	public void RelayClientEntityObserved_FiresAfterLocalSpawnRegistersEntity() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayValueState));
