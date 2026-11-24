@@ -35,12 +35,18 @@ public abstract partial class RelayPeer {
 			case NetworkMessageChannel.ProfileMessage:
 				ProcessProfileMessage(sender, message);
 				break;
+			case NetworkMessageChannel.ServerMessage:
+				ProcessServerMessage(sender, message);
+				break;
 			default:
 				throw new ArgumentOutOfRangeException(nameof(channel), channel, null);
 		}
 	}
 
 	protected virtual void OnApplicationMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
+	}
+
+	private protected virtual void ProcessServerMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
 	}
 
 	protected static bool HasDirtyState(NetworkObject target) {

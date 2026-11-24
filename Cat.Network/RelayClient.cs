@@ -33,11 +33,9 @@ public partial class RelayClient(TypeCatalogue typeCatalogue) : RelayPeer(typeCa
 	}
 
 	public void Connect(IRelayTransport transport) {
-		if (Transport is not null) {
-			Transport.MessageReceived -= ProcessMessage;
-		}
-
-		Transport = transport ?? throw new ArgumentNullException(nameof(transport));
+		ArgumentNullException.ThrowIfNull(transport);
+		Disconnect();
+		Transport = transport;
 		Transport.MessageReceived += ProcessMessage;
 	}
 
@@ -47,6 +45,37 @@ public partial class RelayClient(TypeCatalogue typeCatalogue) : RelayPeer(typeCa
 		}
 
 		Transport = null;
+		while (OutgoingMessageWriters.TryDequeue(out BufferWriter? writer)) {
+			ReturnMessageWriter(writer);
+		}
+	}
+
+	/// <summary>Queues a snapshot of a network object to send to the server on the next tick.</summary>
+	public void SendMessage(NetworkObject message) {
+		ArgumentNullException.ThrowIfNull(message);
+		if (Transport is null) {
+			throw new InvalidOperationException("Cannot queue a server message without a connected relay transport.");
+		}
+
+		Type type = message.GetType();
+		if (!TypeCatalogue.TryFindTypeId(type, out Guid typeId) ||
+		    !TypeCatalogue.TryFindSerializer(type, out INetworkObjectSerializer? serializer)) {
+			throw new InvalidOperationException($"Server message type '{type.FullName}' is not registered.");
+		}
+
+		BufferWriter writer = RentMessageWriter();
+		try {
+			writer.WriteByte((byte)NetworkMessageChannel.ServerMessage);
+			writer.WriteGuid(typeId);
+			Range lengthRange = writer.Reserve(sizeof(int));
+			int dataStart = writer.WrittenCount;
+			serializer.Serialize(writer, message, new SerializationContext(TypeCatalogue), new SerializationOptions(MemberSelectionMode.All, MemberIdentificationMode.Index));
+			writer.WriteInt32(lengthRange, writer.WrittenCount - dataStart);
+			OutgoingMessageWriters.Enqueue(writer);
+		} catch {
+			ReturnMessageWriter(writer);
+			throw;
+		}
 	}
 
 	[System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]

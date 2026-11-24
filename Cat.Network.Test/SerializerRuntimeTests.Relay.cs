@@ -907,6 +907,46 @@ public sealed partial class SerializerRuntimeTests {
 	}
 
 	[Test]
+	public void RelayServerMessage_DeliversSnapshotWithAuthoritativeProfile() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayMessagePayload));
+		RelayProfileState serverProfile = new();
+		MemoryRelayDaemon daemon = new(() => serverProfile);
+		MessageHandlingRelayServer server = new(daemon, catalogue, new TestEntityStorage());
+		RelayClient client = new(catalogue);
+		client.Connect(daemon.Connect());
+		Pump(server, client);
+
+		RelayMessagePayload payload = new() { Label = "request", Value = 42 };
+		client.SendMessage(payload);
+		payload.Value = 99;
+		Pump(server, client);
+
+		Assert.That(server.InvokingProfile, Is.SameAs(serverProfile));
+		Assert.That(server.Message, Is.TypeOf<RelayMessagePayload>());
+		RelayMessagePayload received = (RelayMessagePayload)server.Message!;
+		Assert.That(received.Label, Is.EqualTo("request"));
+		Assert.That(received.Value, Is.EqualTo(42));
+		Assert.That(((RelayProfileState)client.Profile!).Value, Is.EqualTo(42));
+	}
+
+	[Test]
+	public void RelayClient_Connect_DiscardsQueuedMessagesEvenWhenReusingTransport() {
+		TypeCatalogue catalogue = RegisterTypes(typeof(RelayMessagePayload));
+		RelayClient client = new(catalogue);
+		RecordingRelayTransport transport = new();
+		client.Connect(transport);
+		client.SendMessage(new RelayMessagePayload { Value = 1 });
+
+		client.Connect(transport);
+		client.Tick();
+		Assert.That(transport.SentMessages, Is.Empty);
+
+		client.SendMessage(new RelayMessagePayload { Value = 2 });
+		client.Tick();
+		Assert.That(transport.SentMessages, Has.Count.EqualTo(1));
+	}
+
+	[Test]
 	public void RelayRpc_NonOwnerInvocation_ForwardsToOwnerWithInstigatorProfile() {
 		TypeCatalogue catalogue = RegisterTypes(typeof(RelayProfileState), typeof(RelayMessageState));
 		MemoryRelayDaemon daemon = new(() => new RelayProfileState());
@@ -1627,6 +1667,18 @@ public sealed partial class SerializerRuntimeTests {
 	private sealed class ExposedRelayClient(TypeCatalogue typeCatalogue) : RelayClient(typeCatalogue) {
 		public void Receive(IRelayTransport sender, ReadOnlySpan<byte> message) {
 			ProcessMessage(sender, message);
+		}
+	}
+
+	private sealed class MessageHandlingRelayServer(IDaemon daemon, TypeCatalogue typeCatalogue, EntityStorage entityStorage)
+		: RelayServer(daemon, typeCatalogue, entityStorage) {
+		public NetworkProfile? InvokingProfile { get; private set; }
+		public NetworkObject? Message { get; private set; }
+
+		protected override void OnMessage(NetworkProfile invokingProfile, NetworkObject message) {
+			InvokingProfile = invokingProfile;
+			Message = message;
+			((RelayProfileState)invokingProfile).Value = ((RelayMessagePayload)message).Value;
 		}
 	}
 

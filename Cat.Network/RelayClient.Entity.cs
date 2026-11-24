@@ -125,8 +125,11 @@ public partial class RelayClient {
 		EntitiesToDelete.Clear();
 
 		while (OutgoingMessageWriters.TryDequeue(out BufferWriter? writer)) {
-			transport.Send(writer.GetWrittenSpan());
-			ReturnMessageWriter(writer);
+			try {
+				transport.Send(writer.GetWrittenSpan());
+			} finally {
+				ReturnMessageWriter(writer);
+			}
 		}
 
 		foreach (OwnershipTransferRequest request in OwnershipTransferRequests) {

@@ -28,6 +28,10 @@ public class TypeCatalogue {
 		if (!typeof(NetworkObject).IsAssignableFrom(type)) {
 			throw new InvalidOperationException($"Type '{type.FullName}' does not inherit from {nameof(NetworkObject)}.");
 		}
+		
+		if (type.IsAbstract || type.ContainsGenericParameters || type.GetConstructor(Type.EmptyTypes) is null) {
+			throw new InvalidOperationException($"Type '{type.FullName}' must be concrete, have no unbound generic parameters, and have a public parameterless constructor.");
+		}
 
 		NetworkObjectTypeId? typeId = type.GetCustomAttributes(typeof(NetworkObjectTypeId), inherit: false)
 			.OfType<NetworkObjectTypeId>()

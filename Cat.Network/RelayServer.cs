@@ -26,6 +26,26 @@ public partial class RelayServer : RelayPeer {
 		return true;
 	}
 
+	/// <summary>Handles a message sent by a connected client.</summary>
+	protected virtual void OnMessage(NetworkProfile invokingProfile, NetworkObject message) {
+	}
+
+	private protected sealed override void ProcessServerMessage(IRelayTransport sender, ReadOnlySpan<byte> message) {
+		if (!ClientsByTransport.TryGetValue(sender, out RemoteClient? client) ||
+		    !message.TryConsumeGuid(out Guid typeId) ||
+		    !message.TryConsumeLengthPrefixedData(out ReadOnlySpan<byte> data) ||
+		    !message.IsEmpty ||
+		    !TypeCatalogue.TryFindType(typeId, out Type? type) ||
+		    !TypeCatalogue.TryFindSerializer(type, out INetworkObjectSerializer? serializer)) {
+			return;
+		}
+
+		NetworkObject target = (NetworkObject)Activator.CreateInstance(type)!;
+		serializer.Deserialize(target, data, new SerializationContext(TypeCatalogue));
+		ClearDirtyState(target);
+		OnMessage(client.Profile, target);
+	}
+
 	public void RemoveTransport(IRelayTransport transport) {
 		ArgumentNullException.ThrowIfNull(transport);
 
