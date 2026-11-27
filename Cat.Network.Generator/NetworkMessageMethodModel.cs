@@ -15,11 +15,12 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 		SymbolDisplayGenericsOptions.IncludeTypeParameters,
 		miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-	private NetworkMessageMethodModel(NetworkMessageKind kind, NetworkMessageReceiveModeModel receiveMode, string declaringTypeName, string name, ulong id, ImmutableArray<NetworkMessageParameterModel> parameters) {
+	private NetworkMessageMethodModel(NetworkMessageKind kind, NetworkMessageReceiveModeModel receiveMode, string declaringTypeName, string name, string receiveName, ulong id, ImmutableArray<NetworkMessageParameterModel> parameters) {
 		Kind = kind;
 		ReceiveMode = receiveMode;
 		DeclaringTypeName = declaringTypeName;
 		Name = name;
+		ReceiveName = receiveName;
 		Id = id;
 		Parameters = parameters;
 	}
@@ -31,6 +32,8 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 	public string DeclaringTypeName { get; }
 
 	public string Name { get; }
+
+	public string ReceiveName { get; }
 
 	public ulong Id { get; }
 
@@ -46,8 +49,13 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 			GetReceiveMode(attribute),
 			method.ContainingType.ToDisplayString(FullyQualifiedTypeFormat),
 			method.Name,
+			method.Name,
 			CreateStableMessageId(method),
 			parameters);
+	}
+
+	public NetworkMessageMethodModel WithReceiveName(string receiveName) {
+		return new NetworkMessageMethodModel(Kind, ReceiveMode, DeclaringTypeName, Name, receiveName, Id, Parameters);
 	}
 
 	public bool Equals(NetworkMessageMethodModel? other) {
@@ -56,6 +64,7 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 		       ReceiveMode == other.ReceiveMode &&
 		       DeclaringTypeName == other.DeclaringTypeName &&
 		       Name == other.Name &&
+		       ReceiveName == other.ReceiveName &&
 		       Id == other.Id &&
 		       Parameters.SequenceEqual(other.Parameters);
 	}
@@ -70,6 +79,7 @@ internal sealed class NetworkMessageMethodModel : IEquatable<NetworkMessageMetho
 			hashCode = (hashCode * 397) ^ (int)ReceiveMode;
 			hashCode = (hashCode * 397) ^ DeclaringTypeName.GetHashCode();
 			hashCode = (hashCode * 397) ^ Name.GetHashCode();
+			hashCode = (hashCode * 397) ^ ReceiveName.GetHashCode();
 			hashCode = (hashCode * 397) ^ Id.GetHashCode();
 			foreach (NetworkMessageParameterModel parameter in Parameters) hashCode = (hashCode * 397) ^ parameter.GetHashCode();
 			return hashCode;
