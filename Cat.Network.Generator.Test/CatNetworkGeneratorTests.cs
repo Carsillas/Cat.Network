@@ -579,14 +579,7 @@ public sealed class CatNetworkGeneratorTests {
 					{
 						return;
 					}
-					if (value is not null)
-					{
-						global::Cat.Network.INetworkObject networkValue = value;
-						if (networkValue.Parent is not null && (!global::System.Object.ReferenceEquals(networkValue.Parent, this) || networkValue.PropertyIndex != propertyIndex))
-						{
-							throw new global::System.InvalidOperationException("NetworkObjects may only occupy one networked property at a time.");
-						}
-					}
+					global::Cat.Network.NetworkObject.ValidateAttachment(value, this, propertyIndex, isCollectionItem: false);
 					field = value;
 					if (oldValue is not null)
 					{

@@ -2,14 +2,7 @@ namespace Cat.Network;
 
 public sealed class NetworkObjectDictionary<TKey, TValue> : NetworkDictionary<TKey, TValue> where TKey : notnull where TValue : NetworkObject? {
 	protected override void ValidateValueForAssignment(TValue value) {
-		if (value is null) {
-			return;
-		}
-
-		INetworkObject networkObject = value;
-		if (networkObject.Parent is not null) {
-			throw new InvalidOperationException("NetworkObjects may only occupy one networked property or list at a time.");
-		}
+		NetworkObject.ValidateAttachment(value, Owner, PropertyIndex, isCollectionItem: true);
 	}
 
 	protected override void OnValueAdded(TValue value) {

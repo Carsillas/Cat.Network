@@ -63,6 +63,10 @@ public partial class InventoryState : NetworkObject {
 
 Collection properties are initialized by generated code. Do not assign them yourself.
 
+Nested objects form ownership trees: an object can occupy one networked property or collection item at a time. Detach a child before moving it elsewhere. Assigning an object to itself or beneath one of its descendants throws `InvalidOperationException` before changing the previous attachment, collection contents, dirty state, or events.
+
+Keep the runtime and source generator from the same package release or source revision, and rebuild projects that declare network types when updating them. Generated property setters call the runtime's attachment validator; previously compiled setters must be regenerated to gain the cycle checks. This does not change serialized schemas or wire data.
+
 ## Register Types
 
 Runtime serialization uses a `TypeCatalogue`. Register every concrete network object type that may be serialized or deserialized.

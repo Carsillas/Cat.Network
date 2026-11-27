@@ -27,6 +27,34 @@ public abstract partial class NetworkObject : INetworkObject {
 
 	public abstract NetworkObject Clone();
 
+	/// <summary>Checks ownership and parent cycles before changing an object attachment.</summary>
+	/// <remarks>
+	/// Used by generated setters in consumer assemblies and by object collections.
+	/// Properties may retain the same owner and property index; collection items must be unattached.
+	/// </remarks>
+	protected internal static void ValidateAttachment(NetworkObject? value, NetworkObject? owner, int propertyIndex, bool isCollectionItem) {
+		if (value is INetworkObject networkValue && networkValue.Parent is not null &&
+		    (isCollectionItem || !ReferenceEquals(networkValue.Parent, owner) || networkValue.PropertyIndex != propertyIndex)) {
+			throw new InvalidOperationException("NetworkObjects may only occupy one networked property or collection item at a time.");
+		}
+
+		NetworkObject? ancestor = owner;
+		NetworkObject? fast = owner;
+		while (ancestor is not null) {
+			if (ReferenceEquals(ancestor, value)) {
+				throw new InvalidOperationException("A NetworkObject cannot be attached to itself or one of its descendants.");
+			}
+
+			ancestor = ((INetworkObject)ancestor).Parent;
+			// Detect an already corrupted parent chain without allocating for each assignment.
+			fast = fast is null ? null : ((INetworkObject)fast).Parent;
+			fast = fast is null ? null : ((INetworkObject)fast).Parent;
+			if (ancestor is not null && ReferenceEquals(ancestor, fast)) {
+				throw new InvalidOperationException("Cannot attach a NetworkObject to an owner with a cyclic parent chain.");
+			}
+		}
+	}
+
 	private protected virtual NetworkObject? GetAnchor() {
 		return ((INetworkObject?)((INetworkObject)this).Parent)?.Anchor;
 	}

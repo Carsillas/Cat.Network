@@ -298,8 +298,8 @@ public abstract class NetworkList<T> : IList<T>, INetworkCollection {
 
 	protected void SetDeserialized(int index, T item) {
 		T previous = Items[index];
-		OnItemRemoving(previous);
 		ValidateItemForAssignment(item);
+		OnItemRemoving(previous);
 		Items[index] = item;
 		OnItemAdded(item);
 		IndexChanged?.Invoke(this, index);

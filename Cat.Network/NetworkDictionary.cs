@@ -297,11 +297,11 @@ public abstract class NetworkDictionary<TKey, TValue> : IDictionary<TKey, TValue
 
 	protected void SetDeserialized(TKey key, TValue value) {
 		bool replacedValue = Items.TryGetValue(key, out TValue? previous);
+		ValidateValueForAssignment(value);
 		if (replacedValue) {
 			OnValueRemoving(previous!);
 		}
 
-		ValidateValueForAssignment(value);
 		Items[key] = value;
 		OnValueAdded(value);
 		if (replacedValue) {
